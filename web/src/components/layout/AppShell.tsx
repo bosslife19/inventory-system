@@ -1,7 +1,9 @@
-import { Bell, Boxes, ChevronRight, FileText, LayoutDashboard, LogOut, Menu, ScanLine, History } from 'lucide-react'
+import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, ScanLine } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, useLogout } from '../../lib/auth'
+import { useAlertCount } from '../../lib/queries'
+import { AlertBadge } from '../alerts/AlertBadge'
 import { ROLE_LABEL } from '../../lib/format'
 import type { User } from '../../lib/types'
 
@@ -23,7 +25,6 @@ function initials(name: string) {
 
 /** Upcoming roadmap areas, shown so the navigation reads as the whole product. */
 const SOON = [
-  { label: 'Alerts', icon: Bell },
   { label: 'Delivery notes', icon: ScanLine },
   { label: 'Reports', icon: FileText },
 ]
@@ -31,6 +32,7 @@ const SOON = [
 export function AppShell({ user }: { user: User }) {
   const logout = useLogout()
   const [navOpen, setNavOpen] = useState(false)
+  const openAlerts = useAlertCount({ status: 'open' }).data ?? 0
   const home = homePath(user)
   const close = () => setNavOpen(false)
 
@@ -57,6 +59,10 @@ export function AppShell({ user }: { user: User }) {
               <History size={18} /> Stock card history
             </a>
           )}
+          <NavLink to="/alerts" onClick={close}>
+            <Bell size={18} /> Alerts
+            {openAlerts > 0 && <span className="nav-count">{openAlerts > 99 ? '99+' : openAlerts}</span>}
+          </NavLink>
         </nav>
 
         <div className="nav-label">Coming soon</div>
@@ -104,6 +110,7 @@ export function AppShell({ user }: { user: User }) {
             ))}
           </nav>
           <span className="topbar-date">{today.format(new Date())}</span>
+          <AlertBadge />
         </header>
         <main className="page">
           <Outlet />

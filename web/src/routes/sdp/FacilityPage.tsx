@@ -1,6 +1,7 @@
 import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, TrendingDown } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AlertList } from '../../components/alerts/AlertList'
 import { ActivityChart } from '../../components/charts/ActivityChart'
 import { StockPositionChart } from '../../components/charts/StockPositionChart'
 import { StatusDonut } from '../../components/charts/StatusDonut'
@@ -14,7 +15,14 @@ import { Modal } from '../../components/ui/Modal'
 import { canRecordAt } from '../../lib/auth'
 import { LEVEL_COLOR } from '../../lib/chart-theme'
 import { LEVEL_LABEL, formatDate, formatQty } from '../../lib/format'
-import { type HistoryFilters, useFacility, useFacilityActivity, useProducts, useStockBalances } from '../../lib/queries'
+import {
+  type HistoryFilters,
+  useAlerts,
+  useFacility,
+  useFacilityActivity,
+  useProducts,
+  useStockBalances,
+} from '../../lib/queries'
 import type { ProductStock, StockLevel, User } from '../../lib/types'
 
 const LEVELS: StockLevel[] = ['stock_out', 'low_stock', 'reorder', 'ok']
@@ -40,6 +48,7 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const stock = useStockBalances(facilityId)
   const products = useProducts()
   const activity = useFacilityActivity(facilityId)
+  const alerts = useAlerts({ facility_id: facilityId, per_page: 8 })
   const [history, setHistory] = useState<HistoryFilters>({ order: 'desc', page: 1, per_page: 25 })
   // null = closed; 0 = open with no product chosen; otherwise the product to pre-select.
   const [recording, setRecording] = useState<number | null>(null)
@@ -129,6 +138,23 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           }
         />
       </div>
+
+      {alerts.data && alerts.data.data.length > 0 && (
+        <section className="card">
+          <div className="card-head">
+            <div>
+              <h2>Alerts needing attention</h2>
+              <p>
+                {alerts.data.meta.pagination.total} at this facility · cleared automatically when the stock situation is fixed
+              </p>
+            </div>
+            <Link to="/alerts" className="btn btn-ghost btn-sm">
+              All alerts
+            </Link>
+          </div>
+          <AlertList alerts={alerts.data.data} showFacility={false} />
+        </section>
+      )}
 
       <div className="grid-chart">
         <section className="card">

@@ -21,6 +21,9 @@ export type NewStockTransaction = Schemas['StoreStockTransactionRequest']
 export type FacilityStockSummary = Schemas['FacilityStockSummaryResource']
 export type ProductRollup = Schemas['ProductRollupResource']
 export type FlagCounts = FacilityStockSummary['flag_counts']
+export type Alert = Schemas['AlertResource']
+export type AlertSeverity = Schemas['AlertSeverity']
+export type AlertStatus = Schemas['AlertStatus']
 
 // The generator can't see through the service's array shape for `weeks`, so
 // narrow it to what StockActivityService returns (docs/API_CONTRACT.md).

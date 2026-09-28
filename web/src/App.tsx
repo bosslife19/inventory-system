@@ -3,6 +3,7 @@ import { RequireAuth } from './components/auth/RequireAuth'
 import { AppShell } from './components/layout/AppShell'
 import { homePath } from './lib/auth'
 import { useUser } from './lib/user-context'
+import { AlertsPage } from './routes/alerts/AlertsPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/lga" element={<Home level="lga" />} />
         <Route path="/state" element={<Home level="state" />} />
         <Route path="/federal" element={<Home level="federal" />} />
+        <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/facilities/:id" element={<ById page="facility" />} />
         <Route path="/lgas/:id" element={<ById page="lga" />} />
         <Route path="/states/:id" element={<ById page="state" />} />

@@ -37,6 +37,30 @@ export const FLAG_LABEL: Record<AlertType, string> = {
   expiring_soon: 'Expiring soon',
 }
 
+export const ALERT_TITLE: Record<AlertType, string> = {
+  stock_out: 'Stock-out',
+  expired: 'Expired batch',
+  low_stock: 'Low stock',
+  expiring_soon: 'Batch expiring soon',
+}
+
+const relative = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' })
+
+/** '2026-09-26T10:00:00Z' -> '2 days ago' */
+export function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const seconds = (new Date(iso).getTime() - Date.now()) / 1000
+  const steps: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+  ]
+  for (const [unit, size] of steps) {
+    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit)
+  }
+  return 'just now'
+}
+
 export const EXPIRY_LABEL: Record<ExpiryStatus, string> = {
   ok: 'OK',
   expiring_soon: 'Expiring soon',

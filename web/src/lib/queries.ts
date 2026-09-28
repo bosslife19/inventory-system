@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from './api-client'
-import type { NewStockTransaction, StockActivity, TransactionType } from './types'
+import type { AlertSeverity, AlertStatus, AlertType, NewStockTransaction, StockActivity, TransactionType } from './types'
 
 // Rollups poll instead of live push: no WebSocket server on shared hosting (docs/ARCHITECTURE.md).
 const ROLLUP_POLL_MS = 60_000
@@ -68,6 +68,8 @@ export function useRecordTransaction(facilityId: number) {
       queryClient.invalidateQueries({ queryKey: ['stock-transactions', facilityId] })
       queryClient.invalidateQueries({ queryKey: ['lga-summary'] })
       queryClient.invalidateQueries({ queryKey: ['stock-activity'] })
+      // Recording re-evaluates alerts server-side.
+      queryClient.invalidateQueries({ queryKey: ['alerts'] })
     },
   })
 }
@@ -111,5 +113,50 @@ export function useLgaActivity(lgaId: number) {
     queryFn: async () =>
       (await unwrap(api.GET('/lgas/{lga}/stock-activity', { params: { path: { lga: lgaId } } }))).data as StockActivity,
     refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+export interface AlertFilters {
+  status?: AlertStatus
+  alert_type?: AlertType
+  severity?: AlertSeverity
+  facility_id?: number
+  page?: number
+  per_page?: number
+}
+
+// Alerts poll like rollups: the backend raises them on ledger writes and on a schedule.
+export function useAlerts(filters: AlertFilters) {
+  return useQuery({
+    queryKey: ['alerts', 'list', filters],
+    queryFn: () => unwrap(api.GET('/alerts', { params: { query: filters } })),
+    placeholderData: keepPreviousData,
+    refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+/** How many alerts match, from the pagination total — no list needed. */
+export function useAlertCount(filters: Omit<AlertFilters, 'page' | 'per_page'>) {
+  return useQuery({
+    queryKey: ['alerts', 'count', filters],
+    queryFn: async () =>
+      (await unwrap(api.GET('/alerts', { params: { query: { ...filters, per_page: 1 } } }))).meta.pagination.total,
+    refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+export function useAlertAction() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, action }: { id: number; action: 'acknowledge' | 'resolve' }) =>
+      (
+        await unwrap(
+          action === 'acknowledge'
+            ? api.POST('/alerts/{alert}/acknowledge', { params: { path: { alert: id } } })
+            : api.POST('/alerts/{alert}/resolve', { params: { path: { alert: id } } }),
+        )
+      ).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
   })
 }
