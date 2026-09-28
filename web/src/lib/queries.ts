@@ -67,6 +67,8 @@ export function useRecordTransaction(facilityId: number) {
       queryClient.invalidateQueries({ queryKey: ['stock-balances', facilityId] })
       queryClient.invalidateQueries({ queryKey: ['stock-transactions', facilityId] })
       queryClient.invalidateQueries({ queryKey: ['lga-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['state-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['federal-summary'] })
       queryClient.invalidateQueries({ queryKey: ['stock-activity'] })
       // Recording re-evaluates alerts server-side.
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
@@ -87,14 +89,6 @@ export function useStates() {
   return useQuery({
     queryKey: ['states'],
     queryFn: async () => (await unwrap(api.GET('/states'))).data,
-    staleTime: 60 * 60_000,
-  })
-}
-
-export function useStateLgas(stateId: number) {
-  return useQuery({
-    queryKey: ['state-lgas', stateId],
-    queryFn: async () => (await unwrap(api.GET('/states/{state}/lgas', { params: { path: { state: stateId } } }))).data,
     staleTime: 60 * 60_000,
   })
 }
@@ -168,5 +162,40 @@ export function useReorderSuggestions(facilityId: number) {
     queryFn: async () =>
       (await unwrap(api.GET('/facilities/{facility}/reorder-suggestions', { params: { path: { facility: facilityId } } })))
         .data,
+  })
+}
+
+export function useStateSummary(stateId: number) {
+  return useQuery({
+    queryKey: ['state-summary', stateId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/states/{state}/stock-summary', { params: { path: { state: stateId } } }))).data,
+    refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+export function useFederalSummary() {
+  return useQuery({
+    queryKey: ['federal-summary'],
+    queryFn: async () => (await unwrap(api.GET('/federal/stock-summary'))).data,
+    refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+export function useStateActivity(stateId: number) {
+  return useQuery({
+    queryKey: ['stock-activity', 'state', stateId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/states/{state}/stock-activity', { params: { path: { state: stateId } } })))
+        .data as StockActivity,
+    refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+export function useFederalActivity() {
+  return useQuery({
+    queryKey: ['stock-activity', 'federal'],
+    queryFn: async () => (await unwrap(api.GET('/federal/stock-activity'))).data as StockActivity,
+    refetchInterval: ROLLUP_POLL_MS,
   })
 }

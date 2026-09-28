@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { FLAG_LABEL } from '../../lib/format'
-import type { AlertType, FacilityStockSummary } from '../../lib/types'
+import type { AlertType, FlagCounts } from '../../lib/types'
 import { AXIS_TICK } from '../../lib/chart-theme'
 import { ChartTooltip } from './ChartTooltip'
 
@@ -11,15 +11,22 @@ const FLAGS: { key: AlertType; color: string }[] = [
   { key: 'expiring_soon', color: 'var(--chart-1)' },
 ]
 
-/** Flagged products per facility, stacked by flag — the worst facilities rise to the top. */
-export function FacilityFlagsChart({ rows, limit = 8 }: { rows: FacilityStockSummary[]; limit?: number }) {
+interface Props {
+  /** Rollup children: facilities (counts are products) or LGAs / States (counts are facilities). */
+  rows: { name: string; flag_counts: FlagCounts }[]
+  limit?: number
+  empty?: string
+}
+
+/** Flags per rollup child, stacked by flag — the worst children rise to the top. */
+export function FacilityFlagsChart({ rows, limit = 8, empty = 'No flagged products in any facility.' }: Props) {
   const data = rows
     .map((r) => ({ name: r.name, ...r.flag_counts, total: FLAGS.reduce((n, f) => n + r.flag_counts[f.key], 0) }))
     .filter((r) => r.total > 0)
     .sort((a, b) => b.total - a.total)
     .slice(0, limit)
 
-  if (data.length === 0) return <div className="chart-empty">No flagged products in any facility.</div>
+  if (data.length === 0) return <div className="chart-empty">{empty}</div>
 
   return (
     <>

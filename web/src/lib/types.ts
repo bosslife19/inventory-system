@@ -23,6 +23,20 @@ export type ProductRollup = Schemas['ProductRollupResource']
 export type FlagCounts = FacilityStockSummary['flag_counts']
 export type Alert = Schemas['AlertResource']
 export type ReorderSuggestion = Schemas['ReorderSuggestionResource']
+export type AreaStockSummary = Schemas['AreaStockSummaryResource']
+
+type Json<P extends keyof paths> = NonNullable<
+  paths[P] extends { get: { responses: { 200: { content: { 'application/json': infer B } } } } } ? B : never
+>
+export type LgaSummary = Json<'/lgas/{lga}/stock-summary'>['data']
+export type StateSummary = Json<'/states/{state}/stock-summary'>['data']
+export type FederalSummary = Json<'/federal/stock-summary'>['data']
+export type FacilityStatusCounts = LgaSummary['facility_status']
+/** What every rollup level has in common — the shared RollupDashboard renders this. */
+export type RollupSummary = Pick<
+  LgaSummary,
+  'child_count' | 'facility_count' | 'facility_counts' | 'facility_status' | 'products'
+> & { children: FacilityStockSummary[] | AreaStockSummary[] }
 export type AlertSeverity = Schemas['AlertSeverity']
 export type AlertStatus = Schemas['AlertStatus']
 

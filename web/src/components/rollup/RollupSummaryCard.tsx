@@ -1,4 +1,4 @@
-import { AlertOctagon, Building2, CalendarClock, PackageX, TrendingDown } from 'lucide-react'
+import { AlertOctagon, Building2, CalendarClock, MapPinned, PackageX, TrendingDown } from 'lucide-react'
 import type { FlagCounts } from '../../lib/types'
 import { KpiTile } from '../ui/KpiTile'
 
@@ -9,14 +9,16 @@ interface Props {
   back?: React.ReactNode
   childCount: number
   childNoun: string
-  /** How many children carry each flag. Same shape at LGA, State and Federal level. */
+  /** Facilities beneath this node (equals childCount at LGA level). */
+  facilityCount: number
+  /** How many facilities carry each flag. Same shape at LGA, State and Federal level. */
   counts: FlagCounts
 }
 
 /** Page header + headline tiles for a rollup node — shared by the LGA, State and Federal views (web/CLAUDE.md rule 2). */
-export function RollupSummaryCard({ title, subtitle, eyebrow, back, childCount, childNoun, counts }: Props) {
-  const noun = childNoun.toLowerCase()
-  const share = (n: number) => (childCount ? `${Math.round((n / childCount) * 100)}% of ${noun}` : undefined)
+export function RollupSummaryCard({ title, subtitle, eyebrow, back, childCount, childNoun, facilityCount, counts }: Props) {
+  const share = (n: number) => (facilityCount ? `${Math.round((n / facilityCount) * 100)}% of facilities` : undefined)
+  const areas = childNoun !== 'Facilities'
 
   return (
     <section className="stack">
@@ -29,18 +31,28 @@ export function RollupSummaryCard({ title, subtitle, eyebrow, back, childCount, 
         </div>
       </header>
       <div className="kpi-grid">
-        <KpiTile tone="primary" icon={Building2} label={childNoun} value={childCount} sub="Reporting to this dashboard" />
+        {areas ? (
+          <KpiTile
+            tone="primary"
+            icon={MapPinned}
+            label={childNoun}
+            value={childCount}
+            sub={`${facilityCount.toLocaleString('en-NG')} facilities beneath`}
+          />
+        ) : (
+          <KpiTile tone="primary" icon={Building2} label="Facilities" value={childCount} sub="Reporting to this dashboard" />
+        )}
         <KpiTile
           tone={counts.stock_out ? 'critical' : 'default'}
           icon={PackageX}
-          label="With a stock-out"
+          label="Facilities with a stock-out"
           value={counts.stock_out}
           sub={share(counts.stock_out)}
         />
         <KpiTile
           tone={counts.low_stock ? 'warning' : 'default'}
           icon={TrendingDown}
-          label="With low stock"
+          label="Facilities with low stock"
           value={counts.low_stock}
           sub={share(counts.low_stock)}
         />
