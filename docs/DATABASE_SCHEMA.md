@@ -105,7 +105,7 @@ unique on `(facility_id, product_id, period_month)`
 `id, facility_id (fk), product_id (fk), batch_id (nullable fk), alert_type (enum: low_stock|expiring_soon|expired|stock_out), severity (enum: info|warning|critical), status (enum: open|acknowledged|resolved), acknowledged_at, acknowledged_by (nullable fk users), resolved_at, resolved_by (nullable fk users), condition_cleared_at, created_at, updated_at`
 
 > Raised and auto-resolved by `AlertEngine` (after every ledger write, and
-> by the scheduled `stock:detect-alerts`). One alert per episode of a
+> by the scheduled `stock:refresh-status`). One alert per episode of a
 > condition keyed by (facility, product, batch, alert_type): `batch_id` is
 > set for `expired`/`expiring_soon` (per batch), null for `stock_out`/
 > `low_stock` (per product). `condition_cleared_at` is null while the
@@ -119,12 +119,21 @@ unique on `(facility_id, product_id, period_month)`
 **notifications**
 `id, user_id (fk), alert_id (fk), channel (enum: push|in_app), sent_at, read_at (nullable)`
 
-## Rollup tables (optional but recommended at scale)
+## Rollup tables
 
-**lga_stock_summary**, **state_stock_summary** — refreshed on a schedule
-(or via queue listener), pre-aggregating `stock_balances` up the hierarchy
-so State/Federal dashboards don't scan every facility row live. Same
-shape as `stock_balances` but keyed by `lga_id`/`state_id` + `product_id`.
+**facility_product_status** (derived — materialized stock status per facility + product)
+`id, facility_id (fk), product_id (fk), quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level (enum: stock_out|low_stock|reorder|ok), flag_stock_out, flag_expired, flag_low_stock, flag_expiring_soon (bools), last_transaction_date (nullable), refreshed_at`
+unique on `(facility_id, product_id)`
+
+> The same interpretation StockStatusService gives `stock_balances`
+> (usable vs expired, level, flags), stored so State/Federal rollups are
+> GROUP BY queries over one small row per facility + product instead of
+> reading every balance row live. Keyed at facility + product rather than
+> pre-summed per LGA/state, so one table serves every level and a facility
+> still counts once per flag. Refreshed by `StockStatusSnapshot` after every
+> ledger write (for that product) and by the daily `stock:refresh-status`
+> pass (expiry changes with the date). Never edited by hand; the facility's
+> own screens and the LGA rollup still read `stock_balances` directly.
 
 ## Mapping back to the Excel template
 

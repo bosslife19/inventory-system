@@ -27,9 +27,10 @@ app/
   Policies/                     <- one per model needing hierarchy scoping
   Services/StockLedgerService.php   <- all balance-affecting writes go through here
   Services/AlertEngine.php
+  Services/StockStatusSnapshot.php  <- facility_product_status, for State/Federal rollups
   Console/Commands/ReconcileStockBalances.php   <- scheduled, not queued
   Console/Commands/ComputeMonthlyAmc.php          <- scheduled, not queued
-  Console/Commands/DetectStockAlerts.php           <- scheduled, not queued
+  Console/Commands/RefreshStockStatus.php          <- scheduled, not queued (rollup status + alerts)
 database/
   migrations/
   seeders/NigeriaStatesLgasSeeder.php

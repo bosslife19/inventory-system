@@ -46,9 +46,11 @@ own node plus everything beneath it — never above or sideways.
    `stock_transactions` from scratch and comparing against the live
    `stock_balances` value — as a safety net against drift, since nothing
    else touches that table.
-4. LGA/State/Federal dashboards read from pre-aggregated summary tables
-   (refreshed by the same scheduled task) rather than summing raw
-   transactions live, so rollups stay fast at scale. Dashboards poll
+4. State/Federal dashboards read from `facility_product_status`, a
+   materialized status row per facility + product (refreshed inline after
+   each ledger write and by a daily scheduled pass), rather than summing
+   raw balances live, so rollups stay fast at scale. The LGA rollup is
+   small enough to compute live. Dashboards poll
    (React Query `refetchInterval`, e.g. every 30–60s) rather than
    receiving a live push, since there's no persistent WebSocket server
    on shared hosting.

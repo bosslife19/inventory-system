@@ -545,7 +545,7 @@
         "/lgas/{lga}/stock-summary": {
             "get": {
                 "operationId": "lgaStockSummary.show",
-                "description": "Computed live from stock_balances \u2014 fine at LGA scale. Phase 3 moves\nState/Federal (and optionally this) onto lga_stock_summary.",
+                "description": "Computed live from stock_balances \u2014 fine at LGA scale, and it carries\nper-product batch detail. State/Federal aggregate facility_product_status.",
                 "summary": "LGA rollup: totals per product, how many facilities carry each flag,\nand the facility drill-down list sorted worst-first",
                 "tags": [
                     "LgaStockSummary"
@@ -617,6 +617,11 @@
                                                     "type": "integer",
                                                     "minimum": 0
                                                 },
+                                                "facility_count": {
+                                                    "type": "integer",
+                                                    "description": "Same as child_count here; the facility total at State and Federal level.",
+                                                    "minimum": 0
+                                                },
                                                 "facility_counts": {
                                                     "type": "object",
                                                     "description": "Number of child facilities with at least one product carrying each flag.",
@@ -641,6 +646,34 @@
                                                         "expiring_soon"
                                                     ]
                                                 },
+                                                "facility_status": {
+                                                    "type": "object",
+                                                    "description": "Facilities by their most serious issue, each counted once.",
+                                                    "properties": {
+                                                        "stock_out": {
+                                                            "type": "integer"
+                                                        },
+                                                        "low_stock": {
+                                                            "type": "integer"
+                                                        },
+                                                        "reorder": {
+                                                            "type": "integer"
+                                                        },
+                                                        "ok": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no_data": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "stock_out",
+                                                        "low_stock",
+                                                        "reorder",
+                                                        "ok",
+                                                        "no_data"
+                                                    ]
+                                                },
                                                 "products": {
                                                     "type": "array",
                                                     "items": {
@@ -658,7 +691,9 @@
                                             "required": [
                                                 "node",
                                                 "child_count",
+                                                "facility_count",
                                                 "facility_counts",
+                                                "facility_status",
                                                 "products",
                                                 "children"
                                             ]
@@ -795,6 +830,323 @@
                 }
             }
         },
+        "/states/{state}/stock-summary": {
+            "get": {
+                "operationId": "rollupSummary.state",
+                "summary": "State rollup: how many facilities carry each flag, per-product totals, and the LGAs worst first",
+                "tags": [
+                    "RollupSummary"
+                ],
+                "parameters": [
+                    {
+                        "name": "state",
+                        "in": "path",
+                        "required": true,
+                        "description": "The state ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "node": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "level": {
+                                                            "type": "string",
+                                                            "const": "state"
+                                                        },
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "parent": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "level": {
+                                                                    "type": "string",
+                                                                    "const": "country"
+                                                                },
+                                                                "id": {
+                                                                    "type": "null"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "const": "Nigeria"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "level",
+                                                                "id",
+                                                                "name"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "level",
+                                                        "id",
+                                                        "name",
+                                                        "parent"
+                                                    ]
+                                                },
+                                                "child_count": {
+                                                    "type": "integer"
+                                                },
+                                                "facility_count": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "facility_counts": {
+                                                    "type": "object",
+                                                    "description": "Number of facilities with at least one product carrying each flag.",
+                                                    "properties": {
+                                                        "stock_out": {
+                                                            "type": "integer"
+                                                        },
+                                                        "expired": {
+                                                            "type": "integer"
+                                                        },
+                                                        "low_stock": {
+                                                            "type": "integer"
+                                                        },
+                                                        "expiring_soon": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "stock_out",
+                                                        "expired",
+                                                        "low_stock",
+                                                        "expiring_soon"
+                                                    ]
+                                                },
+                                                "facility_status": {
+                                                    "type": "object",
+                                                    "description": "Facilities by their most serious issue, each counted once.",
+                                                    "properties": {
+                                                        "stock_out": {
+                                                            "type": "integer"
+                                                        },
+                                                        "low_stock": {
+                                                            "type": "integer"
+                                                        },
+                                                        "reorder": {
+                                                            "type": "integer"
+                                                        },
+                                                        "ok": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no_data": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "stock_out",
+                                                        "low_stock",
+                                                        "reorder",
+                                                        "ok",
+                                                        "no_data"
+                                                    ]
+                                                },
+                                                "products": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ProductRollupResource"
+                                                    }
+                                                },
+                                                "children": {
+                                                    "type": "array",
+                                                    "description": "Child LGAs, worst first.",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/AreaStockSummaryResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "node",
+                                                "child_count",
+                                                "facility_count",
+                                                "facility_counts",
+                                                "facility_status",
+                                                "products",
+                                                "children"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/federal/stock-summary": {
+            "get": {
+                "operationId": "rollupSummary.federal",
+                "summary": "National rollup: every state, worst first",
+                "tags": [
+                    "RollupSummary"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "node": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "level": {
+                                                            "type": "string",
+                                                            "const": "country"
+                                                        },
+                                                        "id": {
+                                                            "type": "null"
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "const": "Nigeria"
+                                                        },
+                                                        "parent": {
+                                                            "type": "null"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "level",
+                                                        "id",
+                                                        "name",
+                                                        "parent"
+                                                    ]
+                                                },
+                                                "child_count": {
+                                                    "type": "integer"
+                                                },
+                                                "facility_count": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "facility_counts": {
+                                                    "type": "object",
+                                                    "description": "Number of facilities with at least one product carrying each flag.",
+                                                    "properties": {
+                                                        "stock_out": {
+                                                            "type": "integer"
+                                                        },
+                                                        "expired": {
+                                                            "type": "integer"
+                                                        },
+                                                        "low_stock": {
+                                                            "type": "integer"
+                                                        },
+                                                        "expiring_soon": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "stock_out",
+                                                        "expired",
+                                                        "low_stock",
+                                                        "expiring_soon"
+                                                    ]
+                                                },
+                                                "facility_status": {
+                                                    "type": "object",
+                                                    "description": "Facilities by their most serious issue, each counted once.",
+                                                    "properties": {
+                                                        "stock_out": {
+                                                            "type": "integer"
+                                                        },
+                                                        "low_stock": {
+                                                            "type": "integer"
+                                                        },
+                                                        "reorder": {
+                                                            "type": "integer"
+                                                        },
+                                                        "ok": {
+                                                            "type": "integer"
+                                                        },
+                                                        "no_data": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "stock_out",
+                                                        "low_stock",
+                                                        "reorder",
+                                                        "ok",
+                                                        "no_data"
+                                                    ]
+                                                },
+                                                "products": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ProductRollupResource"
+                                                    }
+                                                },
+                                                "children": {
+                                                    "type": "array",
+                                                    "description": "Child states, worst first.",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/AreaStockSummaryResource"
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "node",
+                                                "child_count",
+                                                "facility_count",
+                                                "facility_counts",
+                                                "facility_status",
+                                                "products",
+                                                "children"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/states": {
             "get": {
                 "operationId": "state.index",
@@ -924,6 +1276,194 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/states/{state}/stock-activity": {
+            "get": {
+                "operationId": "stockActivity.state",
+                "summary": "Stock Card entries per week across the state's facilities the caller can see",
+                "tags": [
+                    "StockActivity"
+                ],
+                "parameters": [
+                    {
+                        "name": "state",
+                        "in": "path",
+                        "required": true,
+                        "description": "The state ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "weeks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "week_start": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "type": "string"
+                                                                    },
+                                                                    {}
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "week_start"
+                                                        ],
+                                                        "additionalProperties": {}
+                                                    }
+                                                },
+                                                "totals": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "received": {
+                                                            "type": "number"
+                                                        },
+                                                        "issued": {
+                                                            "type": "number"
+                                                        },
+                                                        "other": {
+                                                            "type": "number"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "received",
+                                                        "issued",
+                                                        "other"
+                                                    ]
+                                                },
+                                                "last_transaction_date": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "weeks",
+                                                "totals",
+                                                "last_transaction_date"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/federal/stock-activity": {
+            "get": {
+                "operationId": "stockActivity.federal",
+                "summary": "Stock Card entries per week nationally",
+                "tags": [
+                    "StockActivity"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "weeks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "week_start": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "type": "string"
+                                                                    },
+                                                                    {}
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "week_start"
+                                                        ],
+                                                        "additionalProperties": {}
+                                                    }
+                                                },
+                                                "totals": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "received": {
+                                                            "type": "number"
+                                                        },
+                                                        "issued": {
+                                                            "type": "number"
+                                                        },
+                                                        "other": {
+                                                            "type": "number"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "received",
+                                                        "issued",
+                                                        "other"
+                                                    ]
+                                                },
+                                                "last_transaction_date": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "weeks",
+                                                "totals",
+                                                "last_transaction_date"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -1497,6 +2037,120 @@
                     "expiring_soon"
                 ],
                 "title": "AlertType"
+            },
+            "AreaStockSummaryResource": {
+                "type": "object",
+                "properties": {
+                    "level": {
+                        "type": "string",
+                        "enum": [
+                            "lga",
+                            "state"
+                        ]
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "geopolitical_zone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "States only."
+                    },
+                    "facility_count": {
+                        "type": "integer"
+                    },
+                    "reporting_facility_count": {
+                        "type": "integer",
+                        "description": "Facilities with at least one product on the Stock Card."
+                    },
+                    "flag_counts": {
+                        "type": "object",
+                        "description": "Number of facilities with at least one product carrying each flag.",
+                        "properties": {
+                            "stock_out": {
+                                "type": "integer"
+                            },
+                            "expired": {
+                                "type": "integer"
+                            },
+                            "low_stock": {
+                                "type": "integer"
+                            },
+                            "expiring_soon": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "stock_out",
+                            "expired",
+                            "low_stock",
+                            "expiring_soon"
+                        ]
+                    },
+                    "needs_reorder_count": {
+                        "type": "integer",
+                        "description": "Facilities with at least one product at or below reorder level."
+                    },
+                    "last_transaction_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "stock_out_products": {
+                        "type": "array",
+                        "description": "Products stocked out at the most facilities here, top 3.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "product": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "integer"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "sku": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "id",
+                                        "name",
+                                        "sku"
+                                    ]
+                                },
+                                "facility_count": {
+                                    "type": "integer"
+                                }
+                            },
+                            "required": [
+                                "product",
+                                "facility_count"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "level",
+                    "id",
+                    "name",
+                    "geopolitical_zone",
+                    "facility_count",
+                    "reporting_facility_count",
+                    "flag_counts",
+                    "needs_reorder_count",
+                    "last_transaction_date",
+                    "stock_out_products"
+                ],
+                "title": "AreaStockSummaryResource"
             },
             "BatchStockResource": {
                 "type": "object",

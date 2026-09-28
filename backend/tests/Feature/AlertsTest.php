@@ -81,7 +81,7 @@ it('raises expiry alerts per batch, and the scheduled pass catches expiry by dat
 
     // No ledger activity, just the calendar: the batch expires.
     CarbonImmutable::setTestNow('2026-10-27 06:00:00');
-    $this->artisan('stock:detect-alerts')->assertSuccessful();
+    $this->artisan('stock:refresh-status')->assertSuccessful();
 
     expect(alertStates($kawo->id))->toBe(['expiring_soon:resolved', 'expired:open'])
         ->and(Alert::where('alert_type', 'expired')->sole()->batch->batch_no)->toBe('SOON');
@@ -162,10 +162,10 @@ it('resumes the scheduled pass and skips it once complete for the day', function
     ($this->rec)($this->h['facilities']['kawo'], $this->ors, TransactionType::Receipt, 5);
     Alert::query()->delete();
 
-    $this->artisan('stock:detect-alerts')
+    $this->artisan('stock:refresh-status')
         ->expectsOutputToContain('Evaluated 4 facilities: 1 alerts raised, 0 cleared.')
         ->assertSuccessful();
-    expect(Cache::get('stock:detect-alerts:completed_on'))->toBe('2026-09-26');
+    expect(Cache::get('stock:refresh-status:completed_on'))->toBe('2026-09-26');
 
-    $this->artisan('stock:detect-alerts')->expectsOutputToContain('already completed today')->assertSuccessful();
+    $this->artisan('stock:refresh-status')->expectsOutputToContain('already completed today')->assertSuccessful();
 });

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReorderSuggestionController;
+use App\Http\Controllers\Api\V1\RollupSummaryController;
 use App\Http\Controllers\Api\V1\StateController;
 use App\Http\Controllers\Api\V1\StockActivityController;
 use App\Http\Controllers\Api\V1\StockBalanceController;
@@ -28,6 +29,10 @@ Route::prefix('v1')->group(function () {
         Route::get('lgas/{lga}/facilities', [FacilityController::class, 'index']);
         Route::get('lgas/{lga}/stock-summary', [LgaStockSummaryController::class, 'show']);
         Route::get('lgas/{lga}/stock-activity', [StockActivityController::class, 'lga']);
+        Route::get('states/{state}/stock-summary', [RollupSummaryController::class, 'state']);
+        Route::get('states/{state}/stock-activity', [StockActivityController::class, 'state']);
+        Route::get('federal/stock-summary', [RollupSummaryController::class, 'federal']);
+        Route::get('federal/stock-activity', [StockActivityController::class, 'federal']);
         Route::get('facilities/{facility}/stock-activity', [StockActivityController::class, 'facility']);
         Route::get('facilities/{facility}', [FacilityController::class, 'show']);
 

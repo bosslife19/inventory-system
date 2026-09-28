@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\TransactionType;
+use App\Models\Facility;
 use App\Models\StockTransaction;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Recording activity: how many Stock Card entries were made per week.
@@ -15,14 +17,14 @@ use Carbon\CarbonImmutable;
 class StockActivityService
 {
     /**
-     * @param  list<int>  $facilityIds
+     * @param  list<int>|Builder<Facility>  $facilityIds  ids, or a subquery selecting them (large rollups)
      * @return array{
      *     weeks: list<array{week_start: string, received: int, issued: int, other: int}>,
      *     totals: array{received: int, issued: int, other: int},
      *     last_transaction_date: string|null
      * }
      */
-    public function weekly(array $facilityIds, int $weekCount): array
+    public function weekly(array|Builder $facilityIds, int $weekCount): array
     {
         $today = CarbonImmutable::today(config('app.business_timezone'));
         $firstWeek = $today->startOfWeek(CarbonImmutable::MONDAY)->subWeeks($weekCount - 1);

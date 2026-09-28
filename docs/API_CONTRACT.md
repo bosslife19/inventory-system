@@ -76,12 +76,16 @@ Lists return only what the caller can see — own node and below, never above or
 - Each rollup response includes: total on-hand per product, count of
   facilities in `low_stock` / `expiring_soon` / `expired` / `stock_out`
   state, and a drill-down list of the child nodes sorted worst-first.
-- Implemented (Phase 1): the LGA one, computed live from `stock_balances`:
+- Who: LGA — own LGA and above; State — own state, federal, admin; Federal — federal, admin.
+  Children and facilities are always limited to the caller's scope.
+- LGA (computed live from `stock_balances`):
   ```
   { "data": {
       "node": { "level": "lga", id, name, "parent": { "level": "state", id, name } },
       "child_count": 3,
+      "facility_count": 3,                                                  // same as child_count at LGA level
       "facility_counts": { stock_out, expired, low_stock, expiring_soon },   // facilities with ≥1 product so flagged
+      "facility_status": { stock_out, low_stock, reorder, ok, no_data },     // facilities by most serious issue, each once
       "products": [{ product, quantity_on_hand, usable_quantity, expired_quantity,
                      facility_counts: {…}, facilities_needing_reorder }],
       "children": [{ "level": "facility", id, name, type, is_active, product_count,
@@ -91,10 +95,28 @@ Lists return only what the caller can see — own node and below, never above or
                      flagged_products: [<stock-balances entry>] }]   // worst first
   } }
   ```
-  State/Federal (Phase 3) should return the same shape one level up, so the web's shared `RollupSummaryCard` + `DrillDownTable` work unchanged.
+- State and Federal: the same top-level shape one level up, aggregated from
+  `facility_product_status` (see DATABASE_SCHEMA.md). `node` is
+  `{ level: "state", id, name, parent: { level: "country", id: null, name: "Nigeria" } }` or
+  `{ level: "country", id: null, name: "Nigeria", parent: null }`. `child_count` counts LGAs / states;
+  `facility_count` counts facilities beneath. Children are areas rather than facilities:
+  ```
+  "children": [{ "level": "lga" | "state", id, name,
+                 geopolitical_zone,            // states only, else null
+                 facility_count, reporting_facility_count,   // reporting = ≥1 product on the Stock Card
+                 flag_counts: {…},             // facilities here with ≥1 product so flagged
+                 needs_reorder_count,          // facilities with ≥1 product at/below reorder level
+                 last_transaction_date,
+                 stock_out_products: [{ product: { id, name, sku }, facility_count }] }]   // top 3
+  ```
+  Sorted worst-first like the LGA children (stock-outs, then expired, low, expiring). Every child
+  in scope is listed, including ones with no facilities yet.
+- `facility_status` rule (all levels): no_data if nothing recorded; else stock_out if any product is
+  stocked out; else low_stock; else reorder if any product is at/below EOP or has expired stock; else ok.
 
 ## Recording activity
-- `GET /facilities/{id}/stock-activity` and `GET /lgas/{id}/stock-activity`
+- `GET /facilities/{id}/stock-activity`, `GET /lgas/{id}/stock-activity`, `GET /states/{id}/stock-activity`,
+  `GET /federal/stock-activity`
   (query: `weeks`, 4–52, default 12, ending with the current week) —
   Stock Card entries per week, for dashboard charts. Counts entries, not
   quantities (units differ across products):
@@ -107,7 +129,7 @@ Lists return only what the caller can see — own node and below, never above or
   ```
   `received` = receipt + transfer_in; `issued` = issue + transfer_out;
   `other` = losses, adjustments and physical counts. The LGA variant only
-  counts facilities within the caller's scope.
+  counts facilities within the caller's scope; so do State and Federal.
 
 ## Alerts
 - `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status,

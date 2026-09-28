@@ -27,12 +27,16 @@ use Illuminate\Validation\ValidationException;
  * and because other callers (delivery note confirmation) must obey them too.
  * They surface as ValidationException, i.e. a normal 422 to the API client.
  *
- * After the write commits, alerts for the product are re-evaluated. That is
- * derived state, so a failure there is reported but never undoes the entry.
+ * After the write commits, the product's alerts and rollup status row are
+ * refreshed. That is derived state (the daily stock:refresh-status pass
+ * catches up), so a failure there is reported but never undoes the entry.
  */
 class StockLedgerService
 {
-    public function __construct(private readonly AlertEngine $alerts) {}
+    public function __construct(
+        private readonly AlertEngine $alerts,
+        private readonly StockStatusSnapshot $snapshot,
+    ) {}
 
     public function record(
         Facility $facility,
@@ -112,10 +116,15 @@ class StockLedgerService
             return $transaction->setRelation('batch', $batch);
         });
 
-        try {
-            $this->alerts->evaluate($facility, $product->id);
-        } catch (\Throwable $e) {
-            report($e);
+        foreach ([
+            fn () => $this->alerts->evaluate($facility, $product->id),
+            fn () => $this->snapshot->refresh($facility, $product->id),
+        ] as $derived) {
+            try {
+                $derived();
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $transaction;

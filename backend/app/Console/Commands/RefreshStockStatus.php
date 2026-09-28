@@ -4,33 +4,35 @@ namespace App\Console\Commands;
 
 use App\Models\Facility;
 use App\Services\AlertEngine;
+use App\Services\StockStatusSnapshot;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Re-evaluates stock alerts for every active facility. Ledger writes already
- * re-evaluate the product they touch; this pass catches what changes with
- * the calendar alone — batches crossing into "expiring soon" or "expired".
+ * Refreshes every active facility's rollup status rows and alerts. Ledger
+ * writes already refresh the product they touch; this pass catches what
+ * changes with the calendar alone — batches crossing into "expiring soon"
+ * or "expired" — and any drift the nightly reconcile corrected.
  *
  * Like stock:reconcile, a run stops after --max-seconds (shared hosting
  * execution limits) and the next scheduled run resumes from the next
  * facility. Once a full pass completes, further runs that day are no-ops.
  */
-class DetectStockAlerts extends Command
+class RefreshStockStatus extends Command
 {
-    protected $signature = 'stock:detect-alerts
+    protected $signature = 'stock:refresh-status
         {--facility=* : Evaluate only these facility ids (ignores resume state)}
         {--max-seconds=50 : Stop after this many seconds and resume on the next run}
         {--force : Start a new full pass even if one already completed today}';
 
-    protected $description = 'Raise and auto-resolve stock alerts (stock-out, low stock, expiring, expired)';
+    protected $description = 'Refresh rollup stock status and alerts (stock-out, low stock, expiring, expired) for every facility';
 
-    private const CURSOR_KEY = 'stock:detect-alerts:cursor';
+    private const CURSOR_KEY = 'stock:refresh-status:cursor';
 
-    private const COMPLETED_KEY = 'stock:detect-alerts:completed_on';
+    private const COMPLETED_KEY = 'stock:refresh-status:completed_on';
 
-    public function handle(AlertEngine $engine): int
+    public function handle(StockStatusSnapshot $snapshot, AlertEngine $engine): int
     {
         $onlyIds = array_map('intval', $this->option('facility'));
         $today = CarbonImmutable::today(config('app.business_timezone'))->toDateString();
@@ -52,6 +54,7 @@ class DetectStockAlerts extends Command
             ->get();
 
         foreach ($facilities as $facility) {
+            $snapshot->refresh($facility);
             $result = $engine->evaluate($facility);
             $totals['raised'] += $result['raised'];
             $totals['cleared'] += $result['cleared'];

@@ -173,8 +173,8 @@ export interface paths {
         /**
          * LGA rollup: totals per product, how many facilities carry each flag,
          *     and the facility drill-down list sorted worst-first
-         * @description Computed live from stock_balances — fine at LGA scale. Phase 3 moves
-         *     State/Federal (and optionally this) onto lga_stock_summary.
+         * @description Computed live from stock_balances — fine at LGA scale, and it carries
+         *     per-product batch detail. State/Federal aggregate facility_product_status.
          */
         get: operations["lgaStockSummary.show"];
         put?: never;
@@ -223,6 +223,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/states/{state}/stock-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State rollup: how many facilities carry each flag, per-product totals, and the LGAs worst first */
+        get: operations["rollupSummary.state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/federal/stock-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** National rollup: every state, worst first */
+        get: operations["rollupSummary.federal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/states": {
         parameters: {
             query?: never;
@@ -249,6 +283,40 @@ export interface paths {
         };
         /** Stock Card entries per week across the LGA's facilities the caller can see */
         get: operations["stockActivity.lga"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/states/{state}/stock-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stock Card entries per week across the state's facilities the caller can see */
+        get: operations["stockActivity.state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/federal/stock-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stock Card entries per week nationally */
+        get: operations["stockActivity.federal"];
         put?: never;
         post?: never;
         delete?: never;
@@ -374,6 +442,37 @@ export interface components {
          * @enum {string}
          */
         AlertType: "stock_out" | "expired" | "low_stock" | "expiring_soon";
+        /** AreaStockSummaryResource */
+        AreaStockSummaryResource: {
+            /** @enum {string} */
+            level: "lga" | "state";
+            id: number;
+            name: string;
+            /** @description States only. */
+            geopolitical_zone: string | null;
+            facility_count: number;
+            /** @description Facilities with at least one product on the Stock Card. */
+            reporting_facility_count: number;
+            /** @description Number of facilities with at least one product carrying each flag. */
+            flag_counts: {
+                stock_out: number;
+                expired: number;
+                low_stock: number;
+                expiring_soon: number;
+            };
+            /** @description Facilities with at least one product at or below reorder level. */
+            needs_reorder_count: number;
+            last_transaction_date: string | null;
+            /** @description Products stocked out at the most facilities here, top 3. */
+            stock_out_products: {
+                product: {
+                    id: number;
+                    name: string;
+                    sku: string;
+                };
+                facility_count: number;
+            }[];
+        };
         /** BatchStockResource */
         BatchStockResource: {
             batch_id: number | null;
@@ -938,12 +1037,22 @@ export interface operations {
                                 };
                             };
                             child_count: number;
+                            /** @description Same as child_count here; the facility total at State and Federal level. */
+                            facility_count: number;
                             /** @description Number of child facilities with at least one product carrying each flag. */
                             facility_counts: {
                                 stock_out: number;
                                 expired: number;
                                 low_stock: number;
                                 expiring_soon: number;
+                            };
+                            /** @description Facilities by their most serious issue, each counted once. */
+                            facility_status: {
+                                stock_out: number;
+                                low_stock: number;
+                                reorder: number;
+                                ok: number;
+                                no_data: number;
                             };
                             products: components["schemas"]["ProductRollupResource"][];
                             /** @description Child facilities, worst first. */
@@ -1012,6 +1121,119 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "rollupSummary.state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The state ID */
+                state: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            node: {
+                                /** @constant */
+                                level: "state";
+                                id: number;
+                                name: string;
+                                parent: {
+                                    /** @constant */
+                                    level: "country";
+                                    id: null;
+                                    /** @constant */
+                                    name: "Nigeria";
+                                };
+                            };
+                            child_count: number;
+                            facility_count: number;
+                            /** @description Number of facilities with at least one product carrying each flag. */
+                            facility_counts: {
+                                stock_out: number;
+                                expired: number;
+                                low_stock: number;
+                                expiring_soon: number;
+                            };
+                            /** @description Facilities by their most serious issue, each counted once. */
+                            facility_status: {
+                                stock_out: number;
+                                low_stock: number;
+                                reorder: number;
+                                ok: number;
+                                no_data: number;
+                            };
+                            products: components["schemas"]["ProductRollupResource"][];
+                            /** @description Child LGAs, worst first. */
+                            children: components["schemas"]["AreaStockSummaryResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "rollupSummary.federal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            node: {
+                                /** @constant */
+                                level: "country";
+                                id: null;
+                                /** @constant */
+                                name: "Nigeria";
+                                parent: null;
+                            };
+                            child_count: number;
+                            facility_count: number;
+                            /** @description Number of facilities with at least one product carrying each flag. */
+                            facility_counts: {
+                                stock_out: number;
+                                expired: number;
+                                low_stock: number;
+                                expiring_soon: number;
+                            };
+                            /** @description Facilities by their most serious issue, each counted once. */
+                            facility_status: {
+                                stock_out: number;
+                                low_stock: number;
+                                reorder: number;
+                                ok: number;
+                                no_data: number;
+                            };
+                            products: components["schemas"]["ProductRollupResource"][];
+                            /** @description Child states, worst first. */
+                            children: components["schemas"]["AreaStockSummaryResource"][];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+        };
+    };
     "state.index": {
         parameters: {
             query?: never;
@@ -1072,6 +1294,80 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "stockActivity.state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The state ID */
+                state: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            weeks: ({
+                                week_start: string | unknown;
+                            } & {
+                                [key: string]: unknown;
+                            })[];
+                            totals: {
+                                received: number;
+                                issued: number;
+                                other: number;
+                            };
+                            last_transaction_date: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "stockActivity.federal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            weeks: ({
+                                week_start: string | unknown;
+                            } & {
+                                [key: string]: unknown;
+                            })[];
+                            totals: {
+                                received: number;
+                                issued: number;
+                                other: number;
+                            };
+                            last_transaction_date: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
         };
     };
     "stockActivity.facility": {
