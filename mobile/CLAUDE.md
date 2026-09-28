@@ -9,7 +9,9 @@ than to design in from the start.
   camera, barcode scanning, and push notifications with far less native
   config, which matters more here than any Expo limitation you're likely
   to hit for this feature set.
-- `expo-camera` + a barcode/OCR library for delivery note scanning.
+- `expo-camera` + on-device OCR (`@infinitered/react-native-mlkit-text-recognition`, Google ML Kit)
+  for delivery note scanning. Needs a development build — not available in Expo Go or on web,
+  where the app falls back to manual entry.
 - Firebase Cloud Messaging via `expo-notifications` (or
   `@react-native-firebase/messaging` if you eject) for push alerts.
 - Local persistence + sync queue: WatermelonDB (built for exactly this
@@ -40,20 +42,18 @@ src/
     push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)
 ```
-Delivery-note scanning (ScanDeliveryScreen) is not built yet.
 
 ## Rules specific to this app
 
-1. **Offline-first for transactions, not for delivery scanning.**
+1. **Offline-first, including delivery scanning.**
    Recording a stock transaction (receipt/issue/loss/adjustment) must work
    fully offline: write to the local outbox immediately, show it as
    "pending sync" in the UI, and flush to
    `POST /facilities/{id}/stock-transactions` when connectivity returns.
-   Delivery note *scanning* (`POST /delivery-notes/scan`) requires
-   connectivity since it's a server-side OCR call — degrade gracefully
-   (let staff save the photo and retry scan later, or fall back to manual
-   entry, which itself queues offline like any other transaction once
-   turned into a delivery note).
+   Delivery notes are read by on-device OCR, so scanning works offline too;
+   the reviewed note is queued the same way and sent to
+   `POST /facilities/{id}/delivery-notes` with `confirm: true`. OCR output is
+   only ever a draft: staff review every line before it is confirmed.
 2. **Never let two devices' offline queues silently overwrite each
    other's effect on the same balance.** Because balances are always
    *derived* from the ledger (per `DATABASE_SCHEMA.md`), this is naturally

@@ -26,6 +26,21 @@ save, on reconnect, on foreground, every 30s). Each carries a UUID sent as
 Entries the server refuses (e.g. not enough stock) appear on the Account tab
 to retry or discard.
 
+## Delivery note scanning (on-device OCR)
+
+Home → **Scan delivery**: photograph the note (or pick a photo), and Google
+ML Kit reads it **on the phone** — offline, and the photo is never uploaded.
+`src/lib/delivery-parser.ts` turns the text into draft lines (product,
+batch, expiry, quantity, plus the note number, supplier and date); staff
+review every line against the paper, fix or add lines, then **Confirm
+receipt**, which queues the note like any entry and posts one receipt per
+line on the server.
+
+OCR needs a development / production build
+(`@infinitered/react-native-mlkit-text-recognition` is a native module). In
+Expo Go and the web preview the scan screen falls back to typing the lines
+in. Parser tests: `npm test`.
+
 ## Push notifications
 
 The app registers its FCM token via `POST /users/me/fcm-token`. Remote push
@@ -39,4 +54,5 @@ wired up yet.
 ```bash
 npx tsc --noEmit
 npx expo lint
+npm test
 ```

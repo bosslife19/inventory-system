@@ -10,7 +10,7 @@ import { EmptyState, Loading } from '@/components/ui/misc';
 import { TextField } from '@/components/ui/text-field';
 import { MaxContentWidth, Spacing, TabBarInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useOutbox } from '@/lib/offlineQueue';
+import { productIdsOf, useOutbox } from '@/lib/offlineQueue';
 import { useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 import type { ProductStock } from '@/lib/types';
@@ -37,7 +37,7 @@ export default function Stock() {
 
   const pendingByProduct = useMemo(() => {
     const m = new Map<number, number>();
-    for (const i of outbox) m.set(i.body.product_id, (m.get(i.body.product_id) ?? 0) + 1);
+    for (const i of outbox) for (const id of productIdsOf(i)) m.set(id, (m.get(id) ?? 0) + 1);
     return m;
   }, [outbox]);
 

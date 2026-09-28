@@ -43,6 +43,8 @@ function FacilityApp() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="record" options={{ presentation: 'modal' }} />
       <Stack.Screen name="product/[id]" />
+      <Stack.Screen name="deliveries/scan" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+      <Stack.Screen name="deliveries/review" />
     </Stack>
   );
 }

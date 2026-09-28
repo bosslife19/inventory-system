@@ -13,7 +13,7 @@ import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { INBOUND, formatDate, formatQty, transactionLabel } from '@/lib/format';
-import { useOutbox } from '@/lib/offlineQueue';
+import { describe, productIdsOf, useOutbox } from '@/lib/offlineQueue';
 import { useProductHistory, useReorderSuggestions, useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 
@@ -26,7 +26,7 @@ export default function ProductDetail() {
   const stock = useStockBalances(facilityId);
   const history = useProductHistory(facilityId, productId);
   const reorder = useReorderSuggestions(facilityId);
-  const pending = useOutbox().filter((i) => i.body.product_id === productId);
+  const pending = useOutbox().filter((i) => productIdsOf(i).includes(productId));
 
   const s = stock.data?.find((x) => x.product.id === productId);
   const suggestion = reorder.data?.find((r) => r.product.id === productId);
@@ -136,12 +136,14 @@ export default function ProductDetail() {
                 <View key={i.id} style={[styles.txRow, { borderColor: c.border, backgroundColor: c.warningSoft }]}>
                   <Clock3 size={16} color={c.warning} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="label">{transactionLabel(i.body.transaction_type)}</Text>
+                    <Text variant="label" numberOfLines={1}>
+                      {describe(i).title}
+                    </Text>
                     <Text variant="caption" tone="warning">
-                      {i.status === 'failed' ? 'Not accepted — see Account' : 'Waiting to sync'} · {formatDate(i.body.transaction_date)}
+                      {i.status === 'failed' ? 'Not accepted — see Account' : 'Waiting to sync'} · {describe(i).detail}
                     </Text>
                   </View>
-                  <Text variant="label">{formatQty(i.body.quantity)}</Text>
+                  <Text variant="label">{describe(i).figure}</Text>
                 </View>
               ))}
               {history.data?.map((t, i) => {

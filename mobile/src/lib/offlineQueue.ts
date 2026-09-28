@@ -1,37 +1,44 @@
 import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
 
+import { formatDate, formatQty, transactionLabel } from './format';
 import { storage } from './storage';
-import type { NewStockTransaction } from './types';
+import type { NewDeliveryNote, NewStockTransaction } from './types';
 
 /**
- * The outbox: Stock Card entries recorded on this device and not yet
- * accepted by the server (mobile/CLAUDE.md rule 1). Every entry is written
- * here first, online or not, then sync.ts sends them one by one.
+ * The outbox: Stock Card entries and delivery notes recorded on this device
+ * and not yet accepted by the server (mobile/CLAUDE.md rule 1). Everything
+ * is written here first, online or not, then sync.ts sends them one by one.
  *
  * Each item is its own action with its own client_reference (rule 2): the
- * server records it as a new ledger row, never a merged balance, and a
- * retry after a lost response returns the row already recorded.
+ * server records new ledger rows, never a merged balance, and a retry after
+ * a lost response returns what was already recorded.
  */
 
 const KEY = 'inventory.outbox';
 
 export type OutboxStatus = 'pending' | 'syncing' | 'failed';
 
-export interface OutboxItem {
+interface Base {
   /** Also sent as client_reference. */
   id: string;
   facilityId: number;
-  body: NewStockTransaction;
-  /** For display while unsynced. */
-  productName: string;
-  unit: string;
   createdAt: string;
   status: OutboxStatus;
   attempts: number;
   /** Why the server refused it (status failed). */
   error?: string;
 }
+
+export type OutboxItem = Base &
+  (
+    | { kind: 'transaction'; body: NewStockTransaction; productName: string; unit: string }
+    | { kind: 'delivery_note'; body: NewDeliveryNote }
+  );
+
+type NewItem =
+  | { kind: 'transaction'; facilityId: number; body: NewStockTransaction; productName: string; unit: string }
+  | { kind: 'delivery_note'; facilityId: number; body: NewDeliveryNote };
 
 let items: OutboxItem[] = [];
 let loaded = false;
@@ -54,8 +61,15 @@ function set(next: OutboxItem[]) {
 export async function loadOutbox(): Promise<void> {
   if (loaded) return;
   const raw = await storage.getItem(KEY);
-  // An app killed mid-sync leaves items "syncing": they were never confirmed.
-  items = raw ? (JSON.parse(raw) as OutboxItem[]).map((i) => (i.status === 'syncing' ? { ...i, status: 'pending' } : i)) : [];
+  items = raw
+    ? (JSON.parse(raw) as OutboxItem[]).map((i) => ({
+        ...i,
+        // Items saved before delivery notes existed are transactions.
+        kind: i.kind ?? 'transaction',
+        // An app killed mid-sync leaves items "syncing": they were never confirmed.
+        status: i.status === 'syncing' ? 'pending' : i.status,
+      }) as OutboxItem)
+    : [];
   loaded = true;
   emit();
 }
@@ -64,21 +78,21 @@ export function getOutbox(): OutboxItem[] {
   return items;
 }
 
-export function enqueue(entry: Omit<OutboxItem, 'id' | 'createdAt' | 'status' | 'attempts'>): OutboxItem {
+export function enqueue(entry: NewItem): OutboxItem {
   const id = Crypto.randomUUID();
-  const item: OutboxItem = {
+  const item = {
     ...entry,
     id,
     body: { ...entry.body, client_reference: id },
     createdAt: new Date().toISOString(),
     status: 'pending',
     attempts: 0,
-  };
+  } as OutboxItem;
   void set([...items, item]);
   return item;
 }
 
-export function updateItem(id: string, patch: Partial<OutboxItem>) {
+export function updateItem(id: string, patch: Partial<Base>) {
   return set(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
 }
 
@@ -103,4 +117,26 @@ function subscribe(listener: () => void) {
 /** The outbox, re-rendering on every change. */
 export function useOutbox(): OutboxItem[] {
   return useSyncExternalStore(subscribe, getOutbox, getOutbox);
+}
+
+/** Products an unsynced item will change. */
+export function productIdsOf(item: OutboxItem): number[] {
+  return item.kind === 'transaction' ? [item.body.product_id] : item.body.items.map((l) => l.product_id);
+}
+
+/** How an item reads in lists: title, detail line, and a quantity figure. */
+export function describe(item: OutboxItem): { title: string; detail: string; figure: string } {
+  if (item.kind === 'transaction') {
+    return {
+      title: `${transactionLabel(item.body.transaction_type)} · ${item.productName}`,
+      detail: `${formatDate(item.body.transaction_date)}${item.body.batch_no ? ` · ${item.body.batch_no}` : ''}`,
+      figure: `${formatQty(item.body.quantity)} ${item.unit}`,
+    };
+  }
+  const n = item.body.items.length;
+  return {
+    title: `Delivery${item.body.delivery_note_no ? ` ${item.body.delivery_note_no}` : ''} · ${item.body.source}`,
+    detail: `${formatDate(item.body.received_date)} · ${n} line${n === 1 ? '' : 's'}`,
+    figure: `${n} line${n === 1 ? '' : 's'}`,
+  };
 }

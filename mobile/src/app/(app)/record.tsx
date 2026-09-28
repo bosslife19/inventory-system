@@ -9,16 +9,17 @@ import {
   Minus,
   PackageMinus,
   Plus,
-  Search,
+  ScanLine,
   SquareMinus,
   SquarePlus,
   X,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ProductSearch } from '@/components/product-search';
 import { Badge, ExpiryBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -87,7 +88,6 @@ export default function Record() {
 
   const [type, setType] = useState<TransactionType>(params.type ?? 'issue');
   const [productId, setProductId] = useState<number | null>(params.productId ? Number(params.productId) : null);
-  const [search, setSearch] = useState('');
   const [batchNo, setBatchNo] = useState(() =>
     suggestBatch(stock.data?.find((s) => s.product.id === Number(params.productId))?.batches ?? [], params.type ?? 'issue'),
   );
@@ -108,14 +108,6 @@ export default function Record() {
   const knownBatch = batches.find((b) => b.batch_no === normalizedBatch);
   const onHand = tracked ? knownBatch?.quantity_on_hand : productStock?.quantity_on_hand;
 
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const usable = new Map(stock.data?.map((s) => [s.product.id, s.usable_quantity]));
-    return (products.data ?? [])
-      .filter((p) => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
-      .map((p) => ({ p, usable: usable.get(p.id) }))
-      .sort((a, b) => Number(b.usable !== undefined) - Number(a.usable !== undefined) || a.p.name.localeCompare(b.p.name));
-  }, [products.data, stock.data, search]);
 
   function pickType(next: TransactionType) {
     setType(next);
@@ -160,6 +152,7 @@ export default function Record() {
     if (Object.keys(found).length > 0 || !product) return;
 
     enqueue({
+      kind: 'transaction',
       facilityId,
       productName: product.name,
       unit: product.unit_of_measure,
@@ -235,6 +228,23 @@ export default function Record() {
           </Text>
         </View>
 
+        {type === 'receipt' && (
+          <Pressable
+            onPress={() => router.replace('/deliveries/scan')}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.scanLink, { backgroundColor: c.primarySoft, opacity: pressed ? 0.8 : 1 }]}>
+            <ScanLine size={20} color={c.primary} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label" tone="primary">
+                Have the delivery note?
+              </Text>
+              <Text variant="caption" tone="secondary">
+                Scan it to enter every line at once
+              </Text>
+            </View>
+          </Pressable>
+        )}
+
         {/* Product */}
         <View style={styles.section}>
           <Text variant="label" tone="secondary">
@@ -251,35 +261,7 @@ export default function Record() {
               <Button label="Change" variant="ghost" size="sm" onPress={() => pickProduct(null)} />
             </Card>
           ) : (
-            <Card padded={false} style={{ overflow: 'hidden' }}>
-              <View style={{ padding: Spacing.three }}>
-                <TextField icon={Search} placeholder="Search products" value={search} onChangeText={setSearch} autoCorrect={false} error={errors.product} />
-              </View>
-              {matches.slice(0, 8).map(({ p, usable }, i) => (
-                <Pressable
-                  key={p.id}
-                  onPress={() => pickProduct(p.id)}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [styles.option, { borderTopColor: c.border, backgroundColor: pressed ? c.surface2 : undefined }, i === 0 && { borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="label" numberOfLines={1}>
-                      {p.name}
-                    </Text>
-                    <Text variant="caption" tone="muted">
-                      {p.sku} · {p.category}
-                    </Text>
-                  </View>
-                  <Text variant="caption" tone={usable === undefined ? 'muted' : 'secondary'}>
-                    {usable === undefined ? 'not stocked' : `${formatQty(usable)} ${p.unit_of_measure}`}
-                  </Text>
-                </Pressable>
-              ))}
-              {matches.length === 0 && (
-                <Text variant="small" tone="muted" style={{ padding: Spacing.four }}>
-                  {products.isPending ? 'Loading products…' : 'No product matches.'}
-                </Text>
-              )}
-            </Card>
+            <ProductSearch products={products.data} stock={stock.data} onPick={(p) => pickProduct(p.id)} error={errors.product} loading={products.isPending} />
           )}
         </View>
 
@@ -463,6 +445,13 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  scanLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.four,
+    borderRadius: Radius.lg,
   },
   typeGrid: {
     flexDirection: 'row',

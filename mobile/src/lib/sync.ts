@@ -7,7 +7,8 @@ import { ApiError, api, unwrap } from './api';
 import { getOutbox, removeItem, updateItem } from './offlineQueue';
 
 /**
- * Flushes the outbox to POST /facilities/{id}/stock-transactions, oldest
+ * Flushes the outbox to POST /facilities/{id}/stock-transactions (and
+ * /delivery-notes for reviewed delivery scans), oldest
  * first (the Stock Card is written in date order). Runs when an entry is
  * queued, when connectivity returns, when the app comes to the foreground,
  * and every 30s while anything is waiting.
@@ -43,11 +44,11 @@ export async function flushOutbox(): Promise<void> {
       if (item.status !== 'pending') continue;
       await updateItem(item.id, { status: 'syncing', attempts: item.attempts + 1 });
       try {
+        const params = { path: { facility: item.facilityId } };
         await unwrap(
-          api.POST('/facilities/{facility}/stock-transactions', {
-            params: { path: { facility: item.facilityId } },
-            body: item.body,
-          }),
+          item.kind === 'transaction'
+            ? api.POST('/facilities/{facility}/stock-transactions', { params, body: item.body })
+            : api.POST('/facilities/{facility}/delivery-notes', { params, body: item.body }),
         );
         await removeItem(item.id);
         synced++;

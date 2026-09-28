@@ -9,6 +9,8 @@ import {
   MapPin,
   Package,
   PackageX,
+  Plus,
+  ScanLine,
   ShoppingCart,
   TrendingDown,
   TriangleAlert,
@@ -27,7 +29,7 @@ import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Spacing, TabBarInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { INBOUND, formatDate, formatQty, greeting, initials, transactionLabel } from '@/lib/format';
-import { useOutbox } from '@/lib/offlineQueue';
+import { describe, useOutbox } from '@/lib/offlineQueue';
 import { useActivity, useAlerts, useFacility, useRecentTransactions, useReorderSuggestions, useStockBalances } from '@/lib/queries';
 import { useFacilityId, useUser } from '@/lib/session';
 import { requestSync } from '@/lib/sync';
@@ -105,6 +107,27 @@ export default function Home() {
             <KpiTile tone={levels.low_stock ? 'warning' : 'default'} icon={TrendingDown} label="Low stock" value={levels.low_stock} sub="Below minimum" />
             <KpiTile tone="ink" icon={AlertOctagon} label="Expired stock" value={expired} sub="Products affected" />
           </View>
+        </View>
+
+        <View style={styles.actions}>
+          <Card onPress={() => router.push('/deliveries/scan')} style={styles.action}>
+            <IconChip icon={ScanLine} tone="ink" size={42} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">Scan delivery</Text>
+              <Text variant="caption" tone="muted">
+                Photo → receipts
+              </Text>
+            </View>
+          </Card>
+          <Card onPress={() => router.push('/record')} style={styles.action}>
+            <IconChip icon={Plus} size={42} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">New entry</Text>
+              <Text variant="caption" tone="muted">
+                Issue, loss, count…
+              </Text>
+            </View>
+          </Card>
         </View>
 
         {failed > 0 && (
@@ -190,13 +213,13 @@ export default function Home() {
                 <IconChip icon={Clock3} tone="warning" size={36} />
                 <View style={{ flex: 1 }}>
                   <Text variant="label" numberOfLines={1}>
-                    {transactionLabel(i.body.transaction_type)} · {i.productName}
+                    {describe(i).title}
                   </Text>
                   <Text variant="caption" tone={i.status === 'failed' ? 'critical' : 'warning'}>
                     {i.status === 'failed' ? 'Not accepted — see Account' : 'Waiting to sync'}
                   </Text>
                 </View>
-                <Text variant="label">{formatQty(i.body.quantity)}</Text>
+                <Text variant="label">{describe(i).figure}</Text>
               </View>
             ))}
             {recent.data?.map((t) => {
@@ -271,6 +294,18 @@ const styles = StyleSheet.create({
   kpiRow: {
     flexDirection: 'row',
     gap: Spacing.three,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    marginTop: -Spacing.two,
+  },
+  action: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
   },
   banner: {
     flexDirection: 'row',

@@ -43,6 +43,20 @@
           "color": "#1d4ed8",
           "defaultChannel": "stock-alerts"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Stock Card to use the camera to photograph delivery notes. The photo is read on your phone and not uploaded.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Stock Card to open a photo of a delivery note. It is read on your phone and not uploaded.",
+          "cameraPermission": "Allow Stock Card to use the camera to photograph delivery notes."
+        }
       ]
     ],
     "experiments": {

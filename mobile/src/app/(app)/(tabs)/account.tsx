@@ -12,8 +12,8 @@ import { MaxContentWidth, Radius, Spacing, TabBarInset } from '@/constants/theme
 import { useTheme } from '@/hooks/use-theme';
 import { API_URL } from '@/lib/config';
 import { confirm } from '@/lib/confirm';
-import { ROLE_LABEL, formatDate, formatQty, initials, timeAgo, transactionLabel } from '@/lib/format';
-import { removeItem, retryItem, useOutbox } from '@/lib/offlineQueue';
+import { ROLE_LABEL, initials, timeAgo } from '@/lib/format';
+import { describe, removeItem, retryItem, useOutbox } from '@/lib/offlineQueue';
 import { useFacility } from '@/lib/queries';
 import { useFacilityId, useSession, useUser } from '@/lib/session';
 import { requestSync, useSyncState } from '@/lib/sync';
@@ -91,11 +91,10 @@ export default function Account() {
                 <View style={styles.itemTop}>
                   <View style={{ flex: 1 }}>
                     <Text variant="label" numberOfLines={1}>
-                      {transactionLabel(i.body.transaction_type)} · {formatQty(i.body.quantity)} {i.unit}
+                      {describe(i).title}
                     </Text>
                     <Text variant="caption" tone="muted" numberOfLines={1}>
-                      {i.productName} · {formatDate(i.body.transaction_date)}
-                      {i.body.batch_no ? ` · ${i.body.batch_no}` : ''}
+                      {describe(i).figure} · {describe(i).detail}
                     </Text>
                   </View>
                   <Badge label={i.status === 'failed' ? 'Not accepted' : i.status === 'syncing' ? 'Syncing' : 'Waiting'} tone={i.status === 'failed' ? 'critical' : 'warning'} />
