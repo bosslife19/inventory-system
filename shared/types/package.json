@@ -1,0 +1,15 @@
+{
+  "name": "types",
+  "version": "1.0.0",
+  "description": "This directory holds the **generated** TypeScript API client/types, shared by `web/` and `mobile/`. Nothing here should be hand-written for long — treat it as build output.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}
