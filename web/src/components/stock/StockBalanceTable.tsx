@@ -6,10 +6,13 @@ import { ExpiryBadge, FlagBadges, LevelBadge } from './StatusBadges'
 interface Props {
   stock: ProductStock[]
   onShowHistory?: (productId: number) => void
+  onRecord?: (productId: number) => void
 }
 
+const METER_TONE = { stock_out: ' meter-critical', low_stock: ' meter-warning', reorder: '', ok: '' } as const
+
 /** Current stock per product, straight from stock_balances (quantities are never computed client-side). */
-export function StockBalanceTable({ stock, onShowHistory }: Props) {
+export function StockBalanceTable({ stock, onShowHistory, onRecord }: Props) {
   const [open, setOpen] = useState<number | null>(null)
 
   if (stock.length === 0) {
@@ -25,6 +28,7 @@ export function StockBalanceTable({ stock, onShowHistory }: Props) {
             <th className="num">On hand</th>
             <th className="num">Usable</th>
             <th>Status</th>
+            <th className="hide-sm">Of max level</th>
             <th className="num hide-sm">Min / EOP / Max</th>
             <th aria-label="Actions" />
           </tr>
@@ -58,6 +62,20 @@ export function StockBalanceTable({ stock, onShowHistory }: Props) {
                       <FlagBadges flags={row.flags.filter((f) => f !== 'stock_out' && f !== 'low_stock')} />
                     </div>
                   </td>
+                  <td className="hide-sm" title="Usable stock as a share of the max stock level">
+                    <div className="meter-cell">
+                      <div className={`meter${METER_TONE[row.level]}`}>
+                        <span
+                          style={{
+                            width: `${p.max_stock_level > 0 ? Math.min(100, (row.usable_quantity / p.max_stock_level) * 100) : 0}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="small muted">
+                        {p.max_stock_level > 0 ? `${Math.round((row.usable_quantity / p.max_stock_level) * 100)}%` : '—'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="num muted hide-sm">
                     {p.min_stock_level} / {p.reorder_level} / {p.max_stock_level}
                   </td>
@@ -72,6 +90,11 @@ export function StockBalanceTable({ stock, onShowHistory }: Props) {
                         {batches.length} batch{batches.length === 1 ? '' : 'es'}
                       </button>
                     )}
+                    {onRecord && (
+                      <button type="button" className="btn btn-link" onClick={() => onRecord(p.id)}>
+                        Record
+                      </button>
+                    )}
                     {onShowHistory && (
                       <button type="button" className="btn btn-link" onClick={() => onShowHistory(p.id)}>
                         Stock card
@@ -81,7 +104,7 @@ export function StockBalanceTable({ stock, onShowHistory }: Props) {
                 </tr>
                 {isOpen && (
                   <tr className="row-detail">
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <table className="table table-inner">
                         <thead>
                           <tr>

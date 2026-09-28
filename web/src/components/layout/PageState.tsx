@@ -1,8 +1,10 @@
+import { AlertTriangle } from 'lucide-react'
 import { ApiError } from '../../lib/api-client'
 
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
     <div className="page-state" role="status">
+      <span className="spinner" aria-hidden />
       {label}
     </div>
   )
@@ -21,6 +23,7 @@ export function ErrorState({ error }: { error: unknown }) {
 
   return (
     <div className="page-state page-state-error" role="alert">
+      <AlertTriangle size={28} aria-hidden />
       {message}
     </div>
   )

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from './api-client'
-import type { NewStockTransaction, TransactionType } from './types'
+import type { NewStockTransaction, StockActivity, TransactionType } from './types'
 
 // Rollups poll instead of live push: no WebSocket server on shared hosting (docs/ARCHITECTURE.md).
 const ROLLUP_POLL_MS = 60_000
@@ -67,6 +67,7 @@ export function useRecordTransaction(facilityId: number) {
       queryClient.invalidateQueries({ queryKey: ['stock-balances', facilityId] })
       queryClient.invalidateQueries({ queryKey: ['stock-transactions', facilityId] })
       queryClient.invalidateQueries({ queryKey: ['lga-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['stock-activity'] })
     },
   })
 }
@@ -92,5 +93,23 @@ export function useStateLgas(stateId: number) {
     queryKey: ['state-lgas', stateId],
     queryFn: async () => (await unwrap(api.GET('/states/{state}/lgas', { params: { path: { state: stateId } } }))).data,
     staleTime: 60 * 60_000,
+  })
+}
+
+export function useFacilityActivity(facilityId: number) {
+  return useQuery({
+    queryKey: ['stock-activity', 'facility', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/stock-activity', { params: { path: { facility: facilityId } } })))
+        .data as StockActivity,
+  })
+}
+
+export function useLgaActivity(lgaId: number) {
+  return useQuery({
+    queryKey: ['stock-activity', 'lga', lgaId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/lgas/{lga}/stock-activity', { params: { path: { lga: lgaId } } }))).data as StockActivity,
+    refetchInterval: ROLLUP_POLL_MS,
   })
 }

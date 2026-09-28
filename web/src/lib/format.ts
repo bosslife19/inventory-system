@@ -43,6 +43,15 @@ export const EXPIRY_LABEL: Record<ExpiryStatus, string> = {
   expired: 'Expired',
 }
 
+export const ZONE_LABEL: Record<string, string> = {
+  north_central: 'North Central',
+  north_east: 'North East',
+  north_west: 'North West',
+  south_east: 'South East',
+  south_south: 'South South',
+  south_west: 'South West',
+}
+
 export const ROLE_LABEL: Record<UserRole, string> = {
   sdp_staff: 'Facility staff',
   lga_officer: 'LGA officer',

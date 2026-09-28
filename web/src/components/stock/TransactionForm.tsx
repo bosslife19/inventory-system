@@ -1,3 +1,4 @@
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { ApiError } from '../../lib/api-client'
 import {
@@ -18,6 +19,9 @@ interface Props {
   facilityId: number
   products: Product[]
   stock: ProductStock[]
+  /** Pre-select a product, e.g. when opened from that product's row. */
+  initialProductId?: number
+  onCancel?: () => void
 }
 
 type Errors = Record<string, string | undefined>
@@ -35,14 +39,16 @@ function suggestBatch(batches: BatchStock[], type: TransactionType): string {
  * (web/CLAUDE.md rule 3). Client checks mirror the backend's rules for fast
  * feedback; the backend (StockLedgerService) is the real gate.
  */
-export function TransactionForm({ facilityId, products, stock }: Props) {
+export function TransactionForm({ facilityId, products, stock, initialProductId, onCancel }: Props) {
   const listId = useId()
   const record = useRecordTransaction(facilityId)
 
-  const [productId, setProductId] = useState<number | ''>('')
+  const [productId, setProductId] = useState<number | ''>(initialProductId ?? '')
   const [type, setType] = useState<TransactionType>('issue')
   const [date, setDate] = useState(todayInLagos())
-  const [batchNo, setBatchNo] = useState('')
+  const [batchNo, setBatchNo] = useState(() =>
+    suggestBatch(stock.find((x) => x.product.id === initialProductId)?.batches ?? [], 'issue'),
+  )
   const [expiry, setExpiry] = useState('')
   const [quantity, setQuantity] = useState('')
   const [counterparty, setCounterparty] = useState('')
@@ -146,9 +152,10 @@ export function TransactionForm({ facilityId, products, stock }: Props) {
   const hasExpiredStock = batches.some((b) => b.expiry_status === 'expired' && b.quantity_on_hand > 0)
 
   return (
-    <form className="card txn-form" onSubmit={submit} noValidate>
-      <h2>Record a transaction</h2>
-
+    <form className="txn-form" onSubmit={submit} noValidate>
+      <div className="field-hint" style={{ marginBottom: '0.45rem', fontWeight: 600 }}>
+        Transaction type
+      </div>
       <div className="type-picker" role="radiogroup" aria-label="Transaction type">
         {TRANSACTION_TYPES.map((t) => (
           <button
@@ -269,18 +276,27 @@ export function TransactionForm({ facilityId, products, stock }: Props) {
 
       {errors.form && (
         <p className="form-error" role="alert">
+          <AlertCircle size={16} />
           {errors.form}
         </p>
       )}
       {success && (
         <p className="form-success" role="status">
+          <CheckCircle2 size={16} />
           {success}
         </p>
       )}
 
-      <button type="submit" className="btn btn-primary btn-block" disabled={record.isPending}>
-        {record.isPending ? 'Saving…' : `Record ${transactionLabel(type).toLowerCase()}`}
-      </button>
+      <div className="head-actions" style={{ justifyContent: 'flex-end' }}>
+        {onCancel && (
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            {success ? 'Done' : 'Cancel'}
+          </button>
+        )}
+        <button type="submit" className="btn btn-primary" disabled={record.isPending}>
+          {record.isPending ? 'Saving…' : `Record ${transactionLabel(type).toLowerCase()}`}
+        </button>
+      </div>
     </form>
   )
 }

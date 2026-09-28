@@ -1,6 +1,6 @@
 // Aliases onto the generated API types — never hand-written interfaces.
 // Regenerate with ./scripts/codegen.sh after a backend contract change.
-import type { components } from '@shared/api'
+import type { components, paths } from '@shared/api'
 
 type Schemas = components['schemas']
 
@@ -21,3 +21,11 @@ export type NewStockTransaction = Schemas['StoreStockTransactionRequest']
 export type FacilityStockSummary = Schemas['FacilityStockSummaryResource']
 export type ProductRollup = Schemas['ProductRollupResource']
 export type FlagCounts = FacilityStockSummary['flag_counts']
+
+// The generator can't see through the service's array shape for `weeks`, so
+// narrow it to what StockActivityService returns (docs/API_CONTRACT.md).
+type ActivityResponse = NonNullable<
+  paths['/facilities/{facility}/stock-activity']['get']['responses'][200]['content']['application/json']
+>['data']
+export type ActivityWeek = { week_start: string; received: number; issued: number; other: number }
+export type StockActivity = Omit<ActivityResponse, 'weeks'> & { weeks: ActivityWeek[] }
