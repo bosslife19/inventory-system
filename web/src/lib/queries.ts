@@ -70,6 +70,7 @@ export function useRecordTransaction(facilityId: number) {
       queryClient.invalidateQueries({ queryKey: ['stock-activity'] })
       // Recording re-evaluates alerts server-side.
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      queryClient.invalidateQueries({ queryKey: ['reorder-suggestions', facilityId] })
     },
   })
 }
@@ -158,5 +159,14 @@ export function useAlertAction() {
         )
       ).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+  })
+}
+
+export function useReorderSuggestions(facilityId: number) {
+  return useQuery({
+    queryKey: ['reorder-suggestions', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/reorder-suggestions', { params: { path: { facility: facilityId } } })))
+        .data,
   })
 }

@@ -6,6 +6,7 @@ import { ActivityChart } from '../../components/charts/ActivityChart'
 import { StockPositionChart } from '../../components/charts/StockPositionChart'
 import { StatusDonut } from '../../components/charts/StatusDonut'
 import { ErrorState, Loading } from '../../components/layout/PageState'
+import { ReorderSuggestionsTable } from '../../components/stock/ReorderSuggestionsTable'
 import { RunningBalanceHistory } from '../../components/stock/RunningBalanceHistory'
 import { ExpiryBadge } from '../../components/stock/StatusBadges'
 import { StockBalanceTable } from '../../components/stock/StockBalanceTable'
@@ -21,6 +22,7 @@ import {
   useFacility,
   useFacilityActivity,
   useProducts,
+  useReorderSuggestions,
   useStockBalances,
 } from '../../lib/queries'
 import type { ProductStock, StockLevel, User } from '../../lib/types'
@@ -49,6 +51,7 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const products = useProducts()
   const activity = useFacilityActivity(facilityId)
   const alerts = useAlerts({ facility_id: facilityId, per_page: 8 })
+  const reorder = useReorderSuggestions(facilityId)
   const [history, setHistory] = useState<HistoryFilters>({ order: 'desc', page: 1, per_page: 25 })
   // null = closed; 0 = open with no product chosen; otherwise the product to pre-select.
   const [recording, setRecording] = useState<number | null>(null)
@@ -252,6 +255,16 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           onShowHistory={showCard}
           onRecord={canRecord ? (id) => setRecording(id) : undefined}
         />
+      </section>
+
+      <section className="card card-flush">
+        {reorder.isError ? (
+          <ErrorState error={reorder.error} />
+        ) : reorder.isPending ? (
+          <p className="empty">Loading reorder suggestions…</p>
+        ) : (
+          <ReorderSuggestionsTable rows={reorder.data} />
+        )}
       </section>
 
       <div id="history">

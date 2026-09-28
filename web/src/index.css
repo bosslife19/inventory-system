@@ -1608,3 +1608,13 @@ a.cell-title:hover {
     justify-content: flex-start;
   }
 }
+
+.order-qty {
+  display: inline-block;
+  min-width: 3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.95rem;
+}

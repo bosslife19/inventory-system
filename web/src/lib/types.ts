@@ -22,6 +22,7 @@ export type FacilityStockSummary = Schemas['FacilityStockSummaryResource']
 export type ProductRollup = Schemas['ProductRollupResource']
 export type FlagCounts = FacilityStockSummary['flag_counts']
 export type Alert = Schemas['AlertResource']
+export type ReorderSuggestion = Schemas['ReorderSuggestionResource']
 export type AlertSeverity = Schemas['AlertSeverity']
 export type AlertStatus = Schemas['AlertStatus']
 
