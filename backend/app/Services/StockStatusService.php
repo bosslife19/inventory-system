@@ -13,6 +13,7 @@ use App\Enums\StockLevel;
 use App\Models\Batch;
 use App\Models\Facility;
 use App\Models\StockBalance;
+use App\Models\StockTransaction;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -53,6 +54,12 @@ class StockStatusService
             ->get()
             ->groupBy('facility_id');
 
+        $lastEntries = StockTransaction::query()
+            ->whereIn('facility_id', $facilities->map(fn (Facility $f) => $f->id)->all())
+            ->groupBy('facility_id')
+            ->selectRaw('facility_id, max(transaction_date) as last_date')
+            ->pluck('last_date', 'facility_id');
+
         $summaries = [];
         foreach ($facilities as $facility) {
             $products = ($balances[$facility->id] ?? collect())
@@ -67,7 +74,8 @@ class StockStatusService
                 $counts->add($product->flags);
             }
 
-            $summaries[$facility->id] = new FacilityStockSummary($facility, $products, $counts);
+            $last = $lastEntries[$facility->id] ?? null;
+            $summaries[$facility->id] = new FacilityStockSummary($facility, $products, $counts, $last ? substr($last, 0, 10) : null);
         }
 
         return $summaries;

@@ -113,6 +113,45 @@ it('rolls up an LGA with worst facilities first', function () {
     ])->and($al['facility_counts'])->toBe(['stock_out' => 0, 'expired' => 1, 'low_stock' => 1, 'expiring_soon' => 2]);
 });
 
+it('counts weekly recording activity for a facility and an LGA', function () {
+    ['kawo' => $kawo, 'rimi' => $rimi] = $this->h['facilities'];
+    $ledger = app(StockLedgerService::class);
+    $admin = $this->h['users']['admin'];
+    // This week (test "today" is Sat 2026-09-26; the week starts Mon 2026-09-21)
+    $ledger->record($kawo, $this->ors, TransactionType::Issue, 5, CarbonImmutable::parse('2026-09-22'), $admin, counterparty: 'OPD');
+    $ledger->record($kawo, $this->ors, TransactionType::Loss, 1, CarbonImmutable::parse('2026-09-23'), $admin);
+    $ledger->record($rimi, $this->al, TransactionType::Receipt, 10, CarbonImmutable::parse('2026-09-24'), $admin, batchNo: 'NEW', counterparty: 'CMS');
+
+    $kawoData = $this->actingAs($this->h['users']['sdp'], 'sanctum')
+        ->getJson("/api/v1/facilities/{$kawo->id}/stock-activity?weeks=4")
+        ->assertOk()
+        ->json('data');
+
+    expect($kawoData['weeks'])->toHaveCount(4)
+        ->and(end($kawoData['weeks']))->toBe(['week_start' => '2026-09-21', 'received' => 0, 'issued' => 1, 'other' => 1])
+        ->and($kawoData['last_transaction_date'])->toBe('2026-09-23');
+
+    $lga = $this->actingAs($this->h['users']['lga'], 'sanctum')
+        ->getJson("/api/v1/lgas/{$this->h['lgas']['kadunaNorth']->id}/stock-activity")
+        ->assertOk()
+        ->json('data');
+
+    expect($lga['weeks'])->toHaveCount(12)
+        ->and(end($lga['weeks']))->toMatchArray(['received' => 1, 'issued' => 1, 'other' => 1])
+        ->and($lga['totals'])->toBe(['received' => 1, 'issued' => 1, 'other' => 1]); // the June entries are older than 12 weeks
+
+    $this->getJson("/api/v1/lgas/{$this->h['lgas']['kadunaNorth']->id}/stock-activity?weeks=2")->assertUnprocessable();
+});
+
+it('reports each facility\'s last entry date in the LGA rollup', function () {
+    $children = collect($this->actingAs($this->h['users']['lga'], 'sanctum')
+        ->getJson("/api/v1/lgas/{$this->h['lgas']['kadunaNorth']->id}/stock-summary")
+        ->json('data.children'))->keyBy('name');
+
+    expect($children['Kawo PHC']['last_transaction_date'])->toBe('2026-06-02')
+        ->and($children['Rimi PHC']['last_transaction_date'])->toBe('2026-06-05');
+});
+
 it('lists the product catalog with filters', function () {
     $this->actingAs($this->h['users']['sdp'], 'sanctum');
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\StateController;
+use App\Http\Controllers\Api\V1\StockActivityController;
 use App\Http\Controllers\Api\V1\StockBalanceController;
 use App\Http\Controllers\Api\V1\StockTransactionController;
 use App\Http\Middleware\ScopeToHierarchy;
@@ -24,6 +25,8 @@ Route::prefix('v1')->group(function () {
         Route::get('states/{state}/lgas', [LgaController::class, 'index']);
         Route::get('lgas/{lga}/facilities', [FacilityController::class, 'index']);
         Route::get('lgas/{lga}/stock-summary', [LgaStockSummaryController::class, 'show']);
+        Route::get('lgas/{lga}/stock-activity', [StockActivityController::class, 'lga']);
+        Route::get('facilities/{facility}/stock-activity', [StockActivityController::class, 'facility']);
         Route::get('facilities/{facility}', [FacilityController::class, 'show']);
 
         Route::get('products', [ProductController::class, 'index']);

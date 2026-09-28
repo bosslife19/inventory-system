@@ -12,6 +12,7 @@ final readonly class FacilityStockSummary
         public Facility $facility,
         public array $products,
         public FlagCounts $flagCounts,
+        public ?string $lastTransactionDate = null,
     ) {}
 
     /** @return list<ProductStock> */

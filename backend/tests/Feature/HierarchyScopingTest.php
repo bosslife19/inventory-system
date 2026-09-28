@@ -29,6 +29,10 @@ beforeEach(function () {
         "/api/v1/lgas/{$l['zaria']->id}/facilities" => ['state', 'federal', 'admin'],
         "/api/v1/lgas/{$l['kadunaNorth']->id}/stock-summary" => ['lga', 'state', 'federal', 'admin'],
         "/api/v1/lgas/{$l['ikeja']->id}/stock-summary" => ['federal', 'admin'],
+        "/api/v1/lgas/{$l['kadunaNorth']->id}/stock-activity" => ['lga', 'state', 'federal', 'admin'],
+        "/api/v1/lgas/{$l['zaria']->id}/stock-activity" => ['state', 'federal', 'admin'],
+        "/api/v1/facilities/{$f['kawo']->id}/stock-activity" => ['sdp', 'lga', 'state', 'federal', 'admin'],
+        "/api/v1/facilities/{$f['tudun']->id}/stock-activity" => ['state', 'federal', 'admin'],
         "/api/v1/states/{$s['kaduna']->id}/lgas" => ['state', 'federal', 'admin'],
         "/api/v1/states/{$s['lagos']->id}/lgas" => ['federal', 'admin'],
     ];
