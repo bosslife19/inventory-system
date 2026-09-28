@@ -22,6 +22,11 @@ use Illuminate\Validation\ValidationException;
  * the stock_transactions row with the facility+product running_balance.
  * Cost is independent of ledger length, so there is no queue involved.
  *
+ * With a $clientReference (the mobile outbox's idempotency key), a repeat of
+ * an entry already recorded at the facility returns that row unchanged —
+ * wasRecentlyCreated false — so a retry after a lost response can't record
+ * it twice. The first request's payload wins.
+ *
  * State-dependent rules (unknown batch, insufficient stock, back-dating) are
  * enforced here rather than in the FormRequest, because they need the lock
  * and because other callers (delivery note confirmation) must obey them too.
@@ -51,6 +56,7 @@ class StockLedgerService
         ?string $counterparty = null,
         ?string $comments = null,
         ?int $deliveryNoteId = null,
+        ?string $clientReference = null,
     ): StockTransaction {
         if ($quantity < 0 || ($quantity === 0 && $type !== TransactionType::PhysicalCount)) {
             $this->fail('quantity', 'Quantity must be greater than zero.');
@@ -58,12 +64,23 @@ class StockLedgerService
 
         $transaction = DB::transaction(function () use (
             $facility, $product, $type, $quantity, $transactionDate, $performedBy,
-            $batchNo, $expiryDate, $voucherNo, $counterparty, $comments, $deliveryNoteId,
+            $batchNo, $expiryDate, $voucherNo, $counterparty, $comments, $deliveryNoteId, $clientReference,
         ) {
             // Serializes all ledger writes for this facility, so running_balance
             // and the "no back-dating" check can't race. Writes to different
             // facilities don't contend.
             Facility::whereKey($facility->id)->lockForUpdate()->firstOrFail();
+
+            if ($clientReference !== null) {
+                $existing = StockTransaction::query()
+                    ->where('facility_id', $facility->id)
+                    ->where('client_reference', $clientReference)
+                    ->with('batch')
+                    ->first();
+                if ($existing) {
+                    return $existing;
+                }
+            }
 
             $batch = $this->resolveBatch($product, $type, $batchNo, $expiryDate, $transactionDate);
             $this->assertDateAllowed($facility, $product, $transactionDate);
@@ -100,6 +117,7 @@ class StockLedgerService
                 'comments' => $comments,
                 'performed_by' => $performedBy->id,
                 'delivery_note_id' => $deliveryNoteId,
+                'client_reference' => $clientReference,
                 'running_balance' => $otherBatches + $next,
             ]);
 
@@ -115,6 +133,10 @@ class StockLedgerService
 
             return $transaction->setRelation('batch', $batch);
         });
+
+        if (! $transaction->wasRecentlyCreated) {
+            return $transaction;
+        }
 
         foreach ([
             fn () => $this->alerts->evaluate($facility, $product->id),

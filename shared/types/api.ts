@@ -113,6 +113,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/fcm-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register (or clear, with null) the push token of the device the user is
+         *     signed in on. Tokens rotate, so the app sends it on every sign-in and
+         *     foreground (mobile/CLAUDE.md rule 4)
+         */
+        post: operations["deviceToken.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lgas/{lga}/facilities": {
         parameters: {
             query?: never;
@@ -377,7 +398,9 @@ export interface paths {
         put?: never;
         /**
          * Record a Stock Card entry. Authorization (StockTransactionPolicy@create)
-         *     runs in StoreStockTransactionRequest::authorize(), before validation
+         *     runs in StoreStockTransactionRequest::authorize(), before validation.
+         *     201 when recorded; 200 with the existing entry when client_reference
+         *     repeats one already recorded at this facility
          */
         post: operations["stockTransaction.store"];
         delete?: never;
@@ -633,6 +656,8 @@ export interface components {
             performed_by_name: string;
             product_name: string;
             delivery_note_id: number | null;
+            /** @description The client's idempotency key, if it sent one. */
+            client_reference: string | null;
             /** Format: date-time */
             created_at: string | null;
         };
@@ -652,6 +677,8 @@ export interface components {
             voucher_no?: string | null;
             counterparty?: string | null;
             comments?: string | null;
+            /** @description Idempotency key (e.g. a UUID from an offline outbox). Re-sending it returns the entry already recorded. */
+            client_reference?: string | null;
             /** Format: date */
             transaction_date: string;
         };
@@ -919,6 +946,33 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "deviceToken.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description FCM registration token; null to stop pushes to this user (e.g. on sign-out). */
+                    token: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "facility.index": {
@@ -1503,15 +1557,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description `StockTransactionResource` */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data: components["schemas"]["StockTransactionResource"];
-                    };
+                    "application/json": string;
                 };
             };
             401: components["responses"]["AuthenticationException"];

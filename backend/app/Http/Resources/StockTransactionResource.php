@@ -29,6 +29,8 @@ class StockTransactionResource extends JsonResource
             'performed_by_name' => $this->performer->name,
             'product_name' => $this->product->name,
             'delivery_note_id' => $this->delivery_note_id,
+            /** The client's idempotency key, if it sent one. */
+            'client_reference' => $this->client_reference,
             'created_at' => $this->created_at,
         ];
     }

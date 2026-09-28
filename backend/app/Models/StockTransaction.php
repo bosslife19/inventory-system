@@ -18,7 +18,7 @@ class StockTransaction extends Model
     protected $fillable = [
         'facility_id', 'product_id', 'batch_id', 'transaction_date', 'voucher_no',
         'counterparty', 'transaction_type', 'quantity', 'comments', 'performed_by',
-        'delivery_note_id', 'running_balance',
+        'delivery_note_id', 'running_balance', 'client_reference',
     ];
 
     protected function casts(): array

@@ -390,6 +390,49 @@
                 }
             }
         },
+        "/users/me/fcm-token": {
+            "post": {
+                "operationId": "deviceToken.store",
+                "summary": "Register (or clear, with null) the push token of the device the user is\nsigned in on. Tokens rotate, so the app sends it on every sign-in and\nforeground (mobile/CLAUDE.md rule 4)",
+                "tags": [
+                    "DeviceToken"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "token": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "description": "FCM registration token; null to stop pushes to this user (e.g. on sign-out).",
+                                        "maxLength": 4096
+                                    }
+                                },
+                                "required": [
+                                    "token"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/lgas/{lga}/facilities": {
             "get": {
                 "operationId": "facility.index",
@@ -1802,7 +1845,7 @@
             },
             "post": {
                 "operationId": "stockTransaction.store",
-                "summary": "Record a Stock Card entry. Authorization (StockTransactionPolicy@create)\nruns in StoreStockTransactionRequest::authorize(), before validation",
+                "summary": "Record a Stock Card entry. Authorization (StockTransactionPolicy@create)\nruns in StoreStockTransactionRequest::authorize(), before validation.\n201 when recorded; 200 with the existing entry when client_reference\nrepeats one already recorded at this facility",
                 "tags": [
                     "StockTransaction"
                 ],
@@ -1828,20 +1871,12 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "`StockTransactionResource`",
+                    "200": {
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/components/schemas/StockTransactionResource"
-                                        }
-                                    },
-                                    "required": [
-                                        "data"
-                                    ]
+                                    "type": "string"
                                 }
                             }
                         }
@@ -2728,6 +2763,13 @@
                             "null"
                         ]
                     },
+                    "client_reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The client's idempotency key, if it sent one."
+                    },
                     "created_at": {
                         "type": [
                             "string",
@@ -2754,6 +2796,7 @@
                     "performed_by_name",
                     "product_name",
                     "delivery_note_id",
+                    "client_reference",
                     "created_at"
                 ],
                 "title": "StockTransactionResource"
@@ -2807,6 +2850,14 @@
                             "null"
                         ],
                         "maxLength": 2000
+                    },
+                    "client_reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Idempotency key (e.g. a UUID from an offline outbox). Re-sending it returns the entry already recorded.",
+                        "maxLength": 64
                     },
                     "transaction_date": {
                         "type": "string",

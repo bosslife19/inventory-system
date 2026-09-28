@@ -53,6 +53,7 @@ quantity                  integer  -- always positive; direction is implied by t
 comments                  text, nullable
 performed_by              fk -> users
 delivery_note_id          fk, nullable  -- set when created from a confirmed delivery note (FK constraint added in Phase 4 with delivery_notes)
+client_reference          string(64), nullable  -- idempotency key from offline clients; unique per (facility_id, client_reference)
 running_balance            integer  -- denormalized snapshot at time of insert, for fast history display.
                                     --   Scoped per facility + product (summed across batches), like the paper Stock Card.
 created_at, updated_at

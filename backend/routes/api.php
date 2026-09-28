@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
@@ -23,6 +24,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', ScopeToHierarchy::class])->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::post('users/me/fcm-token', [DeviceTokenController::class, 'store']);
 
         Route::get('states', [StateController::class, 'index']);
         Route::get('states/{state}/lgas', [LgaController::class, 'index']);

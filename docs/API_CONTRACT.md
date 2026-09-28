@@ -42,7 +42,11 @@ Lists return only what the caller can see — own node and below, never above or
   - query: `product_id?, transaction_type?, from?, to?` (inclusive `YYYY-MM-DD`), `order?` (`desc` default | `asc` = paper-card order), `per_page?` (≤ 200, default 50), `page?`.
   - 200 → `{ "data": [<StockTransaction>], "meta": { "pagination": { current_page, per_page, total, last_page } } }`; each row also has `product_name` and `performed_by_name`.
 - `POST /facilities/{id}/stock-transactions` — record receipt / issue / loss / adjustment_in / adjustment_out / physical_count / transfer_in / transfer_out
-  - body: `product_id, batch_no?, expiry_date?, transaction_type, quantity, voucher_no?, counterparty?, comments?, transaction_date`
+  - body: `product_id, batch_no?, expiry_date?, transaction_type, quantity, voucher_no?, counterparty?, comments?, transaction_date, client_reference?`
+  - `client_reference`: optional idempotency key (≤ 64 chars; the mobile outbox sends a UUID per queued entry).
+    If an entry with the same `client_reference` already exists at this facility, nothing is recorded and the
+    existing entry comes back with **200** instead of 201 — so a sync retried after a lost response can't
+    double-count. The first request's payload wins.
   - who: `sdp_staff` for their own facility, `admin` for any; facility must be active. Otherwise 403 (checked before validation).
   - `quantity`: integer, always positive (≥ 0 for `physical_count`, which sets the batch balance to the counted total). Direction comes from `transaction_type`.
   - `transaction_date`: `YYYY-MM-DD`, not in the future (Africa/Lagos), and not earlier than the latest entry for that product at the facility.
@@ -152,7 +156,8 @@ Lists return only what the caller can see — own node and below, never above or
   DATABASE_SCHEMA.md); clients never create them.
 
 ## Notifications (mobile)
-- `POST /users/me/fcm-token` — register device token for push
+- `POST /users/me/fcm-token` — body `{ token: string | null }`; stores the signed-in user's FCM token (null clears it,
+  e.g. on sign-out). 204. The app sends it on sign-in and every foreground, since tokens rotate.
 - `GET /notifications` — in-app list
 - `POST /notifications/{id}/read`
 

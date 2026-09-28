@@ -56,6 +56,8 @@ class StockTransactionController extends Controller
     /**
      * Record a Stock Card entry. Authorization (StockTransactionPolicy@create)
      * runs in StoreStockTransactionRequest::authorize(), before validation.
+     * 201 when recorded; 200 with the existing entry when client_reference
+     * repeats one already recorded at this facility.
      */
     public function store(StoreStockTransactionRequest $request, Facility $facility, StockLedgerService $ledger): JsonResponse
     {
@@ -71,10 +73,11 @@ class StockTransactionController extends Controller
             voucherNo: $request->input('voucher_no'),
             counterparty: $request->input('counterparty'),
             comments: $request->input('comments'),
+            clientReference: $request->input('client_reference'),
         );
 
         return StockTransactionResource::make($transaction->load(['product', 'performer']))
             ->response()
-            ->setStatusCode(201);
+            ->setStatusCode($transaction->wasRecentlyCreated ? 201 : 200);
     }
 }

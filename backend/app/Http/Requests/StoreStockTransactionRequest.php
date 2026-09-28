@@ -55,6 +55,8 @@ class StoreStockTransactionRequest extends FormRequest
                 'nullable', 'string', 'max:255',
             ],
             'comments' => ['nullable', 'string', 'max:2000'],
+            /** Idempotency key (e.g. a UUID from an offline outbox). Re-sending it returns the entry already recorded. */
+            'client_reference' => ['nullable', 'string', 'max:64'],
             'transaction_date' => [
                 'required', 'date_format:Y-m-d',
                 'before_or_equal:'.CarbonImmutable::today(config('app.business_timezone'))->toDateString(),
