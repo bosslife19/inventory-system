@@ -66,12 +66,28 @@ Lists return only what the caller can see — own node and below, never above or
   - Display-only: nothing is written back.
 
 ## Delivery notes
-- `GET /facilities/{id}/delivery-notes`
-- `POST /facilities/{id}/delivery-notes` — create draft (manual entry or after mobile scan)
-  - body: `delivery_note_no, source, received_date, scanned_document?, items: [{product_id, batch_no, expiry_date, quantity}]`
-- `POST /delivery-notes/{id}/confirm` — turns draft into posted receipt transactions
-- `POST /delivery-notes/{id}/reject`
-- `POST /delivery-notes/scan` — upload photo, returns OCR/barcode-parsed draft items for the client to review before creating the delivery note (does not write to the ledger)
+Scanning happens **on the device** (ML Kit text recognition in the mobile app): the photo never
+leaves the phone, the parsed lines are reviewed and corrected by staff, and only the reviewed data is
+sent. There is no server-side scan endpoint.
+
+- `GET /facilities/{id}/delivery-notes` (query: `status?`, `per_page?` ≤ 100) — newest first, paginated.
+- `GET /delivery-notes/{id}`
+- `POST /facilities/{id}/delivery-notes` — create a draft, or `confirm: true` to create and confirm in
+  one step (what the phone sends after staff review a scan).
+  - body: `delivery_note_no?, source, received_date, capture_method? ("manual" | "ocr"), comments?,
+    confirm?, client_reference?, items: [{ product_id, batch_no?, expiry_date?, quantity }]` (1–100 items).
+  - Batch rules per line as for stock transactions (`items.N.batch_no` errors). `source` becomes each
+    receipt's counterparty and `delivery_note_no` its voucher no.
+  - `client_reference` works like on stock transactions: a repeat returns the existing note with 200.
+  - who: `sdp_staff` (own facility) and `admin`, facility active — same as recording transactions.
+- `POST /delivery-notes/{id}/confirm` — posts every item as a `receipt` through the ledger, all or
+  nothing; a ledger rule failure is a 422 naming the line (`items.N.field`, or `received_date` for
+  back-dating). Each item gets `stock_transaction_id`. 422 if not a draft.
+- `POST /delivery-notes/{id}/reject` — body `reason?`; drafts only.
+- Response `data`: `{ id, facility_id, delivery_note_no, source, received_date, status, capture_method,
+  comments, client_reference, created_by_name, confirmed_by_name, confirmed_at, rejected_by_name,
+  rejected_at, rejection_reason, created_at, items: [{ id, product: { id, name, sku, unit_of_measure },
+  batch_no, expiry_date, quantity, stock_transaction_id }] }`.
 
 ## Rollups (LGA / State / Federal — read only)
 - `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA

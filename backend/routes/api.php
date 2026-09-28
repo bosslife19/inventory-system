@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DeliveryNoteController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\LgaController;
@@ -44,6 +45,12 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);
         Route::post('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'store']);
         Route::get('facilities/{facility}/reorder-suggestions', [ReorderSuggestionController::class, 'index']);
+
+        Route::get('facilities/{facility}/delivery-notes', [DeliveryNoteController::class, 'index']);
+        Route::post('facilities/{facility}/delivery-notes', [DeliveryNoteController::class, 'store']);
+        Route::get('delivery-notes/{deliveryNote}', [DeliveryNoteController::class, 'show']);
+        Route::post('delivery-notes/{deliveryNote}/confirm', [DeliveryNoteController::class, 'confirm']);
+        Route::post('delivery-notes/{deliveryNote}/reject', [DeliveryNoteController::class, 'reject']);
 
         Route::get('alerts', [AlertController::class, 'index']);
         Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);

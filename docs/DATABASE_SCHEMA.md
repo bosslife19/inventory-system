@@ -52,7 +52,7 @@ quantity                  integer  -- always positive; direction is implied by t
                                    --   =  physical_count sets the balance to the counted quantity
 comments                  text, nullable
 performed_by              fk -> users
-delivery_note_id          fk, nullable  -- set when created from a confirmed delivery note (FK constraint added in Phase 4 with delivery_notes)
+delivery_note_id          fk -> delivery_notes, nullable  -- set when created from a confirmed delivery note
 client_reference          string(64), nullable  -- idempotency key from offline clients; unique per (facility_id, client_reference)
 running_balance            integer  -- denormalized snapshot at time of insert, for fast history display.
                                     --   Scoped per facility + product (summed across batches), like the paper Stock Card.
@@ -76,13 +76,15 @@ NULLs are distinct in unique indexes, which would allow duplicate rows for non-b
 ## Delivery notes (mobile scanning flow)
 
 **delivery_notes**
-`id, facility_id (fk), delivery_note_no, source (string, e.g. supplier/warehouse name), received_date, status (enum: draft|confirmed|rejected), scanned_document_path (nullable), created_by (fk users), confirmed_by (fk users, nullable), created_at, updated_at`
+`id, facility_id (fk), delivery_note_no (nullable), source (string, e.g. supplier/warehouse name), received_date, status (enum: draft|confirmed|rejected), scanned_document_path (nullable, unused while OCR is on-device), capture_method (enum: manual|ocr), comments (nullable), created_by (fk users), confirmed_by (fk users, nullable), confirmed_at, rejected_by (fk users, nullable), rejected_at, rejection_reason (nullable), client_reference (nullable; unique per facility), created_at, updated_at`
 
 **delivery_note_items**
-`id, delivery_note_id (fk), product_id (fk), batch_no, expiry_date, quantity, created_at, updated_at`
+`id, delivery_note_id (fk), product_id (fk), batch_no (nullable for non-batch-tracked products), expiry_date (nullable), quantity, stock_transaction_id (fk, nullable — set on confirmation), created_at, updated_at`
 
-> On `confirmed`, a backend job creates one `stock_transactions` row
-> (type=`receipt`) per item, auto-creating the `batches` row if needed.
+> On confirmation, `DeliveryNoteService` posts one `stock_transactions` row
+> (type=`receipt`) per item through `StockLedgerService`, inline and all
+> or nothing, auto-creating the `batches` row if needed.
+> `stock_transactions.delivery_note_id` is a foreign key to `delivery_notes`.
 
 ## Consumption & reordering (the Excel "Bin Card" summary sheet)
 

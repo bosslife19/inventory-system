@@ -32,11 +32,14 @@ own node plus everything beneath it — never above or sideways.
    updated **synchronously, in the same request** (an O(1) delta apply,
    not a re-sum of history — see "Balance recalculation" below) → alert
    rules re-evaluate that row.
-2. Delivery note scanned on mobile → uploaded image + OCR/barcode result →
-   backend creates a **draft** delivery note with line items → SDP staff
-   confirms on web or mobile → confirmation creates the actual receipt
-   transactions (never auto-post without human confirmation — matches the
-   real-world control of signing for a delivery).
+2. Delivery note scanned on mobile → text recognised **on the device**
+   (ML Kit; the photo never leaves the phone, and it works offline) →
+   parsed into draft lines → SDP staff review and correct every line →
+   confirming sends the note (through the offline outbox) and the backend
+   posts one receipt transaction per line — never auto-posted without that
+   human confirmation, matching the real-world control of signing for a
+   delivery. Notes can also be entered by hand or saved as drafts and
+   confirmed later.
 3. A cron-triggered scheduled task (not a queue worker — see "Hosting
    constraints") computes Average Monthly Consumption (AMC) per
    facility+product from the last N months of issue transactions, and a

@@ -59,9 +59,9 @@ database/
    off `$user->role` + `$user->facility_id/lga_id/state_id`, and apply via
    `authorize()` in every controller method — don't trust query params.
 4. **Delivery note confirmation is the only place receipts get created
-   from mobile scanning.** `POST /delivery-notes/scan` must never write to
-   `stock_transactions` — it only returns parsed line items for the client
-   to review.
+   from mobile scanning.** OCR runs on the phone; the backend only ever
+   receives lines a person has reviewed, and `DeliveryNoteService::confirm()`
+   posts them through `StockLedgerService` — drafts never touch the ledger.
 5. Expose an OpenAPI spec (e.g. via `dedoc/scramble`, zero-annotation) so
    `shared/types/` can be generated from it — keep route model binding and
    Form Request validation classes clean since most generators read those.

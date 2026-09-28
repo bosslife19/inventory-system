@@ -113,6 +113,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/facilities/{facility}/delivery-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A facility's delivery notes, newest first */
+        get: operations["deliveryNote.index"];
+        put?: never;
+        /**
+         * Create a delivery note — a draft, or confirmed straight away with
+         *     confirm=true (the phone's reviewed scan). 201 when created; 200 with
+         *     the existing note when client_reference repeats one already sent
+         */
+        post: operations["deliveryNote.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/delivery-notes/{deliveryNote}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["deliveryNote.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/delivery-notes/{deliveryNote}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a draft's items to the ledger as receipts */
+        post: operations["deliveryNote.confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/delivery-notes/{deliveryNote}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["deliveryNote.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/fcm-token": {
         parameters: {
             query?: never;
@@ -505,6 +576,48 @@ export interface components {
             quantity_on_hand: number;
             last_transaction_id: number;
         };
+        /** DeliveryNoteResource */
+        DeliveryNoteResource: {
+            id: number;
+            facility_id: number;
+            delivery_note_no: string | null;
+            source: string;
+            received_date: string;
+            status: components["schemas"]["DeliveryNoteStatus"];
+            /** @enum {string} */
+            capture_method: "manual" | "ocr";
+            comments: string | null;
+            client_reference: string | null;
+            created_by_name: string;
+            confirmed_by_name: string | null;
+            /** Format: date-time */
+            confirmed_at: string | null;
+            rejected_by_name: string | null;
+            /** Format: date-time */
+            rejected_at: string | null;
+            rejection_reason: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            items: {
+                id: number;
+                product: {
+                    id: number;
+                    name: string;
+                    sku: string;
+                    unit_of_measure: string;
+                };
+                batch_no: string | null;
+                expiry_date: string | null;
+                quantity: number;
+                /** @description The receipt this line became, once confirmed. */
+                stock_transaction_id: number | null;
+            }[];
+        };
+        /**
+         * DeliveryNoteStatus
+         * @enum {string}
+         */
+        DeliveryNoteStatus: "draft" | "confirmed" | "rejected";
         /**
          * ExpiryStatus
          * @enum {string}
@@ -660,6 +773,36 @@ export interface components {
             client_reference: string | null;
             /** Format: date-time */
             created_at: string | null;
+        };
+        /**
+         * StoreDeliveryNoteRequest
+         * @description Shape validation for POST /facilities/{facility}/delivery-notes. Ledger
+         *     rules (known batch expiry, back-dating) are checked when the note is
+         *     confirmed, by StockLedgerService.
+         */
+        StoreDeliveryNoteRequest: {
+            delivery_note_no?: string | null;
+            /** @description Supplier or warehouse; becomes the receipts' "Received from". */
+            source: string;
+            /** Format: date */
+            received_date: string;
+            /**
+             * @description "ocr" when the lines were read from a photo on the device and reviewed by staff.
+             * @enum {string|null}
+             */
+            capture_method?: "manual" | "ocr" | null;
+            comments?: string | null;
+            /** @description Confirm straight away (post the receipts) instead of saving a draft. */
+            confirm?: boolean | null;
+            /** @description Idempotency key: re-sending it returns the note already created. */
+            client_reference?: string | null;
+            items: {
+                product_id: number;
+                batch_no?: string | null;
+                /** Format: date */
+                expiry_date?: string | null;
+                quantity: number;
+            }[];
         };
         /**
          * StoreStockTransactionRequest
@@ -946,6 +1089,184 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "deliveryNote.index": {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["DeliveryNoteStatus"] | null;
+                per_page?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deliveryNote.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDeliveryNoteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "deliveryNote.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The delivery note ID */
+                deliveryNote: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deliveryNote.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The delivery note ID */
+                deliveryNote: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "deliveryNote.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The delivery note ID */
+                deliveryNote: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deviceToken.store": {
