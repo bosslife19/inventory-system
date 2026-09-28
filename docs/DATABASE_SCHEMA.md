@@ -91,7 +91,19 @@ NULLs are distinct in unique indexes, which would allow duplicate rows for non-b
 ## Alerts & notifications
 
 **alerts**
-`id, facility_id (fk), product_id (fk), batch_id (nullable fk), alert_type (enum: low_stock|expiring_soon|expired|stock_out), severity (enum: info|warning|critical), status (enum: open|acknowledged|resolved), created_at, resolved_at`
+`id, facility_id (fk), product_id (fk), batch_id (nullable fk), alert_type (enum: low_stock|expiring_soon|expired|stock_out), severity (enum: info|warning|critical), status (enum: open|acknowledged|resolved), acknowledged_at, acknowledged_by (nullable fk users), resolved_at, resolved_by (nullable fk users), condition_cleared_at, created_at, updated_at`
+
+> Raised and auto-resolved by `AlertEngine` (after every ledger write, and
+> by the scheduled `stock:detect-alerts`). One alert per episode of a
+> condition keyed by (facility, product, batch, alert_type): `batch_id` is
+> set for `expired`/`expiring_soon` (per batch), null for `stock_out`/
+> `low_stock` (per product). `condition_cleared_at` is null while the
+> condition still holds — at most one such row per key. When it clears the
+> engine sets it (and resolves the alert if still open, leaving
+> `resolved_by` null). A user resolving an alert whose condition still
+> holds suppresses it until the condition clears and recurs.
+> Severity: stock_out/expired = critical, low_stock = warning,
+> expiring_soon = info.
 
 **notifications**
 `id, user_id (fk), alert_id (fk), channel (enum: push|in_app), sent_at, read_at (nullable)`

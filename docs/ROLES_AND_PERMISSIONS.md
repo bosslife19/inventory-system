@@ -9,6 +9,7 @@
 | View Federal rollup | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Scan / submit delivery note | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Confirm delivery note into ledger | ✅ (own facility) | ❌ | ❌ | ❌ | ✅ |
+| View / acknowledge / resolve alerts | ✅ (own facility) | ✅ (any facility in LGA) | ✅ (any facility in state) | ✅ (any facility) | ✅ |
 | Receive push alerts | ✅ (own facility) | ✅ (LGA-level digest) | ✅ (state-level digest) | ✅ (national digest) | ✅ |
 | Manage product catalog | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Manage hierarchy (states/LGAs/facilities) | ❌ | ❌ | ❌ | ❌ | ✅ |

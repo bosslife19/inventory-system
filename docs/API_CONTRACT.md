@@ -101,9 +101,24 @@ Lists return only what the caller can see — own node and below, never above or
   counts facilities within the caller's scope.
 
 ## Alerts
-- `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status)
-- `POST /alerts/{id}/acknowledge`
-- `POST /alerts/{id}/resolve`
+- `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status,
+  facility_id, page, per_page) — most severe first, then newest. Without `status`, returns
+  alerts needing attention (`open` + `acknowledged`). Paginated like the ledger history:
+  ```
+  { "data": [{ id, alert_type, severity, status,
+               condition_active,              // false once the stock situation has cleared
+               facility: { id, name }, product: { id, name, sku, unit_of_measure },
+               batch: { id, batch_no, expiry_date } | null,   // expiry alerts only
+               created_at, acknowledged_at, acknowledged_by_name,
+               resolved_at, resolved_by_name }],              // resolved_by_name null = auto-resolved
+    "meta": { "pagination": { current_page, per_page, total, last_page } } }
+  ```
+  An unread count for the bell is `GET /alerts?status=open&per_page=1` → `meta.pagination.total`.
+- `POST /alerts/{id}/acknowledge` — open → acknowledged; no-op if already acknowledged;
+  422 if resolved. Returns the alert.
+- `POST /alerts/{id}/resolve` — closes it; no-op if already resolved. Returns the alert.
+- Alerts are raised and auto-resolved by the backend only (see `alerts` in
+  DATABASE_SCHEMA.md); clients never create them.
 
 ## Notifications (mobile)
 - `POST /users/me/fcm-token` — register device token for push

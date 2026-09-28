@@ -4,6 +4,64 @@
  */
 
 export interface paths {
+    "/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Alerts for every facility in the caller's scope, most severe first.
+         *     Without a status filter, returns alerts still needing attention
+         *     (open and acknowledged)
+         */
+        get: operations["alert.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/alerts/{alert}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark an open alert as seen and being handled. No-op if already acknowledged */
+        post: operations["alert.acknowledge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/alerts/{alert}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close an alert. If the stock situation still holds, it is not raised
+         *     again until it clears and recurs. No-op if already resolved
+         */
+        post: operations["alert.resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -243,6 +301,52 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AlertCollection */
+        AlertCollection: components["schemas"]["AlertResource"][];
+        /** AlertResource */
+        AlertResource: {
+            id: number;
+            alert_type: components["schemas"]["AlertType"];
+            severity: components["schemas"]["AlertSeverity"];
+            status: components["schemas"]["AlertStatus"];
+            /** @description False once the stock situation that raised the alert has cleared. */
+            condition_active: boolean;
+            facility: {
+                id: number;
+                name: string;
+            };
+            product: {
+                id: number;
+                name: string;
+                sku: string;
+                unit_of_measure: string;
+            };
+            /** @description Set for expiry alerts only. */
+            batch: {
+                id: number;
+                batch_no: string;
+                expiry_date: string;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: date-time */
+            acknowledged_at: string | null;
+            acknowledged_by_name: string | null;
+            /** Format: date-time */
+            resolved_at: string | null;
+            /** @description Null when resolved automatically because the condition cleared. */
+            resolved_by_name: string | null;
+        };
+        /**
+         * AlertSeverity
+         * @enum {string}
+         */
+        AlertSeverity: "info" | "warning" | "critical";
+        /**
+         * AlertStatus
+         * @enum {string}
+         */
+        AlertStatus: "open" | "acknowledged" | "resolved";
         /**
          * AlertType
          * @description Same values as alerts.alert_type in docs/DATABASE_SCHEMA.md.
@@ -502,6 +606,104 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "alert.index": {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["AlertStatus"] | null;
+                alert_type?: components["schemas"]["AlertType"] | null;
+                severity?: components["schemas"]["AlertSeverity"] | null;
+                /** @description Narrow to one facility within your scope. */
+                facility_id?: number | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AlertResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "alert.acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The alert ID */
+                alert: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AlertResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "alert.resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The alert ID */
+                alert: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `AlertResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AlertResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "auth.login": {
         parameters: {
             query?: never;

@@ -26,9 +26,14 @@ use Illuminate\Validation\ValidationException;
  * enforced here rather than in the FormRequest, because they need the lock
  * and because other callers (delivery note confirmation) must obey them too.
  * They surface as ValidationException, i.e. a normal 422 to the API client.
+ *
+ * After the write commits, alerts for the product are re-evaluated. That is
+ * derived state, so a failure there is reported but never undoes the entry.
  */
 class StockLedgerService
 {
+    public function __construct(private readonly AlertEngine $alerts) {}
+
     public function record(
         Facility $facility,
         Product $product,
@@ -47,7 +52,7 @@ class StockLedgerService
             $this->fail('quantity', 'Quantity must be greater than zero.');
         }
 
-        return DB::transaction(function () use (
+        $transaction = DB::transaction(function () use (
             $facility, $product, $type, $quantity, $transactionDate, $performedBy,
             $batchNo, $expiryDate, $voucherNo, $counterparty, $comments, $deliveryNoteId,
         ) {
@@ -106,6 +111,14 @@ class StockLedgerService
 
             return $transaction->setRelation('batch', $batch);
         });
+
+        try {
+            $this->alerts->evaluate($facility, $product->id);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $transaction;
     }
 
     private function resolveBatch(

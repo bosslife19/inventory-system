@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\LgaController;
@@ -34,5 +35,9 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/stock-balances', [StockBalanceController::class, 'index']);
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);
         Route::post('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'store']);
+
+        Route::get('alerts', [AlertController::class, 'index']);
+        Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
+        Route::post('alerts/{alert}/resolve', [AlertController::class, 'resolve']);
     });
 });
