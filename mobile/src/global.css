@@ -1,0 +1,11 @@
+/* Web preview only: keep the page background in step with the app. */
+html,
+body {
+  background: #f3f6fb;
+}
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    background: #070a12;
+  }
+}

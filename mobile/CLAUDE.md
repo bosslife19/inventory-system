@@ -19,18 +19,28 @@ than to design in from the start.
   a second copy of the API types.
 
 ## Structure conventions
+Expo Router (SDK 57): every file under `src/app/` is a route; keep everything
+else outside it. See `AGENTS.md` — check the versioned Expo docs, not memory.
 ```
-app/
-  screens/
-    StockScreen.tsx        <- current balances for the logged-in staff's facility
-    RecordTransactionScreen.tsx
-    ScanDeliveryScreen.tsx   <- camera capture -> POST /delivery-notes/scan -> review screen
-    AlertsScreen.tsx
+src/
+  app/
+    _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
+    sign-in.tsx
+    (app)/_layout.tsx          <- signed-in stack; wires sync + push; non-facility users get a notice
+    (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
+    (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first
+    (app)/product/[id].tsx     <- one product's Stock Card
+  components/                 <- ui/ kit (Text, Card, Button, Badge, KpiTile, ...) + domain pieces
+  constants/theme.ts          <- design tokens: same blue / white / black palette as web/src/index.css
   lib/
-    offlineQueue.ts          <- outbox: pending transactions not yet synced
-    sync.ts                    <- flush outbox on connectivity regain
-    push.ts                     <- FCM token registration, notification handlers
+    api.ts, types.ts           <- openapi-fetch over ../shared/types (type-only imports)
+    session.tsx                <- token in SecureStore; works offline with the last known user
+    offlineQueue.ts            <- outbox: pending transactions not yet synced (expo-sqlite kv-store)
+    sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
+    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>
+    *.web.ts                   <- web-preview fallbacks (localStorage, no push)
 ```
+Delivery-note scanning (ScanDeliveryScreen) is not built yet.
 
 ## Rules specific to this app
 
