@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ReorderSuggestionController;
 use App\Http\Controllers\Api\V1\StateController;
 use App\Http\Controllers\Api\V1\StockActivityController;
 use App\Http\Controllers\Api\V1\StockBalanceController;
@@ -35,6 +36,7 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/stock-balances', [StockBalanceController::class, 'index']);
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);
         Route::post('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'store']);
+        Route::get('facilities/{facility}/reorder-suggestions', [ReorderSuggestionController::class, 'index']);
 
         Route::get('alerts', [AlertController::class, 'index']);
         Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);

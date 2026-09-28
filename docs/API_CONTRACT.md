@@ -51,6 +51,15 @@ Lists return only what the caller can see — own node and below, never above or
   - 201 → `{ "data": { id, facility_id, product_id, batch_id, batch_no, expiry_date, transaction_date, transaction_type, quantity, running_balance, voucher_no, counterparty, comments, performed_by, delivery_note_id, created_at } }` — `running_balance` is the facility+product total after this entry.
   - 422 also for state-dependent failures, e.g. `{"errors": {"quantity": ["Insufficient stock: 10 on hand for batch AL001."]}}`.
 - `GET /facilities/{id}/reorder-suggestions` — current AMC + suggested quantity to order per product
+  - `data`: one entry per product stocked at the facility, products needing an order first (then
+    lowest months of stock): `{ product, usable_quantity, level, amc_quantity, amc_months_used,
+    amc_period_month, months_of_stock, max_stock_quantity, basis, suggested_quantity }`.
+  - `amc_quantity` from the latest `amc_snapshots` row (null if none, or no complete month of history).
+  - `max_stock_quantity` = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 3) when there is an
+    AMC > 0 (`basis: "amc"`), else the product's `max_stock_level` (`basis: "product_max"`).
+  - `suggested_quantity` = max(0, `max_stock_quantity` − live `usable_quantity`);
+    `months_of_stock` = `usable_quantity` / AMC, one decimal (null without an AMC).
+  - Display-only: nothing is written back.
 
 ## Delivery notes
 - `GET /facilities/{id}/delivery-notes`

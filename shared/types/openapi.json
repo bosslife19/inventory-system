@@ -743,6 +743,58 @@
                 }
             }
         },
+        "/facilities/{facility}/reorder-suggestions": {
+            "get": {
+                "operationId": "reorderSuggestion.index",
+                "summary": "Quantity to order per product stocked at the facility: latest AMC\nsnapshot against current usable stock. Products needing an order\ncome first, lowest months of stock first",
+                "tags": [
+                    "ReorderSuggestion"
+                ],
+                "parameters": [
+                    {
+                        "name": "facility",
+                        "in": "path",
+                        "required": true,
+                        "description": "The facility ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `ReorderSuggestionResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ReorderSuggestionResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/states": {
             "get": {
                 "operationId": "state.index",
@@ -1841,6 +1893,73 @@
                     "batches"
                 ],
                 "title": "ProductStockResource"
+            },
+            "ReorderSuggestionResource": {
+                "type": "object",
+                "properties": {
+                    "product": {
+                        "$ref": "#/components/schemas/ProductResource"
+                    },
+                    "usable_quantity": {
+                        "type": "integer"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/StockLevel"
+                    },
+                    "amc_quantity": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "Average Monthly Consumption (issues per month); null without a complete month of history."
+                    },
+                    "amc_months_used": {
+                        "type": "integer",
+                        "description": "Complete months the AMC is averaged over."
+                    },
+                    "amc_period_month": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Month of the AMC snapshot used (YYYY-MM-DD, first of month); null if none computed yet."
+                    },
+                    "months_of_stock": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "Usable stock divided by AMC; null without an AMC."
+                    },
+                    "max_stock_quantity": {
+                        "type": "integer",
+                        "description": "Target stock level: AMC x max months, or the product's max_stock_level without an AMC."
+                    },
+                    "basis": {
+                        "type": "string",
+                        "enum": [
+                            "amc",
+                            "product_max"
+                        ]
+                    },
+                    "suggested_quantity": {
+                        "type": "integer",
+                        "description": "Max stock minus usable stock, never negative."
+                    }
+                },
+                "required": [
+                    "product",
+                    "usable_quantity",
+                    "level",
+                    "amc_quantity",
+                    "amc_months_used",
+                    "amc_period_month",
+                    "months_of_stock",
+                    "max_stock_quantity",
+                    "basis",
+                    "suggested_quantity"
+                ],
+                "title": "ReorderSuggestionResource"
             },
             "StateResource": {
                 "type": "object",

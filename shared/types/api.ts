@@ -202,6 +202,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/facilities/{facility}/reorder-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Quantity to order per product stocked at the facility: latest AMC
+         *     snapshot against current usable stock. Products needing an order
+         *     come first, lowest months of stock first
+         */
+        get: operations["reorderSuggestion.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/states": {
         parameters: {
             query?: never;
@@ -459,6 +480,26 @@ export interface components {
             flags: components["schemas"]["AlertType"][];
             /** @description Earliest expiry first. */
             batches: components["schemas"]["BatchStockResource"][];
+        };
+        /** ReorderSuggestionResource */
+        ReorderSuggestionResource: {
+            product: components["schemas"]["ProductResource"];
+            usable_quantity: number;
+            level: components["schemas"]["StockLevel"];
+            /** @description Average Monthly Consumption (issues per month); null without a complete month of history. */
+            amc_quantity: number | null;
+            /** @description Complete months the AMC is averaged over. */
+            amc_months_used: number;
+            /** @description Month of the AMC snapshot used (YYYY-MM-DD, first of month); null if none computed yet. */
+            amc_period_month: string | null;
+            /** @description Usable stock divided by AMC; null without an AMC. */
+            months_of_stock: number | null;
+            /** @description Target stock level: AMC x max months, or the product's max_stock_level without an AMC. */
+            max_stock_quantity: number;
+            /** @enum {string} */
+            basis: "amc" | "product_max";
+            /** @description Max stock minus usable stock, never negative. */
+            suggested_quantity: number;
         };
         /** StateResource */
         StateResource: {
@@ -941,6 +982,34 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "reorderSuggestion.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `ReorderSuggestionResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderSuggestionResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "state.index": {

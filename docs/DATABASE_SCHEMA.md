@@ -86,7 +86,18 @@ NULLs are distinct in unique indexes, which would allow duplicate rows for non-b
 ## Consumption & reordering (the Excel "Bin Card" summary sheet)
 
 **amc_snapshots** (Average Monthly Consumption, recomputed monthly)
-`id, facility_id (fk), product_id (fk), period_month (date, first-of-month), amc_quantity (decimal), months_of_stock (decimal), suggested_reorder_quantity (integer), created_at`
+`id, facility_id (fk), product_id (fk), period_month (date, first-of-month), amc_quantity (decimal, nullable), months_used (tinyint), months_of_stock (decimal, nullable), suggested_reorder_quantity (integer), created_at`
+unique on `(facility_id, product_id, period_month)`
+
+> Written by the scheduled `stock:compute-amc` early each month (re-runs
+> overwrite). AMC = `issue` quantities over the last `INVENTORY_AMC_MONTHS`
+> (default 3) complete months before `period_month`, divided by the number
+> of those months the product was on the facility's Stock Card
+> (`months_used`; a month it first appeared part-way through is excluded).
+> Losses, adjustments and transfers are not consumption. Null when there is
+> no complete month yet. `months_of_stock` / `suggested_reorder_quantity`
+> record the position at computation time; see the reorder-suggestions
+> endpoint for the live formula.
 
 ## Alerts & notifications
 

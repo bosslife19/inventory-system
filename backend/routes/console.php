@@ -27,3 +27,12 @@ Schedule::command('stock:detect-alerts')
     ->between('05:00', '08:00')
     ->timezone(config('app.business_timezone'))
     ->withoutOverlapping();
+
+// AMC snapshot for the new month, early on the 1st; hourly retries resume a
+// pass cut short by the time budget and are no-ops once the month is done.
+Schedule::command('stock:compute-amc')
+    ->hourly()
+    ->between('01:00', '05:00')
+    ->when(fn () => now(config('app.business_timezone'))->day <= 2)
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping();
