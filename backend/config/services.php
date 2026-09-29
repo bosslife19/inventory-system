@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    /*
+    | Firebase Admin credentials (service account JSON) for push
+    | notifications. Keep the file out of git — storage/app is ignored.
+    | Without it, push is off (NullPushSender).
+    */
+    'firebase' => [
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase-credentials.json')),
+    ],
+
 ];

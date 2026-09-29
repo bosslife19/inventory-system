@@ -172,6 +172,13 @@ sent. There is no server-side scan endpoint.
   DATABASE_SCHEMA.md); clients never create them.
 
 ## Notifications (mobile)
+Push is sent through FCM (Firebase Admin SDK, credentials in `FIREBASE_CREDENTIALS`, default
+`storage/app/firebase-credentials.json`, never committed) when `AlertEngine` raises a **new** alert,
+to the `sdp_staff` of that facility who have registered a token. Android only for now (iOS needs
+APNs configured). Payload: notification `{ title, body }` on Android channel `stock-alerts`, and
+data `{ alert_id, alert_type, url: "stockcard://alerts?focus=<alert_id>" }` for the deep link.
+Tokens FCM reports as invalid are cleared. LGA / State / Federal digests are not built yet.
+
 - `POST /users/me/fcm-token` — body `{ token: string | null }`; stores the signed-in user's FCM token (null clears it,
   e.g. on sign-out). 204. The app sends it on sign-in and every foreground, since tokens rotate.
 - `GET /notifications` — in-app list

@@ -22,10 +22,14 @@ use Illuminate\Support\Facades\DB;
  *
  * Runs after every ledger write (for that product) and on a schedule (for
  * every facility), since expiry changes with the calendar, not the ledger.
+ * Newly raised alerts are pushed to the facility's staff (AlertNotifier).
  */
 class AlertEngine
 {
-    public function __construct(private readonly StockStatusService $status) {}
+    public function __construct(
+        private readonly StockStatusService $status,
+        private readonly AlertNotifier $notifier,
+    ) {}
 
     /**
      * @param  int|null  $productId  limit to one product (after a ledger write)
@@ -33,7 +37,9 @@ class AlertEngine
      */
     public function evaluate(Facility $facility, ?int $productId = null): array
     {
-        return DB::transaction(function () use ($facility, $productId) {
+        $raisedAlerts = collect();
+
+        $result = DB::transaction(function () use ($facility, $productId, $raisedAlerts) {
             // Same lock as StockLedgerService::record(): balances can't move
             // under us, and two evaluations of one facility can't both raise.
             Facility::whereKey($facility->id)->lockForUpdate()->firstOrFail();
@@ -67,19 +73,28 @@ class AlertEngine
                 if ($live->has($key)) {
                     continue;
                 }
-                Alert::create([
+                $raisedAlerts->push(Alert::create([
                     'facility_id' => $facility->id,
                     'product_id' => $product,
                     'batch_id' => $batch,
                     'alert_type' => $type,
                     'severity' => $type->severity(),
                     'status' => AlertStatus::Open,
-                ]);
+                ]));
                 $raised++;
             }
 
             return ['raised' => $raised, 'cleared' => $cleared];
         });
+
+        // After commit, and never allowed to undo the evaluation: push is best effort.
+        try {
+            $this->notifier->notify($raisedAlerts);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $result;
     }
 
     /** @return array<string, array{AlertType, int, int|null}> keyed by Alert::key() */
