@@ -21,10 +21,12 @@
       "predictiveBackGestureEnabled": false,
       "package": "ng.health.stockcard",
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -53,14 +55,16 @@
         "expo-camera",
         {
           "cameraPermission": "Allow Stock Card to use the camera to photograph delivery notes. The photo is read on your phone and not uploaded.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "microphonePermission": false
         }
       ],
       [
         "expo-image-picker",
         {
           "photosPermission": "Allow Stock Card to open a photo of a delivery note. It is read on your phone and not uploaded.",
-          "cameraPermission": "Allow Stock Card to use the camera to photograph delivery notes."
+          "cameraPermission": "Allow Stock Card to use the camera to photograph delivery notes.",
+          "microphonePermission": false
         }
       ]
     ],
