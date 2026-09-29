@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import { homePath } from './lib/auth'
 import { useUser } from './lib/user-context'
 import { AlertsPage } from './routes/alerts/AlertsPage'
+import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
@@ -47,6 +48,15 @@ function ById({ page }: { page: 'facility' | 'lga' | 'state' }) {
   }
 }
 
+/** Delivery notes: own facility for facility staff, or a facility's from a drill-down. */
+function Deliveries() {
+  const user = useUser()
+  const id = useParams().id
+  const facilityId = id ? Number(id) : user.facility_id
+  if (facilityId == null) return <Navigate to={homePath(user)} replace />
+  return <DeliveryNotesPage key={facilityId} facilityId={facilityId} user={user} />
+}
+
 function Shell() {
   return <AppShell user={useUser()} />
 }
@@ -68,6 +78,8 @@ export default function App() {
         <Route path="/state" element={<Home level="state" />} />
         <Route path="/federal" element={<Home level="federal" />} />
         <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/delivery-notes" element={<Deliveries />} />
+        <Route path="/facilities/:id/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id" element={<ById page="facility" />} />
         <Route path="/lgas/:id" element={<ById page="lga" />} />
         <Route path="/states/:id" element={<ById page="state" />} />

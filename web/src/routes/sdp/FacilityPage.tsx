@@ -1,4 +1,4 @@
-import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, TrendingDown } from 'lucide-react'
+import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, TrendingDown, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertList } from '../../components/alerts/AlertList'
@@ -101,6 +101,9 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           </div>
         </div>
         <div className="head-actions">
+          <Link to={user.role === 'sdp_staff' ? '/delivery-notes' : `/facilities/${facilityId}/delivery-notes`} className="btn btn-ghost">
+            <Truck size={18} /> Delivery notes
+          </Link>
           {canRecord ? (
             <button type="button" className="btn btn-primary" onClick={() => setRecording(0)}>
               <Plus size={18} /> Record transaction

@@ -1,6 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from './api-client'
-import type { AlertSeverity, AlertStatus, AlertType, NewStockTransaction, StockActivity, TransactionType } from './types'
+import type {
+  AlertSeverity,
+  AlertStatus,
+  AlertType,
+  DeliveryNoteStatus,
+  NewDeliveryNote,
+  NewStockTransaction,
+  StockActivity,
+  TransactionType,
+} from './types'
 
 // Rollups poll instead of live push: no WebSocket server on shared hosting (docs/ARCHITECTURE.md).
 const ROLLUP_POLL_MS = 60_000
@@ -197,5 +206,73 @@ export function useFederalActivity() {
     queryKey: ['stock-activity', 'federal'],
     queryFn: async () => (await unwrap(api.GET('/federal/stock-activity'))).data as StockActivity,
     refetchInterval: ROLLUP_POLL_MS,
+  })
+}
+
+/** Everything a ledger write changes server-side: balances, history, rollups, alerts, reorder figures. */
+function invalidateLedger(queryClient: ReturnType<typeof useQueryClient>, facilityId: number) {
+  for (const key of [
+    ['stock-balances', facilityId],
+    ['stock-transactions', facilityId],
+    ['lga-summary'],
+    ['state-summary'],
+    ['federal-summary'],
+    ['stock-activity'],
+    ['alerts'],
+    ['reorder-suggestions', facilityId],
+    ['delivery-notes', facilityId],
+  ]) {
+    queryClient.invalidateQueries({ queryKey: key })
+  }
+}
+
+export function useDeliveryNotes(facilityId: number, status: DeliveryNoteStatus | undefined, page: number) {
+  return useQuery({
+    queryKey: ['delivery-notes', facilityId, status ?? 'all', page],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/delivery-notes', {
+          params: { path: { facility: facilityId }, query: { status, page, per_page: 20 } },
+        }),
+      ),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useDeliveryNoteCount(facilityId: number, status: DeliveryNoteStatus) {
+  return useQuery({
+    queryKey: ['delivery-notes', facilityId, 'count', status],
+    queryFn: async () =>
+      (
+        await unwrap(
+          api.GET('/facilities/{facility}/delivery-notes', {
+            params: { path: { facility: facilityId }, query: { status, per_page: 1 } },
+          }),
+        )
+      ).meta.pagination.total,
+  })
+}
+
+export function useCreateDeliveryNote(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: NewDeliveryNote) =>
+      (await unwrap(api.POST('/facilities/{facility}/delivery-notes', { params: { path: { facility: facilityId } }, body }))).data,
+    onSuccess: () => invalidateLedger(queryClient, facilityId),
+  })
+}
+
+export function useDeliveryNoteAction(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, action, reason }: { id: number; action: 'confirm' | 'reject'; reason?: string }) =>
+      (
+        await unwrap(
+          action === 'confirm'
+            ? api.POST('/delivery-notes/{deliveryNote}/confirm', { params: { path: { deliveryNote: id } } })
+            : api.POST('/delivery-notes/{deliveryNote}/reject', { params: { path: { deliveryNote: id } }, body: { reason } }),
+        )
+      ).data,
+    onSuccess: () => invalidateLedger(queryClient, facilityId),
   })
 }

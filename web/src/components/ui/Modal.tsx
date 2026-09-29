@@ -7,6 +7,8 @@ interface Props {
   title: string
   description?: string
   icon?: React.ReactNode
+  /** lg for wide content such as tables and line editors. */
+  size?: 'md' | 'lg'
   children: React.ReactNode
 }
 
@@ -15,7 +17,7 @@ interface Props {
  * Esc-to-close and the inert background. Children unmount when closed so a
  * form starts fresh each time it opens.
  */
-export function Modal({ open, onClose, title, description, icon, children }: Props) {
+export function Modal({ open, onClose, title, description, icon, size = 'md', children }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -29,7 +31,7 @@ export function Modal({ open, onClose, title, description, icon, children }: Pro
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal${size === 'lg' ? ' modal-lg' : ''}`}
       aria-labelledby={titleId}
       onClose={onClose}
       // Click on the backdrop (the dialog element itself, outside its content) closes it.

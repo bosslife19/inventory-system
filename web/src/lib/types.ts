@@ -24,6 +24,9 @@ export type FlagCounts = FacilityStockSummary['flag_counts']
 export type Alert = Schemas['AlertResource']
 export type ReorderSuggestion = Schemas['ReorderSuggestionResource']
 export type AreaStockSummary = Schemas['AreaStockSummaryResource']
+export type DeliveryNote = Schemas['DeliveryNoteResource']
+export type DeliveryNoteStatus = Schemas['DeliveryNoteStatus']
+export type NewDeliveryNote = Schemas['StoreDeliveryNoteRequest']
 
 type Json<P extends keyof paths> = NonNullable<
   paths[P] extends { get: { responses: { 200: { content: { 'application/json': infer B } } } } } ? B : never

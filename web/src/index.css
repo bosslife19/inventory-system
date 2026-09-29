@@ -1620,3 +1620,107 @@ a.cell-title:hover {
   color: var(--primary);
   font-size: 0.95rem;
 }
+
+/* ---------- Delivery notes ---------- */
+
+.modal-lg {
+  width: min(920px, calc(100vw - 2rem));
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.meta-grid dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.meta-grid dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+}
+
+.row-link {
+  cursor: pointer;
+}
+.link-button {
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.link-button:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.line-summary {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-editor {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0.9rem;
+  padding: 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.line-editor-head,
+.line-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 0.8fr) auto;
+  gap: 0.6rem;
+  align-items: start;
+}
+.line-editor-head {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.line-cell {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.line-label {
+  display: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.line-editor-row .btn-icon {
+  margin-top: 0.1rem;
+}
+@media (max-width: 720px) {
+  .line-editor-head {
+    display: none;
+  }
+  .line-editor-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: 0.6rem;
+    border-bottom: 1px dashed var(--border-strong);
+  }
+  .line-editor-row .line-cell:first-child {
+    grid-column: 1 / -1;
+  }
+  .line-label {
+    display: block;
+  }
+}

@@ -1,4 +1,4 @@
-import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, ScanLine } from 'lucide-react'
+import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, useLogout } from '../../lib/auth'
@@ -24,10 +24,7 @@ function initials(name: string) {
 }
 
 /** Upcoming roadmap areas, shown so the navigation reads as the whole product. */
-const SOON = [
-  { label: 'Delivery notes', icon: ScanLine },
-  { label: 'Reports', icon: FileText },
-]
+const SOON = [{ label: 'Reports', icon: FileText }]
 
 export function AppShell({ user }: { user: User }) {
   const logout = useLogout()
@@ -58,6 +55,11 @@ export function AppShell({ user }: { user: User }) {
             <a href={`${home}#history`} onClick={close}>
               <History size={18} /> Stock card history
             </a>
+          )}
+          {user.role === 'sdp_staff' && (
+            <NavLink to="/delivery-notes" onClick={close}>
+              <Truck size={18} /> Delivery notes
+            </NavLink>
           )}
           <NavLink to="/alerts" onClick={close}>
             <Bell size={18} /> Alerts
