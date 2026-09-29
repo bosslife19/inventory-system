@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "418123897006",
+    "project_id": "inventory-system-f18b1",
+    "storage_bucket": "inventory-system-f18b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:418123897006:android:999934252b0eac5d6e353f",
+        "android_client_info": {
+          "package_name": "ng.health.stockcard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqFbJFuIVO9ZfpmlX6dAmE_SNl-JPLUIE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

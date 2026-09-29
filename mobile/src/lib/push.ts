@@ -28,7 +28,10 @@ Notifications.setNotificationHandler({
 });
 
 async function registerPushToken(): Promise<void> {
-  if (Platform.OS === 'web' || !Device.isDevice) return;
+  // Android only for now: the backend sends through FCM, and on iOS this
+  // returns an APNs token FCM can't deliver to. iOS needs an APNs key in
+  // Firebase (or Expo's push service) first.
+  if (Platform.OS !== 'android' || !Device.isDevice) return;
   try {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('stock-alerts', {
