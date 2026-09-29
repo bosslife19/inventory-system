@@ -45,11 +45,11 @@ export async function flushOutbox(): Promise<void> {
       await updateItem(item.id, { status: 'syncing', attempts: item.attempts + 1 });
       try {
         const params = { path: { facility: item.facilityId } };
-        await unwrap(
-          item.kind === 'transaction'
-            ? api.POST('/facilities/{facility}/stock-transactions', { params, body: item.body })
-            : api.POST('/facilities/{facility}/delivery-notes', { params, body: item.body }),
-        );
+        if (item.kind === 'transaction') {
+          await unwrap(api.POST('/facilities/{facility}/stock-transactions', { params, body: item.body }));
+        } else {
+          await unwrap(api.POST('/facilities/{facility}/delivery-notes', { params, body: item.body }));
+        }
         await removeItem(item.id);
         synced++;
       } catch (err) {

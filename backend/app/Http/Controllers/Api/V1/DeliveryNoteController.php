@@ -5,13 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\DeliveryNoteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDeliveryNoteRequest;
+use App\Http\Resources\DeliveryNoteCollection;
 use App\Http\Resources\DeliveryNoteResource;
 use App\Models\DeliveryNote;
 use App\Models\Facility;
 use App\Services\DeliveryNoteService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -20,13 +19,14 @@ class DeliveryNoteController extends Controller
     private const RELATIONS = ['items.product', 'creator', 'confirmer', 'rejecter'];
 
     /** A facility's delivery notes, newest first. */
-    public function index(Request $request, Facility $facility): AnonymousResourceCollection
+    public function index(Request $request, Facility $facility): DeliveryNoteCollection
     {
         Gate::authorize('viewAny', [DeliveryNote::class, $facility]);
 
         $filters = $request->validate([
             'status' => ['nullable', Rule::enum(DeliveryNoteStatus::class)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $notes = DeliveryNote::query()
@@ -37,7 +37,7 @@ class DeliveryNoteController extends Controller
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 20);
 
-        return DeliveryNoteResource::collection($notes);
+        return new DeliveryNoteCollection($notes);
     }
 
     public function show(DeliveryNote $deliveryNote): DeliveryNoteResource
@@ -52,7 +52,7 @@ class DeliveryNoteController extends Controller
      * confirm=true (the phone's reviewed scan). 201 when created; 200 with
      * the existing note when client_reference repeats one already sent.
      */
-    public function store(StoreDeliveryNoteRequest $request, Facility $facility, DeliveryNoteService $service): JsonResponse
+    public function store(StoreDeliveryNoteRequest $request, Facility $facility, DeliveryNoteService $service): DeliveryNoteResource
     {
         $note = $service->create(
             facility: $facility,
@@ -62,9 +62,8 @@ class DeliveryNoteController extends Controller
             confirm: $request->boolean('confirm'),
         );
 
-        return DeliveryNoteResource::make($note->load(self::RELATIONS))
-            ->response()
-            ->setStatusCode($note->wasRecentlyCreated ? 201 : 200);
+        // A just-created model makes Laravel answer 201; a replayed one 200.
+        return DeliveryNoteResource::make($note->load(self::RELATIONS));
     }
 
     /** Post a draft's items to the ledger as receipts. */

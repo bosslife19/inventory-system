@@ -107,7 +107,7 @@ it('lets facility staff reject a draft and officers only look', function () {
     $id = $this->postJson($this->url, ($this->note)())->json('data.id');
 
     $this->actingAs($this->h['users']['lga'], 'sanctum');
-    $this->getJson($this->url)->assertOk()->assertJsonPath('data.0.id', $id);
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.0.id', $id)->assertJsonPath('meta.pagination.total', 1);
     $this->getJson("/api/v1/delivery-notes/{$id}")->assertOk();
     $this->postJson("/api/v1/delivery-notes/{$id}/confirm")->assertForbidden();
     $this->postJson($this->url, ($this->note)())->assertForbidden();

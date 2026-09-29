@@ -576,6 +576,8 @@ export interface components {
             quantity_on_hand: number;
             last_transaction_id: number;
         };
+        /** DeliveryNoteCollection */
+        DeliveryNoteCollection: components["schemas"]["DeliveryNoteResource"][];
         /** DeliveryNoteResource */
         DeliveryNoteResource: {
             id: number;
@@ -1096,6 +1098,7 @@ export interface operations {
             query?: {
                 status?: components["schemas"]["DeliveryNoteStatus"] | null;
                 per_page?: number | null;
+                page?: number | null;
             };
             header?: never;
             path: {
@@ -1113,31 +1116,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["DeliveryNoteResource"][];
-                        links: {
-                            first: string | null;
-                            last: string | null;
-                            prev: string | null;
-                            next: string | null;
-                        };
+                        data: components["schemas"]["DeliveryNoteCollection"];
                         meta: {
-                            current_page: number;
-                            from: number | null;
-                            last_page: number;
-                            /** @description Generated paginator links. */
-                            links: {
-                                url: string | null;
-                                label: string;
-                                active: boolean;
-                            }[];
-                            /** @description Base path for paginator generated URLs. */
-                            path: string | null;
-                            /** @description Number of items shown per page. */
-                            per_page: number;
-                            /** @description Number of the last item in the slice. */
-                            to: number | null;
-                            /** @description Total number of items being paginated. */
-                            total: number;
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
                         };
                     };
                 };
@@ -1164,12 +1152,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `DeliveryNoteResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];
@@ -1878,12 +1869,15 @@ export interface operations {
             };
         };
         responses: {
+            /** @description `StockTransactionResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string;
+                    "application/json": {
+                        data: components["schemas"]["StockTransactionResource"];
+                    };
                 };
             };
             401: components["responses"]["AuthenticationException"];

@@ -10,7 +10,6 @@ use App\Http\Resources\StockTransactionResource;
 use App\Models\Facility;
 use App\Models\StockTransaction;
 use App\Services\StockLedgerService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -59,7 +58,7 @@ class StockTransactionController extends Controller
      * 201 when recorded; 200 with the existing entry when client_reference
      * repeats one already recorded at this facility.
      */
-    public function store(StoreStockTransactionRequest $request, Facility $facility, StockLedgerService $ledger): JsonResponse
+    public function store(StoreStockTransactionRequest $request, Facility $facility, StockLedgerService $ledger): StockTransactionResource
     {
         $transaction = $ledger->record(
             facility: $facility,
@@ -76,8 +75,7 @@ class StockTransactionController extends Controller
             clientReference: $request->input('client_reference'),
         );
 
-        return StockTransactionResource::make($transaction->load(['product', 'performer']))
-            ->response()
-            ->setStatusCode($transaction->wasRecentlyCreated ? 201 : 200);
+        // A just-created model makes Laravel answer 201; a replayed one 200.
+        return StockTransactionResource::make($transaction->load(['product', 'performer']));
     }
 }
