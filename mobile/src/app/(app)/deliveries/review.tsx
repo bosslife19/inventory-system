@@ -180,6 +180,20 @@ export default function ReviewDelivery() {
           </Card>
         )}
 
+        {fromOcr && draft.parsed.lines.length === 0 && draft.readRows && draft.readRows.length > 0 && (
+          <Card style={{ gap: Spacing.two }}>
+            <Text variant="label">No item lines could be picked out</Text>
+            <Text variant="caption" tone="muted">
+              This is what the phone read. Add the lines below while looking at it and the paper.
+            </Text>
+            <ScrollView style={[styles.readBox, { backgroundColor: c.surface2 }]} nestedScrollEnabled>
+              <Text variant="mono" tone="secondary" style={{ fontSize: 12 }}>
+                {draft.readRows.join('\n')}
+              </Text>
+            </ScrollView>
+          </Card>
+        )}
+
         {draft.photoUri && (
           <Pressable onPress={() => setShowPhoto(true)} accessibilityRole="button" accessibilityLabel="View the photo">
             <Image source={{ uri: draft.photoUri }} style={[styles.thumb, { borderColor: c.border }]} contentFit="cover" />
@@ -351,6 +365,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.three,
     alignItems: 'flex-start',
+  },
+  readBox: {
+    maxHeight: 220,
+    padding: Spacing.three,
+    borderRadius: Radius.sm,
   },
   thumb: {
     height: 150,

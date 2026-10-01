@@ -17,6 +17,8 @@ export interface OcrWord {
   top: number;
   right: number;
   bottom: number;
+  /** Which OCR line the word came from — lines follow the page's tilt, so they measure it. */
+  line?: number;
 }
 
 export interface CatalogProduct {
@@ -129,9 +131,52 @@ interface Row {
 const centerY = (w: OcrWord) => (w.top + w.bottom) / 2;
 const centerX = (w: OcrWord) => (w.left + w.right) / 2;
 
-/** Group words into visual rows: similar vertical centre, then left to right. */
-export function groupRows(words: OcrWord[]): Row[] {
-  const clean = words.filter((w) => w.text.trim());
+/**
+ * The page's tilt in radians, from the OCR lines themselves: a hand-held
+ * photo is rarely level, and across a wide table even 2–3° moves a row's
+ * right end by more than a line height. Median of each multi-word line's
+ * slope, so a stray line doesn't skew it.
+ */
+export function pageTilt(words: OcrWord[]): number {
+  const byLine = new Map<number, OcrWord[]>();
+  for (const w of words) if (w.line !== undefined) byLine.set(w.line, [...(byLine.get(w.line) ?? []), w]);
+
+  const angles: number[] = [];
+  for (const line of byLine.values()) {
+    if (line.length < 2) continue;
+    const sorted = [...line].sort((a, b) => centerX(a) - centerX(b));
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const dx = centerX(last) - centerX(first);
+    if (dx > 0) angles.push(Math.atan2(centerY(last) - centerY(first), dx));
+  }
+  if (angles.length === 0) return 0;
+  angles.sort((a, b) => a - b);
+  const median = angles[Math.floor(angles.length / 2)];
+  // Beyond ~20° it's a sideways photo, not a tilt; leave it alone.
+  return Math.abs(median) <= (20 * Math.PI) / 180 ? median : 0;
+}
+
+/** Rotate word boxes level (about the origin), keeping each box's size. */
+export function deskew(words: OcrWord[]): OcrWord[] {
+  const angle = pageTilt(words);
+  if (Math.abs(angle) < 0.002) return words;
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  return words.map((w) => {
+    const cx = centerX(w);
+    const cy = centerY(w);
+    const x = cx * cos - cy * sin;
+    const y = cx * sin + cy * cos;
+    const hw = (w.right - w.left) / 2;
+    const hh = (w.bottom - w.top) / 2;
+    return { ...w, left: x - hw, right: x + hw, top: y - hh, bottom: y + hh };
+  });
+}
+
+/** Group words into visual rows: similar vertical centre (after levelling), then left to right. */
+export function groupRows(input: OcrWord[]): Row[] {
+  const clean = deskew(input.filter((w) => w.text.trim()));
   if (clean.length === 0) return [];
   const heights = clean.map((w) => w.bottom - w.top).sort((a, b) => a - b);
   const tolerance = Math.max(4, heights[Math.floor(heights.length / 2)] * 0.6);

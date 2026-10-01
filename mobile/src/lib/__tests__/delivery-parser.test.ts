@@ -15,17 +15,33 @@ const catalog: CatalogProduct[] = [
  */
 function page(rows: [number, string][][], lineHeight = 20): OcrWord[] {
   const words: OcrWord[] = [];
+  let line = 0;
   rows.forEach((cells, r) => {
     const top = 40 + r * lineHeight * 1.8 + (r % 2); // slight jitter, as on a real photo
     for (const [x, text] of cells) {
       let left = x;
+      const id = line++; // ML Kit reports each cell as its own line
       for (const w of text.split(' ')) {
-        words.push({ text: w, left, top, right: left + w.length * 9, bottom: top + lineHeight });
+        words.push({ text: w, left, top, right: left + w.length * 9, bottom: top + lineHeight, line: id });
         left += w.length * 9 + 8;
       }
     }
   });
   return words;
+}
+
+/** The same page photographed at an angle: every box rotated about the origin. */
+function tilt(words: OcrWord[], degrees: number): OcrWord[] {
+  const a = (degrees * Math.PI) / 180;
+  return words.map((w) => {
+    const cx = (w.left + w.right) / 2;
+    const cy = (w.top + w.bottom) / 2;
+    const x = cx * Math.cos(a) - cy * Math.sin(a);
+    const y = cx * Math.sin(a) + cy * Math.cos(a);
+    const hw = (w.right - w.left) / 2;
+    const hh = (w.bottom - w.top) / 2;
+    return { ...w, left: x - hw, right: x + hw, top: y - hh, bottom: y + hh };
+  });
 }
 
 describe('dates', () => {
@@ -68,8 +84,7 @@ describe('groupRows', () => {
 });
 
 describe('parseDeliveryNote', () => {
-  it('reads a tabular delivery note using its header columns', () => {
-    const words = page([
+  const TABLE_NOTE: [number, string][][] = [
       [[20, 'KADUNA STATE CENTRAL MEDICAL STORES']],
       [[20, 'Delivery Note No: DN-0042'], [420, 'Date: 25/09/2026']],
       [[20, 'From: Kaduna State CMS']],
@@ -78,19 +93,28 @@ describe('parseDeliveryNote', () => {
       [[20, '2'], [80, 'ORS low osmolarity'], [520, '12/2027'], [640, '100'], [720, '150']],
       [[20, '3'], [80, 'Paracetamol 500mg tablets'], [400, 'PCM771'], [520, '30/06/2027'], [640, '25'], [720, '300']],
       [[20, 'Received by: ____________'], [420, 'Signature']],
-    ]);
+  ];
+  const TABLE_LINES = [
+    { productId: 1, batchNo: 'AL2409B', expiryDate: '2027-08-31', quantity: 40 },
+    { productId: 2, batchNo: null, expiryDate: '2027-12-31', quantity: 100 },
+    // Not in the catalogue: kept, for staff to pick the product or remove the line.
+    { productId: null, batchNo: 'PCM771', expiryDate: '2027-06-30', quantity: 25 },
+  ];
 
-    const parsed = parseDeliveryNote(words, catalog);
+  it('reads a tabular delivery note using its header columns', () => {
+    const parsed = parseDeliveryNote(page(TABLE_NOTE), catalog);
 
     expect(parsed.deliveryNoteNo).toBe('DN-0042');
     expect(parsed.source).toBe('Kaduna State CMS');
     expect(parsed.receivedDate).toBe('2026-09-25');
-    expect(parsed.lines.map(({ raw, ...l }) => l)).toEqual([
-      { productId: 1, batchNo: 'AL2409B', expiryDate: '2027-08-31', quantity: 40 },
-      { productId: 2, batchNo: null, expiryDate: '2027-12-31', quantity: 100 },
-      // Not in the catalogue: kept, for staff to pick the product or remove the line.
-      { productId: null, batchNo: 'PCM771', expiryDate: '2027-06-30', quantity: 25 },
-    ]);
+    expect(parsed.lines.map(({ raw, ...l }) => l)).toEqual(TABLE_LINES);
+  });
+
+  it.each([3, -4, 8])('reads the same note photographed %s° off level', (degrees) => {
+    const parsed = parseDeliveryNote(tilt(page(TABLE_NOTE), degrees), catalog);
+
+    expect(parsed.deliveryNoteNo).toBe('DN-0042');
+    expect(parsed.lines.map(({ raw, ...l }) => l)).toEqual(TABLE_LINES);
   });
 
   it('reads labelled free-text lines without a table header', () => {

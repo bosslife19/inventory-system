@@ -27,12 +27,16 @@ export function TextField({ label, hint, error, icon: Icon, style, onFocus, onBl
           {label}
         </Text>
       )}
+      {/*
+        Focus shows only as colour changes. Toggling shadow / elevation / opacity
+        on this box when the input focuses makes Android (new architecture)
+        rebuild the native view, which blurs the input and closes the keyboard
+        the moment it opens. collapsable={false} keeps the view from being
+        flattened in and out of the native tree for the same reason.
+      */}
       <View
-        style={[
-          styles.box,
-          { borderColor: border, backgroundColor: c.surface },
-          focused && !error && { shadowColor: c.primary, shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } },
-        ]}>
+        collapsable={false}
+        style={[styles.box, { borderColor: border, backgroundColor: focused && !error ? c.primarySoft : c.surface }]}>
         {Icon && <Icon size={18} color={focused ? c.primary : c.muted} />}
         <TextInput
           placeholderTextColor={c.muted}

@@ -9,6 +9,8 @@ export interface DeliveryDraft {
   capture: 'ocr' | 'manual';
   photoUri: string | null;
   parsed: ParsedDelivery;
+  /** Every row the phone read, levelled — shown when no item lines could be picked out. */
+  readRows?: string[];
 }
 
 let draft: DeliveryDraft | null = null;

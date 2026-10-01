@@ -18,16 +18,18 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+// Neither hook returns anything: openapi-fetch treats a returned value as a
+// *replacement* and checks it with `instanceof Response` / `Request`, which
+// fails in Expo because its fetch has its own Response class. Headers are
+// edited in place; the response is only inspected.
 const auth: Middleware = {
   onRequest({ request }) {
     request.headers.set('Accept', 'application/json');
     if (token) request.headers.set('Authorization', `Bearer ${token}`);
-    return request;
   },
   onResponse({ response }) {
     // Expired or revoked token: the session signs out and routes to sign-in.
     if (response.status === 401 && token) onUnauthorized?.();
-    return response;
   },
 };
 

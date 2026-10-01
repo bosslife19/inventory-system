@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/ui/misc';
 import { Text } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { parseDeliveryNote } from '@/lib/delivery-parser';
+import { groupRows, parseDeliveryNote } from '@/lib/delivery-parser';
 import { setDeliveryDraft } from '@/lib/delivery-draft';
 import { isOcrAvailable, recognizeWords } from '@/lib/ocr';
 import { useProducts } from '@/lib/queries';
@@ -51,13 +51,20 @@ export default function ScanDelivery() {
     if (!ocr) return manual(uri);
     try {
       const words = await recognizeWords(uri);
-      const parsed = parseDeliveryNote(words, products.data ?? []);
-      if (parsed.lines.length === 0) {
-        setProblem('No item lines could be read from this photo. Try again closer, flat and in good light — or type the lines in.');
+      if (words.length === 0) {
+        setProblem('No text was found in this photo. Try again closer, flat and in good light — or type the lines in.');
         return;
       }
+      const parsed = parseDeliveryNote(words, products.data ?? []);
+      const readRows = groupRows(words).map((r) => r.text);
+      if (__DEV__) {
+        // What the phone read, row by row — paste this when reporting a note that parses badly.
+        console.log(`[scan] ${words.length} words, ${readRows.length} rows, ${parsed.lines.length} item lines`, readRows);
+      }
       if (Platform.OS !== 'web') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setDeliveryDraft({ capture: 'ocr', photoUri: uri, parsed });
+      // Even with no item lines picked out, go on to review: staff can type the
+      // lines in while looking at what was read, instead of starting over.
+      setDeliveryDraft({ capture: 'ocr', photoUri: uri, parsed, readRows });
       router.replace('/deliveries/review');
     } catch {
       setProblem('The photo couldn’t be read. Try again, or type the lines in.');

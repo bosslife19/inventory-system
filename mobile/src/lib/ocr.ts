@@ -43,7 +43,11 @@ export async function recognizeWords(uri: string): Promise<OcrWord[]> {
   const fn = load();
   if (!fn) throw new OcrUnavailableError();
   const result = await fn(uri);
+  let line = 0;
   return result.blocks.flatMap((b) =>
-    b.lines.flatMap((l) => l.elements.map((e) => ({ text: e.text, left: e.frame.left, top: e.frame.top, right: e.frame.right, bottom: e.frame.bottom }))),
+    b.lines.flatMap((l) => {
+      const id = line++;
+      return l.elements.map((e) => ({ text: e.text, left: e.frame.left, top: e.frame.top, right: e.frame.right, bottom: e.frame.bottom, line: id }));
+    }),
   );
 }
