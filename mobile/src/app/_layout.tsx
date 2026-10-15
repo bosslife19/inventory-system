@@ -38,14 +38,19 @@ const persister = createAsyncStoragePersister({ storage, key: 'inventory.query-c
 function RootNavigator() {
   const { session } = useSession();
   const signedIn = session.status === 'signedIn';
+  // A temporary password (new or reset account) must be replaced before the app opens; the API enforces it too.
+  const mustChangePassword = signedIn && session.user.must_change_password;
 
   if (session.status === 'loading') return null;
   SplashScreen.hide();
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={signedIn}>
+      <Stack.Protected guard={signedIn && !mustChangePassword}>
         <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={mustChangePassword}>
+        <Stack.Screen name="set-password" />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />

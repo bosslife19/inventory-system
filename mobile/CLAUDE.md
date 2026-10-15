@@ -28,6 +28,7 @@ src/
   app/
     _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
     sign-in.tsx
+    set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
     (app)/_layout.tsx          <- signed-in stack; wires sync + push; non-facility users get a notice
     (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
     (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first

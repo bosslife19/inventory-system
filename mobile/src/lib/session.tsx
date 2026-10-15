@@ -16,6 +16,8 @@ type Session =
 interface SessionApi {
   session: Session;
   signIn: (email: string, password: string) => Promise<void>;
+  /** Replace a temporary password; on success the app opens. */
+  changePassword: (current: string, next: string) => Promise<void>;
   /** Clears the token, cached data and anything left in the outbox. */
   signOut: () => Promise<void>;
 }
@@ -88,6 +90,16 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
     setSession({ status: 'signedIn', user });
   }, []);
 
+  const changePassword = useCallback(async (current: string, next: string) => {
+    const user = (
+      await unwrap(
+        api.POST('/auth/password', { body: { current_password: current, password: next, password_confirmation: next } }),
+      )
+    ).data;
+    await storage.setItem(USER_KEY, JSON.stringify(user));
+    setSession({ status: 'signedIn', user });
+  }, []);
+
   const signOut = useCallback(async () => {
     // Best effort: stop pushes to this device and revoke the token server-side.
     try {
@@ -99,7 +111,7 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
     await clearLocal(false);
   }, [clearLocal]);
 
-  const value = useMemo(() => ({ session, signIn, signOut }), [session, signIn, signOut]);
+  const value = useMemo(() => ({ session, signIn, changePassword, signOut }), [session, signIn, changePassword, signOut]);
   return <SessionContext value={value}>{children}</SessionContext>;
 }
 
