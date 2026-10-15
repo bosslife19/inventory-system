@@ -225,6 +225,28 @@ delivery, so stock only lands in their balance once someone there has signed for
   The area variants count SDPs only; a store's own activity is
   `GET /facilities/{store id}/stock-activity`.
 
+## Reports
+`GET /reports/{report}` with `report` = `stock-card` | `stock-status` | `reorder` | `expiry`. Display-only
+reads, like the dashboards; nothing is written back.
+
+- Common query: `area` (`facility` | `lga` | `state` | `national`), `id` (the facility / LGA / state id; omit
+  for national), `product_id?`, `category?`, `format?` (`json` default | `csv`), `limit?` (JSON only, ≤ 5000,
+  default 2000).
+- Scope: the area must be within what the caller can see (403 otherwise; 404 for an unknown id). `facility`
+  may be an SDP or a store; `lga` / `state` / `national` cover SDPs only, like the rollups.
+- JSON 200 → `{ data: { report, title, scope: { area, id, name }, generated_at, columns: [{ key, label,
+  type: text|number|date }], rows: [{ <column key>: value }], truncated } }`. `truncated` = more rows than
+  `limit`; the CSV has them all. Area reports add `state`, `lga`, `facility` columns; one-facility reports don't.
+- CSV: streamed, UTF-8 with BOM (opens cleanly in Excel), header row of column labels, every row;
+  `Content-Disposition` filename `<report>-<area-name>-<YYYY-MM-DD>.csv`.
+
+| Report | Extra query | Rows (from) |
+|---|---|---|
+| `stock-card` | `from?`, `to?` (inclusive dates). `area` must be `facility` (else 422 on `area`). | One per ledger entry in card order (date, voucher, received from / issued to, entry type, batch, expiry, received, issued, losses / adj. (signed), balance, by, comments). With `product_id` and `from`, the first row is the opening balance carried forward. |
+| `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level, min / EOP / max, last entry (`facility_product_status`). |
+| `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
+| `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
+
 ## Alerts
 - `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status,
   facility_id, page, per_page) — most severe first, then newest. Without `status`, returns

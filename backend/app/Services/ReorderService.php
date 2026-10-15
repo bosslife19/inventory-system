@@ -117,20 +117,37 @@ class ReorderService
 
     public function suggest(ProductStock $stock, ?float $amc, int $monthsUsed, ?string $periodMonth): ReorderSuggestion
     {
-        $hasAmc = $amc !== null && $amc > 0;
-        $max = $hasAmc
-            ? (int) ceil($amc * (float) config('inventory.max_months_of_stock'))
-            : $stock->product->max_stock_level;
+        $plan = self::plan($amc, $stock->product->max_stock_level, $stock->usableQuantity);
 
         return new ReorderSuggestion(
             stock: $stock,
             amcQuantity: $amc,
             monthsUsed: $monthsUsed,
             amcPeriodMonth: $periodMonth,
-            monthsOfStock: $hasAmc ? round($stock->usableQuantity / $amc, 1) : null,
-            maxStockQuantity: $max,
-            basis: $hasAmc ? 'amc' : 'product_max',
-            suggestedQuantity: max(0, $max - $stock->usableQuantity),
+            monthsOfStock: $plan['months_of_stock'],
+            maxStockQuantity: $plan['max'],
+            basis: $plan['basis'],
+            suggestedQuantity: $plan['suggested'],
         );
+    }
+
+    /**
+     * The order arithmetic on its own (also used by the reorder report):
+     * max stock from AMC when there is consumption history, else the
+     * product's fixed max; order up to it from current usable stock.
+     *
+     * @return array{max: int, basis: 'amc'|'product_max', suggested: int, months_of_stock: float|null}
+     */
+    public static function plan(?float $amc, int $productMax, int $usable): array
+    {
+        $hasAmc = $amc !== null && $amc > 0;
+        $max = $hasAmc ? (int) ceil($amc * (float) config('inventory.max_months_of_stock')) : $productMax;
+
+        return [
+            'max' => $max,
+            'basis' => $hasAmc ? 'amc' : 'product_max',
+            'suggested' => max(0, $max - $usable),
+            'months_of_stock' => $hasAmc ? round($usable / $amc, 1) : null,
+        ];
     }
 }

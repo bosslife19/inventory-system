@@ -410,6 +410,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/{report}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run a report
+         * @description ⚠️ Cannot generate request documentation: Cannot evaluate validation rules (1 evaluators failed):
+         *       [NodeRulesEvaluator] Call to a member function rules() on null (at C:\Users\pc\Documents\inventory-system-scaffold\inventory-system\backend\vendor\dedoc\scramble\src\Support\OperationExtensions\RulesEvaluator\NodeRulesEvaluator.php(274) : eval()'d code:1)
+         */
+        get: operations["report.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/states/{state}/stock-summary": {
         parameters: {
             query?: never;
@@ -2043,6 +2064,54 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "report.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Transfer-Encoding"?: "chunked";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            report: string;
+                            title: string;
+                            scope: {
+                                /** @enum {string} */
+                                area: "facility" | "lga" | "state" | "national";
+                                id: number | null;
+                                name: string;
+                            };
+                            generated_at: string;
+                            columns: {
+                                key: string;
+                                label: string;
+                                /** @enum {string} */
+                                type: "text" | "number" | "date";
+                            }[];
+                            rows: {
+                                [key: string]: string | number | null;
+                            }[];
+                            /** @description True when there were more than `limit` rows: download the CSV for all of them. */
+                            truncated: boolean;
+                        };
+                    };
+                    "text/csv; charset=UTF-8": string;
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "rollupSummary.state": {

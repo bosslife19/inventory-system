@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ReorderSuggestionController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RollupSummaryController;
 use App\Http\Controllers\Api\V1\StateController;
 use App\Http\Controllers\Api\V1\StockActivityController;
@@ -63,6 +64,9 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/dispatches', [DispatchController::class, 'index']);
         Route::post('facilities/{facility}/dispatches', [DispatchController::class, 'store']);
         Route::get('facilities/{facility}/dispatch-destinations', [DispatchController::class, 'destinations']);
+
+        Route::get('reports/{report}', [ReportController::class, 'show'])
+            ->whereIn('report', ['stock-card', 'stock-status', 'reorder', 'expiry']);
 
         Route::get('users', [UserController::class, 'index']);
         Route::post('users', [UserController::class, 'store']);

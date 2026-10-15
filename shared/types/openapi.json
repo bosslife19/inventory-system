@@ -1786,6 +1786,156 @@
                 }
             }
         },
+        "/reports/{report}": {
+            "get": {
+                "operationId": "report.show",
+                "description": "\u26a0\ufe0f Cannot generate request documentation: Cannot evaluate validation rules (1 evaluators failed):\n  [NodeRulesEvaluator] Call to a member function rules() on null (at C:\\Users\\pc\\Documents\\inventory-system-scaffold\\inventory-system\\backend\\vendor\\dedoc\\scramble\\src\\Support\\OperationExtensions\\RulesEvaluator\\NodeRulesEvaluator.php(274) : eval()'d code:1)",
+                "summary": "Run a report",
+                "tags": [
+                    "Report"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "report": {
+                                                    "type": "string"
+                                                },
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "scope": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "area": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "facility",
+                                                                "lga",
+                                                                "state",
+                                                                "national"
+                                                            ]
+                                                        },
+                                                        "id": {
+                                                            "type": [
+                                                                "integer",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "area",
+                                                        "id",
+                                                        "name"
+                                                    ]
+                                                },
+                                                "generated_at": {
+                                                    "type": "string"
+                                                },
+                                                "columns": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": {
+                                                                "type": "string",
+                                                                "enum": [
+                                                                    "text",
+                                                                    "number",
+                                                                    "date"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "key",
+                                                            "label",
+                                                            "type"
+                                                        ]
+                                                    }
+                                                },
+                                                "rows": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "additionalProperties": {
+                                                            "type": [
+                                                                "string",
+                                                                "number",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                "truncated": {
+                                                    "type": "boolean",
+                                                    "description": "True when there were more than `limit` rows: download the CSV for all of them."
+                                                }
+                                            },
+                                            "required": [
+                                                "report",
+                                                "title",
+                                                "scope",
+                                                "generated_at",
+                                                "columns",
+                                                "rows",
+                                                "truncated"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            },
+                            "text/csv; charset=UTF-8": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Transfer-Encoding": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chunked"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/states/{state}/stock-summary": {
             "get": {
                 "operationId": "rollupSummary.state",
