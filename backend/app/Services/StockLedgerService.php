@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockTransaction;
 use App\Models\User;
+use App\Support\AuditLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -130,6 +131,8 @@ class StockLedgerService
                 'quantity_on_hand' => $next,
                 'last_transaction_id' => $transaction->id,
             ])->save();
+
+            AuditLog::record('stock.recorded', AuditLog::stockSummary($transaction, $product->sku, $batch?->batch_no), $transaction, $facility, actor: $performedBy);
 
             return $transaction->setRelation('batch', $batch);
         });

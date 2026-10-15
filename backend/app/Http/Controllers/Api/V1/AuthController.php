@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Support\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,7 +39,9 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'This account has been deactivated. Ask whoever manages your account.']);
         }
 
-        $token = $user->createToken($credentials['device_name'] ?? 'web')->plainTextToken;
+        $device = $credentials['device_name'] ?? 'web';
+        $token = $user->createToken($device)->plainTextToken;
+        AuditLog::record('auth.signed_in', "{$user->name} signed in ({$device})", $user, AuditLog::placeOfUser($user), actor: $user);
 
         return response()->json([
             'data' => [
@@ -69,7 +72,13 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
+        $wasTemporary = $user->must_change_password;
         $user->update(['password' => $validated['password'], 'must_change_password' => false]);
+        AuditLog::record(
+            'user.password_changed',
+            "{$user->name} ".($wasTemporary ? 'set their own password, replacing a temporary one' : 'changed their password'),
+            $user, AuditLog::placeOfUser($user),
+        );
 
         $current = $user->currentAccessToken();
         $user->tokens()->when($current instanceof PersonalAccessToken, fn ($q) => $q->whereKeyNot($current->getKey()))->delete();

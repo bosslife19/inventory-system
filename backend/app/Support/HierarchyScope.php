@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\UserRole;
+use App\Models\AuditEvent;
 use App\Models\Facility;
 use App\Models\Lga;
 use App\Models\State;
@@ -113,6 +114,23 @@ final class HierarchyScope
                 ->orWhere('facilities.state_id', $this->user->state_id)),
             UserRole::LgaOfficer => $query->where('facilities.lga_id', $this->user->lga_id),
             UserRole::SdpStaff => $query->whereKey($this->user->facility_id),
+        };
+    }
+
+    /**
+     * The audit log entries this user may read: their own node and below,
+     * by where each event happened. Entries with no place (the product
+     * catalog, national accounts) are national.
+     *
+     * @param  Builder<AuditEvent>  $query
+     */
+    public function scopeAuditEvents(Builder $query): Builder
+    {
+        return match ($this->user->role) {
+            UserRole::FederalOfficer, UserRole::Admin => $query,
+            UserRole::StateOfficer => $query->where('state_id', $this->user->state_id),
+            UserRole::LgaOfficer => $query->where('lga_id', $this->user->lga_id),
+            UserRole::SdpStaff => $query->where('facility_id', $this->user->facility_id),
         };
     }
 

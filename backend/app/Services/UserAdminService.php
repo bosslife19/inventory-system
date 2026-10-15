@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Models\Facility;
+use App\Models\Lga;
+use App\Models\State;
 use App\Models\User;
+use App\Support\AuditLog;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -46,6 +50,14 @@ class UserAdminService
             'created_by' => $by->id,
         ]);
 
+        AuditLog::record(
+            'user.created',
+            "Account created for {$user->name} ({$user->email}) as ".self::roleLabel($user->role).self::at($user),
+            $user, AuditLog::placeOfUser($user),
+            AuditLog::snapshot($user, ['name', 'email', 'role', 'facility_id', 'lga_id', 'state_id']),
+            actor: $by,
+        );
+
         return [$user, $password];
     }
 
@@ -60,10 +72,22 @@ class UserAdminService
                 $fields = [...$fields, 'role' => $role, ...self::anchor($role, [...$user->only(['facility_id', 'lga_id', 'state_id']), ...$data])];
             }
 
+            $place = AuditLog::placeOfUser($user); // before the move, so the old area sees it leave
             $user->update($fields);
+            $changes = AuditLog::diff($user);
+            $user->unsetRelations(); // the facility / LGA / state may have just changed
 
             if ($user->wasChanged('is_active') && ! $user->is_active) {
                 $this->signOutEverywhere($user);
+            }
+
+            if ($changes !== []) {
+                $action = match (true) {
+                    $user->wasChanged('is_active') => $user->is_active ? 'user.reactivated' : 'user.deactivated',
+                    default => 'user.updated',
+                };
+                $verb = ['user.reactivated' => 'reactivated', 'user.deactivated' => 'deactivated', 'user.updated' => 'updated'][$action];
+                AuditLog::record($action, "Account of {$user->name} {$verb}".self::at($user), $user, $place ?? AuditLog::placeOfUser($user), $changes);
             }
 
             return $user;
@@ -76,8 +100,27 @@ class UserAdminService
         $password = self::temporaryPassword();
         $user->update(['password' => $password, 'must_change_password' => true]);
         $this->signOutEverywhere($user);
+        AuditLog::record('user.password_reset', "Password of {$user->name} reset to a temporary one".self::at($user), $user, AuditLog::placeOfUser($user));
 
         return $password;
+    }
+
+    private static function roleLabel(UserRole $role): string
+    {
+        return str_replace('_', ' ', $role === UserRole::SdpStaff ? 'facility staff' : $role->value);
+    }
+
+    /** " at Kawo PHC" / " for Zaria LGA" / " for Kaduna State" / "" */
+    private static function at(User $user): string
+    {
+        $place = AuditLog::placeOfUser($user);
+
+        return match (true) {
+            $place instanceof Facility => " at {$place->name}",
+            $place instanceof Lga => " for {$place->name} LGA",
+            $place instanceof State => " for {$place->name} State",
+            default => '',
+        };
     }
 
     private function signOutEverywhere(User $user): void

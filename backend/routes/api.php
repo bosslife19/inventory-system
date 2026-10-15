@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AlertController;
+use App\Http\Controllers\Api\V1\AuditEventController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeliveryNoteController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
@@ -67,6 +68,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('reports/{report}', [ReportController::class, 'show'])
             ->whereIn('report', ['stock-card', 'stock-status', 'reorder', 'expiry']);
+
+        Route::get('audit-events', [AuditEventController::class, 'index']);
 
         Route::get('users', [UserController::class, 'index']);
         Route::post('users', [UserController::class, 'store']);

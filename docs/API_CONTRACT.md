@@ -247,6 +247,17 @@ reads, like the dashboards; nothing is written back.
 | `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
 | `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
 
+## Audit log
+- `GET /audit-events` (query: `category?` (`stock` | `deliveries` | `accounts` | `catalog` | `facilities` |
+  `alerts`), `action?`, `actor_id?`, `facility_id?`, `lga_id?`, `state_id?`, `from?`, `to?` (inclusive dates,
+  Africa/Lagos), `q?` (words in the summary), `per_page?` ≤ 100, `page?`) — newest first, paginated
+  `{ data: [<AuditEvent>], meta: { pagination } }`.
+  - `<AuditEvent>` = `{ id, occurred_at, action, category, summary, actor: { id, name, role } | null,
+    place: { facility, lga, state } (names, nullable), subject: { type, id }, changes }`.
+  - Scope: admins and federal officers everything; state officers events in their state; LGA officers in
+    their LGA (incl. its store); SDP staff at their facility. Catalog changes are national only.
+  - Read-only: entries are written by the actions themselves, never through the API.
+
 ## Alerts
 - `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status,
   facility_id, page, per_page) — most severe first, then newest. Without `status`, returns

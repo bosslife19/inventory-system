@@ -8,6 +8,7 @@ use App\Models\DeliveryNote;
 use App\Models\Facility;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\AuditLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +61,13 @@ class DeliveryNoteService
                     'quantity' => $item['quantity'],
                 ]);
             }
+
+            $lines = count($data['items']);
+            AuditLog::record(
+                'delivery_note.created',
+                "Delivery note {$note->delivery_note_no} from {$note->source} entered ({$lines} line".($lines === 1 ? '' : 's').', '.($note->capture_method === 'ocr' ? 'scanned' : 'typed').')',
+                $note, $facility, actor: $user,
+            );
 
             return $confirm ? $this->confirm($note, $user) : $note;
         });
@@ -116,6 +124,12 @@ class DeliveryNoteService
                 'confirmed_at' => CarbonImmutable::now(),
             ]);
 
+            AuditLog::record(
+                'delivery_note.confirmed',
+                "Delivery {$note->delivery_note_no} from {$note->source} confirmed as received on {$note->received_date->toDateString()}",
+                $note, $facility, actor: $user,
+            );
+
             return $note;
         });
     }
@@ -164,6 +178,12 @@ class DeliveryNoteService
                 'rejected_at' => CarbonImmutable::now(),
                 'rejection_reason' => $reason,
             ]);
+
+            AuditLog::record(
+                'delivery_note.rejected',
+                "Delivery {$note->delivery_note_no} from {$note->source} rejected".($reason ? ": {$reason}" : '').($sender ? " — stock returned to {$sender->name}" : ''),
+                $note, $note->facility, actor: $user,
+            );
 
             return $note;
         });

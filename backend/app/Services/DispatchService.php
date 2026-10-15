@@ -10,6 +10,7 @@ use App\Models\Facility;
 use App\Models\Lga;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\AuditLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -127,6 +128,13 @@ class DispatchService
                     'source_transaction_id' => $issue->id,
                 ]);
             }
+
+            $lines = count($data['items']);
+            AuditLog::record(
+                'dispatch.created',
+                "Issued {$note->delivery_note_no} to {$to->name} ({$lines} line".($lines === 1 ? '' : 's').'), awaiting their receipt',
+                $note, $from, actor: $user,
+            );
 
             return $note;
         });

@@ -147,6 +147,25 @@ unique on `(facility_id, product_id, period_month)`
 **notifications**
 `id, user_id (fk), alert_id (fk), channel (enum: push|in_app), sent_at, read_at (nullable)`
 
+## Audit log
+
+**audit_events** (append-only — who did what, where, when)
+`id, occurred_at, actor_id (nullable fk users), action (string, e.g. stock.recorded), subject_type (nullable, e.g. stock_transaction | delivery_note | user | product | facility | alert), subject_id (nullable), facility_id, lga_id, state_id (nullable fks — where it happened), summary (string ≤ 500, human-readable), changes (json, nullable), ip (nullable)`
+
+> Written by `App\Support\AuditLog::record()` inside the same DB transaction
+> as the action. Actions: `stock.recorded`; `delivery_note.created|confirmed|rejected`;
+> `dispatch.created`; `user.created|updated|deactivated|reactivated|password_reset|password_changed`;
+> `auth.signed_in`; `product.created|updated|retired|reactivated`;
+> `facility.created|updated|closed|reopened`; `alert.acknowledged|resolved`.
+> `changes` is `{ field: [before, after] }` for edits, the values set for
+> creations; passwords and tokens are never included.
+> Where: a facility event carries the facility, its LGA and state (a state
+> store: state only; the national store: facility only); an account event
+> the account's own node; catalog events none (national). Reading is scoped
+> on these columns (`HierarchyScope::scopeAuditEvents`).
+> History from before the log existed: `php artisan audit:backfill`
+> (idempotent) logs Stock Card entries, delivery notes and accounts.
+
 ## Rollup tables
 
 **facility_product_status** (derived — materialized stock status per facility + product)

@@ -62,6 +62,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["auditEvent.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -735,6 +751,41 @@ export interface components {
                 facility_count: number;
             }[];
         };
+        /** AuditEventCollection */
+        AuditEventCollection: components["schemas"]["AuditEventResource"][];
+        /** AuditEventResource */
+        AuditEventResource: {
+            id: number;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description e.g. stock.recorded, delivery_note.confirmed, user.deactivated, product.updated. */
+            action: string;
+            /**
+             * @description What the action is about: stock, deliveries, accounts, catalog, facilities or alerts.
+             * @enum {string}
+             */
+            category: "stock" | "deliveries" | "accounts" | "catalog" | "facilities" | "alerts";
+            summary: string;
+            /** @description Null when no person is known (history from before the log existed). */
+            actor: {
+                id: number;
+                name: string;
+                role: components["schemas"]["UserRole"];
+            } | null;
+            place: {
+                facility: string | null;
+                lga: string | null;
+                state: string | null;
+            };
+            subject: {
+                type: string | null;
+                id: number | null;
+            };
+            /** @description Edits: { field: [before, after] }; creations: the values set. */
+            changes: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** BatchStockResource */
         BatchStockResource: {
             batch_id: number | null;
@@ -1316,6 +1367,56 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "auditEvent.index": {
+        parameters: {
+            query?: {
+                category?: "stock" | "deliveries" | "accounts" | "catalog" | "facilities" | "alerts" | null;
+                /** @description An exact action, e.g. user.deactivated. */
+                action?: string | null;
+                actor_id?: number | null;
+                facility_id?: number | null;
+                lga_id?: number | null;
+                state_id?: number | null;
+                /** @description Inclusive, YYYY-MM-DD (Africa/Lagos). */
+                from?: string | null;
+                /** @description Inclusive, YYYY-MM-DD (Africa/Lagos). */
+                to?: string | null;
+                /** @description Words in the summary, e.g. a product code, a voucher or a person's name. */
+                q?: string | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `AuditEventResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AuditEventCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "auth.login": {

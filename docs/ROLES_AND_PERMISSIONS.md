@@ -19,6 +19,7 @@
 | Manage facilities (SDPs; states/LGAs come from the seed, stores are automatic) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Manage users | ❌ | ✅ (staff of SDPs in own LGA) | ✅ (LGA officers in own state) | ✅ (state officers) | ✅ (everyone) |
 | Change own password | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Audit log (who did what) | ✅ (own facility) | ✅ (own LGA) | ✅ (own state) | ✅ (everything) | ✅ |
 | Reports & CSV export | ✅ (own facility) | ✅ (own LGA, its store, its SDPs) | ✅ (own state and below) | ✅ (national and below) | ✅ |
 
 Each LGA, state and the nation has one **store** (a facility with

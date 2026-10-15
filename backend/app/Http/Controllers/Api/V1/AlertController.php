@@ -10,6 +10,7 @@ use App\Http\Resources\AlertCollection;
 use App\Http\Resources\AlertResource;
 use App\Models\Alert;
 use App\Models\Facility;
+use App\Support\AuditLog;
 use App\Support\HierarchyScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -72,6 +73,7 @@ class AlertController extends Controller
                 'acknowledged_at' => CarbonImmutable::now(),
                 'acknowledged_by' => $request->user()->id,
             ]);
+            AuditLog::record('alert.acknowledged', self::describe($alert).' alert acknowledged', $alert, $alert->facility);
         }
 
         return AlertResource::make($alert->load(self::RELATIONS));
@@ -91,8 +93,17 @@ class AlertController extends Controller
                 'resolved_at' => CarbonImmutable::now(),
                 'resolved_by' => $request->user()->id,
             ]);
+            AuditLog::record('alert.resolved', self::describe($alert).' alert resolved', $alert, $alert->facility);
         }
 
         return AlertResource::make($alert->load(self::RELATIONS));
+    }
+
+    /** "Low stock: ORS-LO" / "Expired: AL-20-120 batch AL2401A" */
+    private static function describe(Alert $alert): string
+    {
+        $alert->loadMissing(['product', 'batch']);
+
+        return ucfirst(str_replace('_', ' ', $alert->alert_type->value)).": {$alert->product->sku}".($alert->batch ? " batch {$alert->batch->batch_no}" : '');
     }
 }

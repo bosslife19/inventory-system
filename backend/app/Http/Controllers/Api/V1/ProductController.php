@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Support\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -36,13 +38,28 @@ class ProductController extends Controller
     /** Add a product to the catalog (admin). */
     public function store(SaveProductRequest $request): ProductResource
     {
-        return ProductResource::make(Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]));
+        $product = DB::transaction(function () use ($request) {
+            $product = Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]);
+            AuditLog::record('product.created', "Product {$product->sku} — {$product->name} added to the catalog", $product,
+                changes: AuditLog::snapshot($product, ['sku', 'name', 'category', 'unit_of_measure', 'requires_batch_tracking', 'requires_cold_chain', 'min_stock_level', 'reorder_level', 'max_stock_level']));
+
+            return $product;
+        });
+
+        return ProductResource::make($product);
     }
 
     /** Change a product, or retire it with is_active=false (admin). Never deleted: the ledger references it. */
     public function update(SaveProductRequest $request, Product $product): ProductResource
     {
-        $product->update($request->validated());
+        DB::transaction(function () use ($request, $product) {
+            $product->update($request->validated());
+            if ($changes = AuditLog::diff($product)) {
+                $verb = isset($changes['is_active']) ? ($product->is_active ? 'returned to use' : 'retired') : 'changed';
+                AuditLog::record($verb === 'changed' ? 'product.updated' : ($product->is_active ? 'product.reactivated' : 'product.retired'),
+                    "Product {$product->sku} — {$product->name} {$verb}", $product, changes: $changes);
+            }
+        });
 
         return ProductResource::make($product);
     }
