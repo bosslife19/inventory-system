@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { RollupDashboard } from '../../components/rollup/RollupDashboard'
+import { StorePanel } from '../../components/rollup/StorePanel'
 import { ZONE_LABEL } from '../../lib/format'
 import { useStateActivity, useStateSummary, useStates } from '../../lib/queries'
 import type { User } from '../../lib/types'
@@ -29,6 +30,7 @@ export function StatePage({ stateId, user }: { stateId: number; user: User }) {
       eyebrow="State overview"
       title={`${s.node.name} State`}
       subtitle={`${zone ? `${ZONE_LABEL[zone] ?? zone} zone · ` : ''}refreshes every minute${summary.isFetching ? ' · updating…' : ''}`}
+      store={<StorePanel store={s.node.store} user={user} />}
       summary={s}
       activity={activity}
       childNoun="LGAs"

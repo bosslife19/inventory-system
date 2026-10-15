@@ -1,8 +1,8 @@
-import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Truck } from 'lucide-react'
+import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Truck, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, useLogout } from '../../lib/auth'
-import { useAlertCount } from '../../lib/queries'
+import { useAlertCount, useDeliveryNoteCount } from '../../lib/queries'
 import { AlertBadge } from '../alerts/AlertBadge'
 import { ROLE_LABEL } from '../../lib/format'
 import type { User } from '../../lib/types'
@@ -30,6 +30,10 @@ export function AppShell({ user }: { user: User }) {
   const logout = useLogout()
   const [navOpen, setNavOpen] = useState(false)
   const openAlerts = useAlertCount({ status: 'open' }).data ?? 0
+  // Deliveries waiting to be signed for where this user records: own facility or own store.
+  const ownFacilityId = user.facility_id ?? user.store?.id ?? null
+  const pendingDeliveries = useDeliveryNoteCount(ownFacilityId ?? 0, 'draft', ownFacilityId !== null).data ?? 0
+  const deliveryCount = pendingDeliveries > 0 && <span className="nav-count">{pendingDeliveries > 99 ? '99+' : pendingDeliveries}</span>
   const home = homePath(user)
   const close = () => setNavOpen(false)
 
@@ -59,6 +63,18 @@ export function AppShell({ user }: { user: User }) {
           {user.role === 'sdp_staff' && (
             <NavLink to="/delivery-notes" onClick={close}>
               <Truck size={18} /> Delivery notes
+              {deliveryCount}
+            </NavLink>
+          )}
+          {user.store && (
+            <NavLink to={`/facilities/${user.store.id}`} end onClick={close}>
+              <Warehouse size={18} /> My store
+            </NavLink>
+          )}
+          {user.store && (
+            <NavLink to={`/facilities/${user.store.id}/delivery-notes`} onClick={close}>
+              <Truck size={18} /> Delivery notes
+              {deliveryCount}
             </NavLink>
           )}
           <NavLink to="/alerts" onClick={close}>

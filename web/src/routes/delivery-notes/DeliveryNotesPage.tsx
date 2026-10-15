@@ -55,7 +55,11 @@ export function DeliveryNotesPage({ facilityId, user }: { facilityId: number; us
           </Link>
           <p className="eyebrow">Deliveries</p>
           <h1>Delivery notes</h1>
-          <p className="muted">Incoming shipments, scanned on the phone or typed in, and the receipts they became.</p>
+          <p className="muted">
+            {f.store_level === null
+              ? 'Incoming shipments, scanned on the phone or typed in, and the receipts they became.'
+              : 'Incoming shipments — from the level above or typed in — and the receipts they became.'}
+          </p>
         </div>
         {canAct && (
           <div className="head-actions">
@@ -77,7 +81,7 @@ export function DeliveryNotesPage({ facilityId, user }: { facilityId: number; us
         <KpiTile tone={drafts.data ? 'warning' : 'default'} icon={FilePen} label="Drafts to check" value={show(drafts.data)} sub="Not on the Stock Card yet" />
         <KpiTile tone="primary" icon={ClipboardCheck} label="Confirmed deliveries" value={show(confirmed.data)} sub="Posted as receipts" />
         <KpiTile tone="dark" icon={FileX} label="Rejected" value={show(rejected.data)} sub="Never posted" />
-        <KpiTile icon={ScanLine} label="Scan on the phone" value="App" sub="Home → Scan delivery" />
+        {f.store_level === null && <KpiTile icon={ScanLine} label="Scan on the phone" value="App" sub="Home → Scan delivery" />}
       </div>
 
       <section className="card card-flush">
@@ -126,7 +130,15 @@ export function DeliveryNotesPage({ facilityId, user }: { facilityId: number; us
               <tbody>
                 {rows.map((n) => (
                   <tr key={n.id} className="row-link" onClick={() => setOpenId(n.id)}>
-                    <td className="nowrap">{formatDate(n.received_date)}</td>
+                    <td className="nowrap">
+                      {n.source_facility && n.status === 'draft' ? (
+                        <span className="muted" title="Issued by the sender; not yet received here">
+                          Issued {formatDate(n.dispatched_date)}
+                        </span>
+                      ) : (
+                        formatDate(n.received_date)
+                      )}
+                    </td>
                     <td>
                       <button type="button" className="link-button cell-title" onClick={() => setOpenId(n.id)}>
                         {n.source}
@@ -138,7 +150,7 @@ export function DeliveryNotesPage({ facilityId, user }: { facilityId: number; us
                       <div className="muted small line-summary">{summarize(n)}</div>
                     </td>
                     <td className="hide-sm">
-                      <CaptureBadge method={n.capture_method} />
+                      <CaptureBadge note={n} />
                     </td>
                     <td>
                       <DeliveryStatusBadge status={n.status} />

@@ -1,7 +1,7 @@
 import { AlertCircle, Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { ApiError } from '../../lib/api-client'
-import { formatDate, formatQty } from '../../lib/format'
+import { formatDate, formatQty, todayInLagos } from '../../lib/format'
 import { useDeliveryNoteAction } from '../../lib/queries'
 import type { DeliveryNote } from '../../lib/types'
 import { Field } from '../form/Field'
@@ -13,12 +13,16 @@ const when = (iso: string | null) => (iso ? dateTime.format(new Date(iso)) : '�
 /**
  * One delivery note. Drafts can be confirmed — posting every line as a
  * receipt, all or nothing — or rejected, by those who can record at the
- * facility (the API is the real gate).
+ * facility (the API is the real gate). A dispatch from another store is
+ * confirmed with the date it actually arrived; rejecting one sends the
+ * stock back onto the sender's card.
  */
 export function DeliveryNoteDetail({ note, facilityId, canAct, onDone }: { note: DeliveryNote; facilityId: number; canAct: boolean; onDone: () => void }) {
   const act = useDeliveryNoteAction(facilityId)
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
+  const dispatched = note.source_facility !== null
+  const [arrived, setArrived] = useState(() => (dispatched ? todayInLagos() : note.received_date))
   const error =
     act.error instanceof ApiError ? Object.values(act.error.errors).flat().join(' ') || act.error.message : act.error?.message
 
@@ -28,17 +32,31 @@ export function DeliveryNoteDetail({ note, facilityId, canAct, onDone }: { note:
         <div>
           <dt>Status</dt>
           <dd>
-            <DeliveryStatusBadge status={note.status} /> <CaptureBadge method={note.capture_method} />
+            <DeliveryStatusBadge status={note.status} /> <CaptureBadge note={note} />
           </dd>
         </div>
-        <div>
-          <dt>Received</dt>
-          <dd>{formatDate(note.received_date)}</dd>
-        </div>
+        {dispatched && (
+          <div>
+            <dt>Issued</dt>
+            <dd>{formatDate(note.dispatched_date)}</dd>
+          </div>
+        )}
+        {(!dispatched || note.status === 'confirmed') && (
+          <div>
+            <dt>Received</dt>
+            <dd>{formatDate(note.received_date)}</dd>
+          </div>
+        )}
         <div>
           <dt>From</dt>
           <dd>{note.source}</dd>
         </div>
+        {dispatched && (
+          <div>
+            <dt>To</dt>
+            <dd>{note.facility.name}</dd>
+          </div>
+        )}
         <div>
           <dt>Note no.</dt>
           <dd className="mono">{note.delivery_note_no ?? '—'}</dd>
@@ -114,6 +132,18 @@ export function DeliveryNoteDetail({ note, facilityId, canAct, onDone }: { note:
               <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Wrong facility on the note" />
             </Field>
           )}
+          {!rejecting && dispatched && (
+            <Field label="Date it arrived" hint="The receipts are dated this">
+              <input
+                type="date"
+                value={arrived}
+                min={note.dispatched_date ?? undefined}
+                max={todayInLagos()}
+                onChange={(e) => setArrived(e.target.value)}
+                style={{ maxWidth: '14rem' }}
+              />
+            </Field>
+          )}
           <div className="head-actions" style={{ justifyContent: 'flex-end' }}>
             {rejecting ? (
               <>
@@ -138,18 +168,22 @@ export function DeliveryNoteDetail({ note, facilityId, canAct, onDone }: { note:
                   type="button"
                   className="btn btn-primary"
                   disabled={act.isPending}
-                  onClick={() => act.mutate({ id: note.id, action: 'confirm' }, { onSuccess: onDone })}
+                  onClick={() =>
+                    act.mutate({ id: note.id, action: 'confirm', receivedDate: dispatched ? arrived : undefined }, { onSuccess: onDone })
+                  }
                 >
                   <Check size={16} /> {act.isPending ? 'Posting…' : `Confirm receipt of ${note.items.length} line${note.items.length === 1 ? '' : 's'}`}
                 </button>
               </>
             )}
           </div>
-          {!rejecting && (
-            <p className="muted small" style={{ margin: 0, textAlign: 'right' }}>
-              Confirming adds every line to the Stock Card as a receipt from {note.source}.
-            </p>
-          )}
+          <p className="muted small" style={{ margin: 0, textAlign: 'right' }}>
+            {rejecting
+              ? dispatched
+                ? `Rejecting returns every line to ${note.source}’s Stock Card.`
+                : 'Nothing is posted to the Stock Card.'
+              : `Confirming adds every line to the Stock Card as a receipt from ${note.source}.`}
+          </p>
         </>
       )}
     </div>

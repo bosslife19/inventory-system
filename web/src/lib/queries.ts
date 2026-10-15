@@ -6,6 +6,7 @@ import type {
   AlertType,
   DeliveryNoteStatus,
   NewDeliveryNote,
+  NewDispatch,
   NewStockTransaction,
   StockActivity,
   TransactionType,
@@ -221,6 +222,7 @@ function invalidateLedger(queryClient: ReturnType<typeof useQueryClient>, facili
     ['alerts'],
     ['reorder-suggestions', facilityId],
     ['delivery-notes', facilityId],
+    ['dispatches'],
   ]) {
     queryClient.invalidateQueries({ queryKey: key })
   }
@@ -239,8 +241,11 @@ export function useDeliveryNotes(facilityId: number, status: DeliveryNoteStatus 
   })
 }
 
-export function useDeliveryNoteCount(facilityId: number, status: DeliveryNoteStatus) {
+export function useDeliveryNoteCount(facilityId: number, status: DeliveryNoteStatus, enabled = true) {
   return useQuery({
+    enabled,
+    // Deliveries issued from the level above arrive without anyone here acting, so poll like alerts.
+    refetchInterval: ROLLUP_POLL_MS,
     queryKey: ['delivery-notes', facilityId, 'count', status],
     queryFn: async () =>
       (
@@ -265,14 +270,69 @@ export function useCreateDeliveryNote(facilityId: number) {
 export function useDeliveryNoteAction(facilityId: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, action, reason }: { id: number; action: 'confirm' | 'reject'; reason?: string }) =>
+    mutationFn: async ({
+      id,
+      action,
+      reason,
+      receivedDate,
+    }: {
+      id: number
+      action: 'confirm' | 'reject'
+      reason?: string
+      /** Confirm only: when it actually arrived, if not the note's date. */
+      receivedDate?: string
+    }) =>
       (
         await unwrap(
           action === 'confirm'
-            ? api.POST('/delivery-notes/{deliveryNote}/confirm', { params: { path: { deliveryNote: id } } })
+            ? api.POST('/delivery-notes/{deliveryNote}/confirm', {
+                params: { path: { deliveryNote: id } },
+                body: receivedDate ? { received_date: receivedDate } : {},
+              })
             : api.POST('/delivery-notes/{deliveryNote}/reject', { params: { path: { deliveryNote: id } }, body: { reason } }),
         )
       ).data,
-    onSuccess: () => invalidateLedger(queryClient, facilityId),
+    onSuccess: (note) => {
+      invalidateLedger(queryClient, facilityId)
+      // A rejected dispatch goes back onto the sender's card.
+      if (note.source_facility) invalidateLedger(queryClient, note.source_facility.id)
+    },
+  })
+}
+
+/** What a store has dispatched (the receiver's delivery-note status: draft = not yet signed for). */
+export function useDispatches(facilityId: number, status: DeliveryNoteStatus | undefined, page: number, perPage = 10) {
+  return useQuery({
+    queryKey: ['dispatches', facilityId, status ?? 'all', page, perPage],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/dispatches', {
+          params: { path: { facility: facilityId }, query: { status, page, per_page: perPage } },
+        }),
+      ),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Facilities one level down that a store may dispatch to. */
+export function useDispatchDestinations(facilityId: number) {
+  return useQuery({
+    queryKey: ['dispatch-destinations', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/dispatch-destinations', { params: { path: { facility: facilityId } } })))
+        .data,
+    staleTime: 10 * 60_000,
+  })
+}
+
+export function useCreateDispatch(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: NewDispatch) =>
+      (await unwrap(api.POST('/facilities/{facility}/dispatches', { params: { path: { facility: facilityId } }, body }))).data,
+    onSuccess: (note) => {
+      invalidateLedger(queryClient, facilityId)
+      queryClient.invalidateQueries({ queryKey: ['delivery-notes', note.facility_id] })
+    },
   })
 }

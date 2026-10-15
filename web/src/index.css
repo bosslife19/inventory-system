@@ -1687,6 +1687,11 @@ a.cell-title:hover {
   gap: 0.6rem;
   align-items: start;
 }
+/* Dispatches have no expiry column: the batch already carries it. */
+.dispatch-lines .line-editor-head,
+.dispatch-lines .line-editor-row {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) auto;
+}
 .line-editor-head {
   font-size: 0.72rem;
   font-weight: 600;
@@ -1717,10 +1722,83 @@ a.cell-title:hover {
     padding-bottom: 0.6rem;
     border-bottom: 1px dashed var(--border-strong);
   }
+  .dispatch-lines .line-editor-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
   .line-editor-row .line-cell:first-child {
     grid-column: 1 / -1;
   }
   .line-label {
     display: block;
   }
+}
+
+/* ── Store panel on rollup dashboards ──────────────────────────── */
+.store-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.store-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.store-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+.store-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  text-decoration: none;
+}
+.store-stat:hover {
+  border-color: var(--border-strong);
+}
+.store-stat strong {
+  display: block;
+  font-size: 1.2rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+.store-stat small {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.store-stat.is-critical strong,
+.store-stat.is-critical svg {
+  color: var(--critical);
+}
+.store-stat.is-warning strong,
+.store-stat.is-warning svg {
+  color: var(--warning);
+}
+.store-stat-link {
+  justify-content: center;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-color: transparent;
+}
+.store-icon.is-warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.incoming-card {
+  border-color: var(--status-warning);
 }

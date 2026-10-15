@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { RollupDashboard } from '../../components/rollup/RollupDashboard'
+import { StorePanel } from '../../components/rollup/StorePanel'
 import { useLgaActivity, useLgaSummary } from '../../lib/queries'
 import type { User } from '../../lib/types'
 
@@ -28,6 +29,7 @@ export function LgaPage({ lgaId, user }: { lgaId: number; user: User }) {
       eyebrow="LGA overview"
       title={`${s.node.name} LGA`}
       subtitle={`${s.node.parent.name} State · live rollup, refreshes every minute${summary.isFetching ? ' · updating…' : ''}`}
+      store={<StorePanel store={s.node.store} user={user} />}
       summary={s}
       activity={activity}
       childNoun="Facilities"

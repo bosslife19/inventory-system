@@ -65,7 +65,7 @@ export default function Account() {
           <View style={{ flex: 1 }}>
             <Text variant="label">{facility.data?.name ?? '—'}</Text>
             <Text variant="caption" tone="muted">
-              {facility.data ? `${facility.data.lga.name} LGA · ${facility.data.state.name} State` : user.node.path.join(' › ')}
+              {facility.data ? `${facility.data.lga?.name} LGA · ${facility.data.state?.name} State` : user.node.path.join(' › ')}
             </Text>
           </View>
         </Card>

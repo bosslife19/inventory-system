@@ -1,7 +1,10 @@
-import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, TrendingDown, Truck } from 'lucide-react'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, Send, TrendingDown, Truck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { AlertList } from '../../components/alerts/AlertList'
+import { IncomingDeliveries } from '../../components/delivery-notes/IncomingDeliveries'
+import { DispatchForm } from '../../components/dispatches/DispatchForm'
+import { DispatchList } from '../../components/dispatches/DispatchList'
 import { ActivityChart } from '../../components/charts/ActivityChart'
 import { StockPositionChart } from '../../components/charts/StockPositionChart'
 import { StatusDonut } from '../../components/charts/StatusDonut'
@@ -25,7 +28,7 @@ import {
   useReorderSuggestions,
   useStockBalances,
 } from '../../lib/queries'
-import type { ProductStock, StockLevel, User } from '../../lib/types'
+import type { Facility, ProductStock, StockLevel, User } from '../../lib/types'
 
 const LEVELS: StockLevel[] = ['stock_out', 'low_stock', 'reorder', 'ok']
 
@@ -40,10 +43,26 @@ function expiryWatch(stock: ProductStock[]) {
     .sort((a, b) => (a.batch.expiry_date ?? '').localeCompare(b.batch.expiry_date ?? ''))
 }
 
+/** Where "back" goes: a store to its own dashboard level, an SDP to its LGA. */
+function backLink(f: Facility, user: User): { to: string; label: string } | null {
+  switch (f.store_level) {
+    case 'national':
+      return { to: '/federal', label: 'Nigeria' }
+    case 'state':
+      return f.state && { to: `/states/${f.state.id}`, label: `${f.state.name} State` }
+    case 'lga':
+      return f.lga && { to: `/lgas/${f.lga.id}`, label: `${f.lga.name} LGA` }
+    default:
+      return user.role !== 'sdp_staff' && f.lga ? { to: `/lgas/${f.lga.id}`, label: `${f.lga.name} LGA` } : null
+  }
+}
+
 /**
  * A facility's digital Stock Card: overview, current stock, the entry form
  * (in a modal, for staff who can record here) and the running-balance
  * history. Officers drilling down from a rollup get the same page read-only.
+ * An LGA / State / National store gets the same page, plus issuing stock to
+ * the facilities below it and the list of what it has issued.
  */
 export function FacilityPage({ facilityId, user }: { facilityId: number; user: User }) {
   const facility = useFacility(facilityId)
@@ -55,6 +74,15 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const [history, setHistory] = useState<HistoryFilters>({ order: 'desc', page: 1, per_page: 25 })
   // null = closed; 0 = open with no product chosen; otherwise the product to pre-select.
   const [recording, setRecording] = useState<number | null>(null)
+  const [dispatching, setDispatching] = useState(false)
+  const [flash, setFlash] = useState<string | null>(null)
+  const { hash } = useLocation()
+  const loaded = !facility.isPending && !stock.isPending
+
+  // In-page anchors (#history, #issued) from links on other pages.
+  useEffect(() => {
+    if (loaded && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' })
+  }, [loaded, hash])
 
   if (facility.isError) return <ErrorState error={facility.error} />
   if (facility.isPending || stock.isPending || products.isPending) return <Loading />
@@ -64,6 +92,10 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const f = facility.data
   const rows = stock.data
   const canRecord = canRecordAt(user, facilityId)
+  const isStore = f.store_level !== null
+  const back = backLink(f, user)
+  const place = [f.lga?.name, f.state?.name ?? 'Nigeria'].filter(Boolean).join(', ')
+  const deliveriesHref = user.role === 'sdp_staff' ? '/delivery-notes' : `/facilities/${facilityId}/delivery-notes`
   const count = (pred: (s: ProductStock) => boolean) => rows.filter(pred).length
   const stockOuts = count((s) => s.level === 'stock_out')
   const low = count((s) => s.level === 'low_stock')
@@ -83,27 +115,32 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
     <div className="stack">
       <header className="page-head">
         <div>
-          {user.role !== 'sdp_staff' && (
-            <Link to={`/lgas/${f.lga.id}`} className="back-link">
-              <ArrowLeft size={15} /> {f.lga.name} LGA
+          {back && (
+            <Link to={back.to} className="back-link">
+              <ArrowLeft size={15} /> {back.label}
             </Link>
           )}
-          <p className="eyebrow">Facility stock card</p>
+          <p className="eyebrow">{isStore ? 'Store stock card' : 'Facility stock card'}</p>
           <h1>{f.name}</h1>
           <div className="meta-row" style={{ marginTop: '0.35rem' }}>
             <span style={{ textTransform: 'capitalize' }}>
-              <Building2 size={15} /> {f.type.replace('_', ' ')}
+              <Building2 size={15} /> {isStore ? `${f.store_level === 'lga' ? 'LGA' : f.store_level} store` : f.type.replace('_', ' ')}
             </span>
             <span>
-              <MapPin size={15} /> {f.lga.name}, {f.state.name}
+              <MapPin size={15} /> {place}
             </span>
             {!f.is_active && <span className="badge badge-neutral">Inactive</span>}
           </div>
         </div>
         <div className="head-actions">
-          <Link to={user.role === 'sdp_staff' ? '/delivery-notes' : `/facilities/${facilityId}/delivery-notes`} className="btn btn-ghost">
+          <Link to={deliveriesHref} className="btn btn-ghost">
             <Truck size={18} /> Delivery notes
           </Link>
+          {canRecord && isStore && (
+            <button type="button" className="btn btn-ghost" onClick={() => setDispatching(true)}>
+              <Send size={18} /> Issue to facility
+            </button>
+          )}
           {canRecord ? (
             <button type="button" className="btn btn-primary" onClick={() => setRecording(0)}>
               <Plus size={18} /> Record transaction
@@ -115,6 +152,14 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           )}
         </div>
       </header>
+
+      {flash && (
+        <p className="form-success" role="status" style={{ margin: 0 }}>
+          {flash}
+        </p>
+      )}
+
+      <IncomingDeliveries facilityId={facilityId} canAct={canRecord} deliveriesHref={deliveriesHref} />
 
       <div className="kpi-grid">
         <KpiTile tone="primary" icon={Package} label="Products tracked" value={rows.length} sub={`${okCount} at a healthy level`} />
@@ -260,6 +305,12 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
         />
       </section>
 
+      {isStore && (
+        <div id="issued">
+          <DispatchList facilityId={facilityId} />
+        </div>
+      )}
+
       <section className="card card-flush">
         {reorder.isError ? (
           <ErrorState error={reorder.error} />
@@ -293,6 +344,29 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
             stock={rows}
             initialProductId={recording || undefined}
             onCancel={() => setRecording(null)}
+          />
+        </Modal>
+      )}
+
+      {canRecord && isStore && (
+        <Modal
+          open={dispatching}
+          onClose={() => setDispatching(false)}
+          size="lg"
+          title="Issue to a facility"
+          description={`From ${f.name} to a facility one level down`}
+          icon={<Send size={20} />}
+        >
+          <DispatchForm
+            facilityId={facilityId}
+            stock={rows}
+            onCancel={() => setDispatching(false)}
+            onDone={(note) => {
+              setDispatching(false)
+              setFlash(
+                `Issued ${note.items.length} line${note.items.length === 1 ? '' : 's'} to ${note.facility.name} (${note.delivery_note_no}). It lands on their Stock Card once they confirm it.`,
+              )
+            }}
           />
         </Modal>
       )}

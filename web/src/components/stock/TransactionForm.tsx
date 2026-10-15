@@ -21,6 +21,8 @@ interface Props {
   stock: ProductStock[]
   /** Pre-select a product, e.g. when opened from that product's row. */
   initialProductId?: number
+  /** Defaults to issue, the most common entry at an SDP. */
+  initialType?: TransactionType
   onCancel?: () => void
 }
 
@@ -39,15 +41,15 @@ function suggestBatch(batches: BatchStock[], type: TransactionType): string {
  * (web/CLAUDE.md rule 3). Client checks mirror the backend's rules for fast
  * feedback; the backend (StockLedgerService) is the real gate.
  */
-export function TransactionForm({ facilityId, products, stock, initialProductId, onCancel }: Props) {
+export function TransactionForm({ facilityId, products, stock, initialProductId, initialType = 'issue', onCancel }: Props) {
   const listId = useId()
   const record = useRecordTransaction(facilityId)
 
   const [productId, setProductId] = useState<number | ''>(initialProductId ?? '')
-  const [type, setType] = useState<TransactionType>('issue')
+  const [type, setType] = useState<TransactionType>(initialType)
   const [date, setDate] = useState(todayInLagos())
   const [batchNo, setBatchNo] = useState(() =>
-    suggestBatch(stock.find((x) => x.product.id === initialProductId)?.batches ?? [], 'issue'),
+    OUTBOUND.includes(initialType) ? suggestBatch(stock.find((x) => x.product.id === initialProductId)?.batches ?? [], initialType) : '',
   )
   const [expiry, setExpiry] = useState('')
   const [quantity, setQuantity] = useState('')

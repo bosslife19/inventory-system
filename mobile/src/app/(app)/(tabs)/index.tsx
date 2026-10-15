@@ -81,7 +81,7 @@ export default function Home() {
               <View style={styles.location}>
                 <MapPin size={13} color="#9fb0cc" />
                 <Text variant="caption" style={{ color: '#9fb0cc' }}>
-                  {facility.data.lga.name}, {facility.data.state.name}
+                  {facility.data.lga?.name}, {facility.data.state?.name}
                 </Text>
               </View>
             )}

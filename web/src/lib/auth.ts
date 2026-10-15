@@ -58,7 +58,10 @@ export function homePath(user: User): string {
   }
 }
 
-/** UX only — the backend's StockTransactionPolicy is the real gate. */
+/**
+ * Staff record at their own facility, officers at their own store, admins
+ * anywhere. UX only — the backend's StockTransactionPolicy is the real gate.
+ */
 export function canRecordAt(user: User, facilityId: number): boolean {
-  return user.role === 'admin' || (user.role === 'sdp_staff' && user.facility_id === facilityId)
+  return user.role === 'admin' || (user.role === 'sdp_staff' && user.facility_id === facilityId) || user.store?.id === facilityId
 }

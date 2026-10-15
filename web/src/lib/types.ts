@@ -27,6 +27,8 @@ export type AreaStockSummary = Schemas['AreaStockSummaryResource']
 export type DeliveryNote = Schemas['DeliveryNoteResource']
 export type DeliveryNoteStatus = Schemas['DeliveryNoteStatus']
 export type NewDeliveryNote = Schemas['StoreDeliveryNoteRequest']
+export type NewDispatch = Schemas['StoreDispatchRequest']
+export type StoreLevel = Schemas['StoreLevel']
 
 type Json<P extends keyof paths> = NonNullable<
   paths[P] extends { get: { responses: { 200: { content: { 'application/json': infer B } } } } } ? B : never

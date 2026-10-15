@@ -20,6 +20,8 @@ interface Props {
   title: string
   subtitle: string
   back?: React.ReactNode
+  /** The node's own store (StorePanel), shown under the header — not part of the rollup figures. */
+  store?: React.ReactNode
   summary: RollupSummary
   activity: UseQueryResult<StockActivity>
   /** Plural, e.g. "Facilities", "LGAs", "States". */
@@ -34,7 +36,7 @@ interface Props {
  * per-product totals — shared by the LGA, State and Federal pages
  * (web/CLAUDE.md rule 2). Only the children differ by level.
  */
-export function RollupDashboard({ eyebrow, title, subtitle, back, summary: s, activity, childNoun, childSingular, hrefFor }: Props) {
+export function RollupDashboard({ eyebrow, title, subtitle, back, store, summary: s, activity, childNoun, childSingular, hrefFor }: Props) {
   const [query, setQuery] = useState('')
   const areas = childNoun !== 'Facilities'
   // 'LGA' stays upper-case mid-sentence; 'State' doesn't.
@@ -56,6 +58,8 @@ export function RollupDashboard({ eyebrow, title, subtitle, back, summary: s, ac
         facilityCount={s.facility_count}
         counts={s.facility_counts}
       />
+
+      {store}
 
       <div className="grid-chart">
         <section className="card">

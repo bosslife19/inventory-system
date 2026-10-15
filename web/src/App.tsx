@@ -29,7 +29,7 @@ function Home({ level }: { level?: Level }) {
     case 'state':
       return <StatePage stateId={user.state_id!} user={user} />
     case 'federal':
-      return <FederalPage />
+      return <FederalPage user={user} />
   }
 }
 
