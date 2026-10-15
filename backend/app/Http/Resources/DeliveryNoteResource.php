@@ -14,8 +14,13 @@ class DeliveryNoteResource extends JsonResource
         return [
             'id' => $this->id,
             'facility_id' => $this->facility_id,
+            /** The receiving facility. */
+            'facility' => ['id' => $this->facility->id, 'name' => $this->facility->name],
             'delivery_note_no' => $this->delivery_note_no,
             'source' => $this->source,
+            /** The store that dispatched it; null for deliveries from outside the system. */
+            'source_facility' => $this->sourceFacility ? ['id' => $this->sourceFacility->id, 'name' => $this->sourceFacility->name] : null,
+            'dispatched_date' => $this->dispatched_date?->toDateString(),
             'received_date' => $this->received_date->toDateString(),
             'status' => $this->status,
             /** @var 'manual'|'ocr' */
@@ -42,6 +47,10 @@ class DeliveryNoteResource extends JsonResource
                 'quantity' => $item->quantity,
                 /** The receipt this line became, once confirmed. */
                 'stock_transaction_id' => $item->stock_transaction_id,
+                /** The issue on the sender's Stock Card, for a dispatch. */
+                'source_transaction_id' => $item->source_transaction_id,
+                /** The receipt back onto the sender's card, if the receiver rejected it. */
+                'return_transaction_id' => $item->return_transaction_id,
             ])->all(),
         ];
     }

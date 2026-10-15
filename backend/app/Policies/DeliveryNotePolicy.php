@@ -32,6 +32,16 @@ class DeliveryNotePolicy
         return Gate::forUser($user)->inspect('create', [StockTransaction::class, $facility]);
     }
 
+    /** Issue stock down the chain from a store: whoever may record at that store. */
+    public function dispatch(User $user, Facility $from): Response
+    {
+        if (! $from->isStore()) {
+            return Response::deny('Only LGA, State and National stores dispatch to other facilities; record an issue instead.');
+        }
+
+        return $this->create($user, $from);
+    }
+
     /** Confirm or reject. */
     public function update(User $user, DeliveryNote $note): Response
     {

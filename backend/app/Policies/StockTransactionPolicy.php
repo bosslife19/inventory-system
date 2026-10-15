@@ -10,7 +10,8 @@ use Illuminate\Auth\Access\Response;
 
 /**
  * See docs/ROLES_AND_PERMISSIONS.md. Recording is limited to sdp_staff at
- * their own facility, plus admin; officers are read-only.
+ * their own facility, officers at their own LGA / state / national store,
+ * plus admin. Everything else an officer can see is read-only.
  */
 class StockTransactionPolicy
 {
@@ -26,12 +27,13 @@ class StockTransactionPolicy
             return Response::deny('This facility is inactive.');
         }
 
-        return match ($user->role) {
-            UserRole::Admin => Response::allow(),
-            UserRole::SdpStaff => $user->facility_id === $facility->id
-                ? Response::allow()
-                : Response::deny('You can only record transactions for your own facility.'),
-            default => Response::deny('Your role cannot record stock transactions.'),
-        };
+        if (HierarchyScope::for($user)->canOperate($facility)) {
+            return Response::allow();
+        }
+
+        return Response::deny(match ($user->role) {
+            UserRole::SdpStaff => 'You can only record transactions for your own facility.',
+            default => 'You can only record transactions for your own store.',
+        });
     }
 }

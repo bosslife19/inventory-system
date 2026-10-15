@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Gate;
 
 class FacilityController extends Controller
 {
-    /** Facilities in an LGA. */
+    /** SDPs in an LGA (the LGA's store is not listed). */
     public function index(Lga $lga, HierarchyScope $scope): AnonymousResourceCollection
     {
         Gate::authorize('view', $lga);
 
         return FacilityResource::collection(
-            $scope->scopeFacilities($lga->facilities()->getQuery())->with('lga.state')->orderBy('name')->get()
+            $scope->scopeFacilities($lga->facilities()->servicePoints()->getQuery())->with('lga.state')->orderBy('name')->get()
         );
     }
 

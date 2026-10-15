@@ -13,6 +13,12 @@ Every user account is anchored at exactly one level (`facility_id`,
 `lga_id`, `state_id`, or `federal` role with no id). A user can see their
 own node plus everything beneath it — never above or sideways.
 
+Each LGA, state and the nation also has one **store** — a facility row with
+`store_level` set — so officers keep a Stock Card too. Stock flows down the
+chain as **dispatches**: an `issue` on the sender store's card plus a draft
+delivery note at the receiver, who confirms it into receipts (or rejects it,
+returning the stock to the sender's card). Rollups count SDPs only.
+
 ## Core modules
 
 | Module | Description |

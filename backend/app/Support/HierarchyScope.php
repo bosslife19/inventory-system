@@ -45,13 +45,40 @@ final class HierarchyScope
         };
     }
 
+    /** SDPs and stores alike: an LGA store is in its LGA, a state store in its state, the national store only national. */
     public function canViewFacility(Facility $facility): bool
     {
         return match ($this->user->role) {
             UserRole::FederalOfficer, UserRole::Admin => true,
-            UserRole::StateOfficer => $this->user->state_id === $facility->lga()->value('state_id'),
-            UserRole::LgaOfficer => $this->user->lga_id === $facility->lga_id,
+            UserRole::StateOfficer => $facility->stateId() !== null && $this->user->state_id === $facility->stateId(),
+            UserRole::LgaOfficer => $facility->lga_id !== null && $this->user->lga_id === $facility->lga_id,
             UserRole::SdpStaff => $this->user->facility_id === $facility->id,
+        };
+    }
+
+    /**
+     * The store an officer keeps the Stock Card of; null for SDP staff and
+     * admins (admins may record anywhere, but have no store of their own).
+     */
+    public function ownStore(): ?Facility
+    {
+        return match ($this->user->role) {
+            UserRole::LgaOfficer => Facility::storeForLga($this->user->lga),
+            UserRole::StateOfficer => Facility::storeForState($this->user->state),
+            UserRole::FederalOfficer => Facility::nationalStore(),
+            default => null,
+        };
+    }
+
+    /** May record Stock Card entries here: SDP staff at their facility, officers at their own store, admins anywhere. */
+    public function canOperate(Facility $facility): bool
+    {
+        return match ($this->user->role) {
+            UserRole::Admin => true,
+            UserRole::SdpStaff => $this->user->facility_id === $facility->id,
+            UserRole::LgaOfficer => $facility->store_key === "lga:{$this->user->lga_id}",
+            UserRole::StateOfficer => $facility->store_key === "state:{$this->user->state_id}",
+            UserRole::FederalOfficer => $facility->store_key === 'national',
         };
     }
 
@@ -81,8 +108,10 @@ final class HierarchyScope
     {
         return match ($this->user->role) {
             UserRole::FederalOfficer, UserRole::Admin => $query,
-            UserRole::StateOfficer => $query->whereIn('lga_id', Lga::select('id')->where('state_id', $this->user->state_id)),
-            UserRole::LgaOfficer => $query->where('lga_id', $this->user->lga_id),
+            UserRole::StateOfficer => $query->where(fn (Builder $q) => $q
+                ->whereIn('facilities.lga_id', Lga::select('id')->where('state_id', $this->user->state_id))
+                ->orWhere('facilities.state_id', $this->user->state_id)),
+            UserRole::LgaOfficer => $query->where('facilities.lga_id', $this->user->lga_id),
             UserRole::SdpStaff => $query->whereKey($this->user->facility_id),
         };
     }

@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Gate;
 /**
  * State and Federal rollups: the LGA summary's shape one level up, with
  * LGAs / States as children. Aggregated from facility_product_status.
+ * SDPs only: the stores' own Stock Cards are not part of the rollup.
  */
 class RollupSummaryController extends Controller
 {
@@ -24,7 +25,7 @@ class RollupSummaryController extends Controller
     {
         Gate::authorize('view', $state);
 
-        $facilities = $scope->scopeFacilities(Facility::query())
+        $facilities = $scope->scopeFacilities(Facility::query()->servicePoints())
             ->whereIn('facilities.lga_id', Lga::select('id')->where('state_id', $state->id));
         $lgas = $scope->scopeLgas($state->lgas()->getQuery())->orderBy('name')->get();
         $summary = $rollups->summarize($facilities, $lgas, 'lga_id');
@@ -36,6 +37,8 @@ class RollupSummaryController extends Controller
                     'id' => $state->id,
                     'name' => $state->name,
                     'parent' => ['level' => 'country', 'id' => null, 'name' => 'Nigeria'],
+                    /** The state's own store (its Stock Card is not part of this rollup). */
+                    'store' => $this->storeRef(Facility::storeForState($state)),
                 ],
                 /** @var int */
                 'child_count' => $lgas->count(),
@@ -57,11 +60,15 @@ class RollupSummaryController extends Controller
         Gate::authorize('viewNational', State::class);
 
         $states = $scope->scopeStates(State::query())->orderBy('name')->get();
-        $summary = $rollups->summarize($scope->scopeFacilities(Facility::query()), $states, 'state_id');
+        $summary = $rollups->summarize($scope->scopeFacilities(Facility::query()->servicePoints()), $states, 'state_id');
 
         return response()->json([
             'data' => [
-                'node' => ['level' => 'country', 'id' => null, 'name' => 'Nigeria', 'parent' => null],
+                'node' => [
+                    'level' => 'country', 'id' => null, 'name' => 'Nigeria', 'parent' => null,
+                    /** The national store (its Stock Card is not part of this rollup). */
+                    'store' => $this->storeRef(Facility::nationalStore()),
+                ],
                 /** @var int */
                 'child_count' => $states->count(),
                 'facility_count' => $summary['facility_count'],
@@ -74,5 +81,11 @@ class RollupSummaryController extends Controller
                 'children' => AreaStockSummaryResource::collection($summary['children']),
             ],
         ]);
+    }
+
+    /** @return array{id: int, name: string} */
+    private function storeRef(Facility $store): array
+    {
+        return ['id' => $store->id, 'name' => $store->name];
     }
 }

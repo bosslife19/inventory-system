@@ -17,14 +17,23 @@ human-readable contract and the rules behind it.
   - 200 → `{ "data": { "token": "…", "user": <User> } }`. Send the token as `Authorization: Bearer …`.
 - `POST /auth/logout` → 204, revokes the token used for the request.
 - `GET /auth/me` → current user + role + hierarchy node
-  - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] } }`. Clients route on `role` / `node.level`.
+  - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.
+  - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
 
 ## Hierarchy (admin-managed, read-only for everyone else)
 Lists return only what the caller can see — own node and below, never above or sideways. Not paginated.
 - `GET /states` — all for federal/admin, own state for state officers, empty for LGA/SDP users
 - `GET /states/{id}/lgas` — 403 unless the caller can see that state
-- `GET /lgas/{id}/facilities` — 403 unless the caller can see that LGA (SDP staff can't)
-- `GET /facilities/{id}` — includes `lga {id,name}` and `state {id,name}`
+- `GET /lgas/{id}/facilities` — 403 unless the caller can see that LGA (SDP staff can't). SDPs only; the LGA's store is not listed.
+- `GET /facilities/{id}` — includes `store_level` (null for SDPs, else `lga|state|national`), `lga {id,name} | null` (null for state and national stores) and `state {id,name} | null` (null only for the national store)
+
+## Stores
+Every LGA, every state and the nation has one store: a facility with `store_level` set, keeping its own
+Stock Card on the same ledger as the SDPs. The officers of that node record at it (receipts from suppliers,
+issues to external parties, losses, adjustments, counts) through the ordinary facility endpoints below, and
+dispatch stock down the chain (see "Dispatches"). Visibility follows the hierarchy: an LGA store is visible
+to that LGA and above, a state store to that state and federal, the national store to federal only. SDP
+staff never see stores. Rollups and their activity charts count SDPs only.
 
 ## Products
 - `GET /products` (filter: category, is_active — `true`/`false`/`1`/`0`). The catalog is not hierarchy-scoped.
@@ -47,7 +56,7 @@ Lists return only what the caller can see — own node and below, never above or
     If an entry with the same `client_reference` already exists at this facility, nothing is recorded and the
     existing entry comes back with **200** instead of 201 — so a sync retried after a lost response can't
     double-count. The first request's payload wins.
-  - who: `sdp_staff` for their own facility, `admin` for any; facility must be active. Otherwise 403 (checked before validation).
+  - who: `sdp_staff` for their own facility, an LGA / State / Federal officer for their own store (`user.store.id`), `admin` for any; facility must be active. Otherwise 403 (checked before validation).
   - `quantity`: integer, always positive (≥ 0 for `physical_count`, which sets the batch balance to the counted total). Direction comes from `transaction_type`.
   - `transaction_date`: `YYYY-MM-DD`, not in the future (Africa/Lagos), and not earlier than the latest entry for that product at the facility.
   - `batch_no`: required if the product is batch-tracked, forbidden (with `expiry_date`) if not. Trimmed and upper-cased. An unknown batch is created on `receipt` / `transfer_in` / `adjustment_in` / `physical_count` (then `expiry_date` is required); other types must reference a known batch. If given for a known batch, `expiry_date` must match. Expired batches can't be `issue`d.
@@ -79,17 +88,45 @@ sent. There is no server-side scan endpoint.
   - Batch rules per line as for stock transactions (`items.N.batch_no` errors). `source` becomes each
     receipt's counterparty and `delivery_note_no` its voucher no.
   - `client_reference` works like on stock transactions: a repeat returns the existing note with 200.
-  - who: `sdp_staff` (own facility) and `admin`, facility active — same as recording transactions.
-- `POST /delivery-notes/{id}/confirm` — posts every item as a `receipt` through the ledger, all or
-  nothing; a ledger rule failure is a 422 naming the line (`items.N.field`, or `received_date` for
-  back-dating). Each item gets `stock_transaction_id`. 422 if not a draft.
-- `POST /delivery-notes/{id}/reject` — body `reason?`; drafts only.
-- Response `data`: `{ id, facility_id, delivery_note_no, source, received_date, status, capture_method,
+  - who: whoever may record transactions at the facility (own SDP, own store, admin), facility active.
+- `POST /delivery-notes/{id}/confirm` — body `received_date?` (`YYYY-MM-DD`, not in the future; replaces
+  the note's date — for a dispatch, when it actually arrived, not before `dispatched_date`). Posts every
+  item as a `receipt` through the ledger, all or nothing; a ledger rule failure is a 422 naming the line
+  (`items.N.field`, or `received_date` for back-dating). Each item gets `stock_transaction_id`. 422 if
+  not a draft.
+- `POST /delivery-notes/{id}/reject` — body `reason?`; drafts only. For a dispatch, each line goes back
+  onto the sender's Stock Card as a `receipt` from "<receiver> (returned)", dated today, and the item
+  gets `return_transaction_id`.
+- Response `data`: `{ id, facility_id, facility: { id, name }, delivery_note_no, source,
+  source_facility: { id, name } | null, dispatched_date, received_date, status, capture_method,
   comments, client_reference, created_by_name, confirmed_by_name, confirmed_at, rejected_by_name,
   rejected_at, rejection_reason, created_at, items: [{ id, product: { id, name, sku, unit_of_measure },
-  batch_no, expiry_date, quantity, stock_transaction_id }] }`.
+  batch_no, expiry_date, quantity, stock_transaction_id, source_transaction_id, return_transaction_id }] }`.
 
-## Rollups (LGA / State / Federal — read only)
+## Dispatches (store → facility below it)
+A store issuing stock down the chain. The sender's side is immediate — an `issue` per line on its Stock
+Card; the receiver gets a draft delivery note (`source_facility` set) and confirms or rejects it like any
+delivery, so stock only lands in their balance once someone there has signed for it.
+
+- `GET /facilities/{id}/dispatch-destinations` — where this store may dispatch, active, by name:
+  national → state stores; state store → LGA stores and SDPs in the state; LGA store → SDPs in the LGA.
+  `data`: `[<Facility>]`. 403 for SDPs and for callers who can't record at the store.
+- `POST /facilities/{id}/dispatches` — body `destination_facility_id, dispatched_date, voucher_no?,
+  comments?, client_reference?, items: [{ product_id, batch_no?, quantity }]` (1–100 items).
+  - who: as for recording at the store; the facility must be a store (SDPs record an `issue`).
+  - `destination_facility_id` must be one of the destinations, else 422 on that field.
+  - `batch_no` required for batch-tracked products (a batch the store holds), forbidden otherwise.
+  - Ledger rules apply per line (enough stock, unexpired batch, no back-dating to `dispatched_date`);
+    a failure is a 422 on `items.N.field` (or `dispatched_date`) and nothing is recorded.
+  - `voucher_no` becomes the note's `delivery_note_no` and each issue's voucher; `DSP-000123` (note id)
+    when omitted. Each issue's counterparty is the receiver's name.
+  - `client_reference` works as elsewhere: a repeat returns the existing note with 200.
+  - 201 → the receiver's draft delivery note (shape above).
+- `GET /facilities/{id}/dispatches` (query: `status?`, `per_page?` ≤ 100, `page?`) — what the store has
+  sent, newest first, paginated like delivery notes. `status` is the receiver's: `draft` = in transit /
+  not yet signed for. Anyone who can see the store.
+
+## Rollups (LGA / State / Federal — read only, SDPs only)
 - `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
 - `GET /states/{id}/stock-summary` — aggregated across LGAs
 - `GET /federal/stock-summary` — aggregated across states
@@ -101,7 +138,7 @@ sent. There is no server-side scan endpoint.
 - LGA (computed live from `stock_balances`):
   ```
   { "data": {
-      "node": { "level": "lga", id, name, "parent": { "level": "state", id, name } },
+      "node": { "level": "lga", id, name, "parent": { "level": "state", id, name }, "store": { id, name } },  // store = the node's own store
       "child_count": 3,
       "facility_count": 3,                                                  // same as child_count at LGA level
       "facility_counts": { stock_out, expired, low_stock, expiring_soon },   // facilities with ≥1 product so flagged
@@ -117,8 +154,8 @@ sent. There is no server-side scan endpoint.
   ```
 - State and Federal: the same top-level shape one level up, aggregated from
   `facility_product_status` (see DATABASE_SCHEMA.md). `node` is
-  `{ level: "state", id, name, parent: { level: "country", id: null, name: "Nigeria" } }` or
-  `{ level: "country", id: null, name: "Nigeria", parent: null }`. `child_count` counts LGAs / states;
+  `{ level: "state", id, name, parent: { level: "country", id: null, name: "Nigeria" }, store }` or
+  `{ level: "country", id: null, name: "Nigeria", parent: null, store }`. `child_count` counts LGAs / states;
   `facility_count` counts facilities beneath. Children are areas rather than facilities:
   ```
   "children": [{ "level": "lga" | "state", id, name,
@@ -150,6 +187,8 @@ sent. There is no server-side scan endpoint.
   `received` = receipt + transfer_in; `issued` = issue + transfer_out;
   `other` = losses, adjustments and physical counts. The LGA variant only
   counts facilities within the caller's scope; so do State and Federal.
+  The area variants count SDPs only; a store's own activity is
+  `GET /facilities/{store id}/stock-activity`.
 
 ## Alerts
 - `GET /alerts` (scoped to caller's node and below; filters: alert_type, severity, status,

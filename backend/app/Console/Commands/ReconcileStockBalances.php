@@ -49,7 +49,7 @@ class ReconcileStockBalances extends Command
         $cursor = $onlyIds === [] && ! $this->option('force') ? (int) Cache::get(self::CURSOR_KEY, 0) : 0;
         $totals = ['facilities' => 0, 'corrected' => 0, 'created' => 0, 'deleted' => 0, 'history_mismatches' => 0];
 
-        $facilityIds = Facility::query()
+        $facilityIds = Facility::query()->withLedger()
             ->when($onlyIds !== [], fn ($q) => $q->whereKey($onlyIds), fn ($q) => $q->where('id', '>', $cursor))
             ->orderBy('id')
             ->pluck('id');

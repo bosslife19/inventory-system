@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\HierarchyScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,6 +29,12 @@ class UserResource extends JsonResource
              * @var array{level: 'facility'|'lga'|'state'|'national', id: int|null, name: string, path: list<string>}
              */
             'node' => $this->node(),
+            /**
+             * The store whose Stock Card an LGA / State / Federal officer keeps; null for SDP staff and admins.
+             *
+             * @var array{id: int, name: string}|null
+             */
+            'store' => $this->store(),
         ];
     }
 
@@ -55,5 +62,13 @@ class UserResource extends JsonResource
             ],
             default => ['level' => 'national', 'id' => null, 'name' => 'Nigeria', 'path' => ['Nigeria']],
         };
+    }
+
+    /** @return array{id: int, name: string}|null */
+    private function store(): ?array
+    {
+        $store = HierarchyScope::for($this->resource)->ownStore();
+
+        return $store ? ['id' => $store->id, 'name' => $store->name] : null;
     }
 }

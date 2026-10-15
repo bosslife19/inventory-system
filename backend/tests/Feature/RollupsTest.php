@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\TransactionType;
+use App\Models\Facility;
 use App\Models\FacilityProductStatus;
 use App\Models\Product;
 use App\Services\StockLedgerService;
@@ -50,7 +51,7 @@ it('rolls a state up by LGA, worst first, counting each facility once per flag',
         ->assertOk()
         ->json('data');
 
-    expect($data['node'])->toBe(['level' => 'state', 'id' => $kaduna->id, 'name' => 'Kaduna', 'parent' => ['level' => 'country', 'id' => null, 'name' => 'Nigeria']])
+    expect($data['node'])->toBe(['level' => 'state', 'id' => $kaduna->id, 'name' => 'Kaduna', 'parent' => ['level' => 'country', 'id' => null, 'name' => 'Nigeria'], 'store' => ['id' => Facility::storeForState($kaduna)->id, 'name' => 'Kaduna State Store']])
         ->and($data['child_count'])->toBe(2)
         ->and($data['facility_count'])->toBe(3)
         ->and($data['facility_counts'])->toBe(['stock_out' => 1, 'expired' => 1, 'low_stock' => 2, 'expiring_soon' => 2])

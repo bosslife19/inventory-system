@@ -7,6 +7,7 @@ use App\Data\FacilityStockSummary;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\FacilityStockSummaryResource;
 use App\Http\Resources\ProductRollupResource;
+use App\Models\Facility;
 use App\Models\Lga;
 use App\Services\RollupService;
 use App\Services\StockStatusService;
@@ -28,7 +29,7 @@ class LgaStockSummaryController extends Controller
         Gate::authorize('view', $lga);
 
         $lga->loadMissing('state');
-        $facilities = $scope->scopeFacilities($lga->facilities()->getQuery())->get();
+        $facilities = $scope->scopeFacilities($lga->facilities()->servicePoints()->getQuery())->get();
         $rollup = $status->rollup($status->forFacilities($facilities));
 
         return response()->json([
@@ -38,6 +39,8 @@ class LgaStockSummaryController extends Controller
                     'id' => $lga->id,
                     'name' => $lga->name,
                     'parent' => ['level' => 'state', 'id' => $lga->state->id, 'name' => $lga->state->name],
+                    /** The LGA's own store (its Stock Card is not part of this rollup). */
+                    'store' => $this->storeRef(Facility::storeForLga($lga)),
                 ],
                 'child_count' => $facilities->count(),
                 /** Same as child_count here; the facility total at State and Federal level. */
@@ -70,5 +73,11 @@ class LgaStockSummaryController extends Controller
         }
 
         return $status;
+    }
+
+    /** @return array{id: int, name: string} */
+    private function storeRef(Facility $store): array
+    {
+        return ['id' => $store->id, 'name' => $store->name];
     }
 }

@@ -205,6 +205,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/facilities/{facility}/dispatches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What this store has dispatched, newest first. Status is the receiver's: draft = not yet received */
+        get: operations["dispatch.index"];
+        put?: never;
+        /**
+         * Issue stock to a facility below this store. 201 with the receiver's
+         *     draft delivery note; 200 with the existing one when client_reference
+         *     repeats a dispatch already made
+         */
+        post: operations["dispatch.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/dispatch-destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Facilities this store may dispatch to: one level down the chain, active, by name */
+        get: operations["dispatch.destinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lgas/{lga}/facilities": {
         parameters: {
             query?: never;
@@ -212,7 +251,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Facilities in an LGA */
+        /** SDPs in an LGA (the LGA's store is not listed) */
         get: operations["facility.index"];
         put?: never;
         post?: never;
@@ -582,8 +621,19 @@ export interface components {
         DeliveryNoteResource: {
             id: number;
             facility_id: number;
+            /** @description The receiving facility. */
+            facility: {
+                id: number;
+                name: string;
+            };
             delivery_note_no: string | null;
             source: string;
+            /** @description The store that dispatched it; null for deliveries from outside the system. */
+            source_facility: {
+                id: number;
+                name: string;
+            } | null;
+            dispatched_date: string | null;
             received_date: string;
             status: components["schemas"]["DeliveryNoteStatus"];
             /** @enum {string} */
@@ -613,6 +663,10 @@ export interface components {
                 quantity: number;
                 /** @description The receipt this line became, once confirmed. */
                 stock_transaction_id: number | null;
+                /** @description The issue on the sender's Stock Card, for a dispatch. */
+                source_transaction_id: number | null;
+                /** @description The receipt back onto the sender's card, if the receiver rejected it. */
+                return_transaction_id: number | null;
             }[];
         };
         /**
@@ -635,14 +689,17 @@ export interface components {
             longitude: string | null;
             phone: string | null;
             is_active: boolean;
+            store_level: components["schemas"]["StoreLevel"] | null;
+            /** @description Null for state and national stores. */
             lga: {
                 id: number;
                 name: string;
-            };
+            } | null;
+            /** @description Null only for the national store. */
             state: {
                 id: number;
                 name: string;
-            };
+            } | null;
         };
         /** FacilityStockSummaryResource */
         FacilityStockSummaryResource: {
@@ -807,6 +864,35 @@ export interface components {
             }[];
         };
         /**
+         * StoreDispatchRequest
+         * @description Shape validation for POST /facilities/{facility}/dispatches. Ledger rules
+         *     (enough stock, known and unexpired batch, no back-dating) are checked by
+         *     StockLedgerService as each line is issued.
+         */
+        StoreDispatchRequest: {
+            /** @description A facility one level down the chain (GET /facilities/{facility}/dispatch-destinations). */
+            destination_facility_id: number;
+            /** @description Issue voucher / waybill number; DSP-000123 is generated when omitted. */
+            voucher_no?: string | null;
+            /** Format: date */
+            dispatched_date: string;
+            comments?: string | null;
+            /** @description Idempotency key: re-sending it returns the dispatch already made. */
+            client_reference?: string | null;
+            items: {
+                product_id: number;
+                /** @description Required for batch-tracked products; must be a batch the store holds. */
+                batch_no?: string | null;
+                quantity: number;
+            }[];
+        };
+        /**
+         * StoreLevel
+         * @description Which hierarchy node a store facility belongs to. SDPs have none.
+         * @enum {string}
+         */
+        StoreLevel: "lga" | "state" | "national";
+        /**
          * StoreStockTransactionRequest
          * @description Shape validation for POST /facilities/{facility}/stock-transactions.
          *     State-dependent checks (unknown batch, insufficient stock, back-dating)
@@ -850,6 +936,11 @@ export interface components {
                 name: string;
                 path: string[];
             };
+            /** @description The store whose Stock Card an LGA / State / Federal officer keeps; null for SDP staff and admins. */
+            store: {
+                id: number;
+                name: string;
+            } | null;
         };
         /**
          * UserRole
@@ -1207,7 +1298,17 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date
+                     * @description When it actually arrived, if not the note's received_date (e.g. a dispatch from another store).
+                     */
+                    received_date?: string | null;
+                };
+            };
+        };
         responses: {
             /** @description `DeliveryNoteResource` */
             200: {
@@ -1223,6 +1324,7 @@ export interface operations {
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deliveryNote.reject": {
@@ -1285,6 +1387,110 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "dispatch.index": {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["DeliveryNoteStatus"] | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "dispatch.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDispatchRequest"];
+            };
+        };
+        responses: {
+            /** @description `DeliveryNoteResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DeliveryNoteResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "dispatch.destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `FacilityResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FacilityResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "facility.index": {
@@ -1398,6 +1604,11 @@ export interface operations {
                                 parent: {
                                     /** @constant */
                                     level: "state";
+                                    id: number;
+                                    name: string;
+                                };
+                                /** @description The LGA's own store (its Stock Card is not part of this rollup). */
+                                store: {
                                     id: number;
                                     name: string;
                                 };
@@ -1518,6 +1729,11 @@ export interface operations {
                                     /** @constant */
                                     name: "Nigeria";
                                 };
+                                /** @description The state's own store (its Stock Card is not part of this rollup). */
+                                store: {
+                                    id: number;
+                                    name: string;
+                                };
                             };
                             child_count: number;
                             facility_count: number;
@@ -1571,6 +1787,11 @@ export interface operations {
                                 /** @constant */
                                 name: "Nigeria";
                                 parent: null;
+                                /** @description The national store (its Stock Card is not part of this rollup). */
+                                store: {
+                                    id: number;
+                                    name: string;
+                                };
                             };
                             child_count: number;
                             facility_count: number;

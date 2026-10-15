@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DeliveryNoteItem extends Model
 {
-    protected $fillable = ['delivery_note_id', 'product_id', 'batch_no', 'expiry_date', 'quantity', 'stock_transaction_id'];
+    protected $fillable = ['delivery_note_id', 'product_id', 'batch_no', 'expiry_date', 'quantity', 'stock_transaction_id', 'source_transaction_id', 'return_transaction_id'];
 
     protected function casts(): array
     {

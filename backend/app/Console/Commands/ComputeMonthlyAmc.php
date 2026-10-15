@@ -53,7 +53,7 @@ class ComputeMonthlyAmc extends Command
         $cursor = $resumable ? (int) Cache::get(self::CURSOR_KEY.":{$monthKey}", 0) : 0;
         $totals = ['facilities' => 0, 'products' => 0];
 
-        $facilities = Facility::query()
+        $facilities = Facility::query()->withLedger()
             ->where('is_active', true)
             ->when($onlyIds !== [], fn ($q) => $q->whereKey($onlyIds), fn ($q) => $q->where('id', '>', $cursor))
             ->orderBy('id')

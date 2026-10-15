@@ -27,7 +27,7 @@ class StockActivityController extends Controller
     {
         Gate::authorize('view', $lga);
 
-        $facilityIds = $scope->scopeFacilities($lga->facilities()->getQuery())->pluck('id')->all();
+        $facilityIds = $scope->scopeFacilities($lga->facilities()->servicePoints()->getQuery())->pluck('id')->all();
 
         return response()->json(['data' => $activity->weekly($facilityIds, $this->weeks($request))]);
     }
@@ -37,7 +37,7 @@ class StockActivityController extends Controller
     {
         Gate::authorize('view', $state);
 
-        $facilityIds = $scope->scopeFacilities(Facility::query())
+        $facilityIds = $scope->scopeFacilities(Facility::query()->servicePoints())
             ->whereIn('facilities.lga_id', Lga::select('id')->where('state_id', $state->id))
             ->select('facilities.id');
 
@@ -50,7 +50,7 @@ class StockActivityController extends Controller
         Gate::authorize('viewNational', State::class);
 
         return response()->json([
-            'data' => $activity->weekly($scope->scopeFacilities(Facility::query())->select('facilities.id'), $this->weeks($request)),
+            'data' => $activity->weekly($scope->scopeFacilities(Facility::query()->servicePoints())->select('facilities.id'), $this->weeks($request)),
         ]);
     }
 

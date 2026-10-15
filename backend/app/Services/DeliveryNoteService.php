@@ -65,14 +65,26 @@ class DeliveryNoteService
         });
     }
 
-    /** Post every item as a receipt. 422 (keyed items.N.field) if any line breaks a ledger rule. */
-    public function confirm(DeliveryNote $note, User $user): DeliveryNote
+    /**
+     * Post every item as a receipt. 422 (keyed items.N.field) if any line
+     * breaks a ledger rule. $receivedDate (Y-m-d) replaces the note's date —
+     * how the receiver of a dispatch records when it actually arrived; it
+     * can't be before the dispatch.
+     */
+    public function confirm(DeliveryNote $note, User $user, ?string $receivedDate = null): DeliveryNote
     {
         if ($note->status !== DeliveryNoteStatus::Draft) {
             throw ValidationException::withMessages(['status' => "This delivery note is already {$note->status->value}."]);
         }
 
-        return DB::transaction(function () use ($note, $user) {
+        if ($receivedDate !== null && $note->dispatched_date && $receivedDate < $note->dispatched_date->toDateString()) {
+            throw ValidationException::withMessages(['received_date' => "It was dispatched on {$note->dispatched_date->toDateString()}; it can't have arrived earlier."]);
+        }
+
+        return DB::transaction(function () use ($note, $user, $receivedDate) {
+            if ($receivedDate !== null) {
+                $note->update(['received_date' => $receivedDate]);
+            }
             $facility = $note->facility;
             $date = CarbonImmutable::createFromFormat('!Y-m-d', $note->received_date->toDateString());
 
@@ -93,12 +105,7 @@ class DeliveryNoteService
                     );
                 } catch (ValidationException $e) {
                     // Point the client at the line that failed.
-                    $messages = [];
-                    foreach ($e->errors() as $field => $errors) {
-                        $key = $field === 'transaction_date' ? 'received_date' : "items.{$i}.{$field}";
-                        $messages[$key] = 'Line '.($i + 1)." ({$item->product->name}): ".$errors[0];
-                    }
-                    throw ValidationException::withMessages($messages);
+                    throw DispatchService::lineError($e, $i, $item->product, 'received_date');
                 }
                 $item->update(['stock_transaction_id' => $transaction->id]);
             }
@@ -113,20 +120,53 @@ class DeliveryNoteService
         });
     }
 
+    /**
+     * Refuse a draft. A dispatch from another store has already left the
+     * sender's card, so each line goes back onto it as a receipt from the
+     * receiver ("returned") — the ledger stays append-only and balanced.
+     */
     public function reject(DeliveryNote $note, User $user, ?string $reason): DeliveryNote
     {
         if ($note->status !== DeliveryNoteStatus::Draft) {
             throw ValidationException::withMessages(['status' => "This delivery note is already {$note->status->value}."]);
         }
 
-        $note->update([
-            'status' => DeliveryNoteStatus::Rejected,
-            'rejected_by' => $user->id,
-            'rejected_at' => CarbonImmutable::now(),
-            'rejection_reason' => $reason,
-        ]);
+        return DB::transaction(function () use ($note, $user, $reason) {
+            if ($sender = $note->sourceFacility) {
+                $today = CarbonImmutable::today(config('app.business_timezone'));
+                foreach ($note->items()->with('product')->get()->values() as $i => $item) {
+                    if ($item->source_transaction_id === null) {
+                        continue;
+                    }
+                    try {
+                        $return = $this->ledger->record(
+                            facility: $sender,
+                            product: $item->product,
+                            type: TransactionType::Receipt,
+                            quantity: $item->quantity,
+                            transactionDate: $today,
+                            performedBy: $user,
+                            batchNo: $item->batch_no,
+                            voucherNo: $note->delivery_note_no,
+                            counterparty: "{$note->facility->name} (returned)",
+                            comments: 'Delivery rejected by the receiver'.($reason ? ": {$reason}" : '.'),
+                        );
+                    } catch (ValidationException $e) {
+                        throw DispatchService::lineError($e, $i, $item->product, 'status');
+                    }
+                    $item->update(['return_transaction_id' => $return->id]);
+                }
+            }
 
-        return $note;
+            $note->update([
+                'status' => DeliveryNoteStatus::Rejected,
+                'rejected_by' => $user->id,
+                'rejected_at' => CarbonImmutable::now(),
+                'rejection_reason' => $reason,
+            ]);
+
+            return $note;
+        });
     }
 
     /** Batch rules at the shape level, like StoreStockTransactionRequest (backend CLAUDE.md rule 2). */

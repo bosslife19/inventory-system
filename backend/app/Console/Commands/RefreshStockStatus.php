@@ -47,7 +47,7 @@ class RefreshStockStatus extends Command
         $cursor = $onlyIds === [] && ! $this->option('force') ? (int) Cache::get(self::CURSOR_KEY, 0) : 0;
         $totals = ['facilities' => 0, 'raised' => 0, 'cleared' => 0];
 
-        $facilities = Facility::query()
+        $facilities = Facility::query()->withLedger()
             ->where('is_active', true)
             ->when($onlyIds !== [], fn ($q) => $q->whereKey($onlyIds), fn ($q) => $q->where('id', '>', $cursor))
             ->orderBy('id')

@@ -10,13 +10,14 @@ use App\Http\Resources\DeliveryNoteResource;
 use App\Models\DeliveryNote;
 use App\Models\Facility;
 use App\Services\DeliveryNoteService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class DeliveryNoteController extends Controller
 {
-    private const RELATIONS = ['items.product', 'creator', 'confirmer', 'rejecter'];
+    public const RELATIONS = ['items.product', 'facility', 'sourceFacility', 'creator', 'confirmer', 'rejecter'];
 
     /** A facility's delivery notes, newest first. */
     public function index(Request $request, Facility $facility): DeliveryNoteCollection
@@ -71,7 +72,17 @@ class DeliveryNoteController extends Controller
     {
         Gate::authorize('update', $deliveryNote);
 
-        return DeliveryNoteResource::make($service->confirm($deliveryNote, $request->user())->load(self::RELATIONS));
+        $validated = $request->validate([
+            /** When it actually arrived, if not the note's received_date (e.g. a dispatch from another store). */
+            'received_date' => [
+                'nullable', 'date_format:Y-m-d',
+                'before_or_equal:'.CarbonImmutable::today(config('app.business_timezone'))->toDateString(),
+            ],
+        ]);
+
+        return DeliveryNoteResource::make(
+            $service->confirm($deliveryNote, $request->user(), $validated['received_date'] ?? null)->load(self::RELATIONS)
+        );
     }
 
     public function reject(Request $request, DeliveryNote $deliveryNote, DeliveryNoteService $service): DeliveryNoteResource

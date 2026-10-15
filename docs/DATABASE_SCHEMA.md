@@ -14,8 +14,18 @@ types depend on them.
 `id, state_id (fk), name, created_at, updated_at`
 unique on `(state_id, name)`
 
-**facilities** (the SDPs)
-`id, lga_id (fk), name, type (enum: health_center|hospital|pharmacy|warehouse|other), address, latitude, longitude, phone, is_active, created_at, updated_at`
+**facilities** (the SDPs, and one store per LGA / state / the nation)
+`id, lga_id (nullable fk), state_id (nullable fk), name, type (enum: health_center|hospital|pharmacy|warehouse|other), store_level (nullable enum: lga|state|national), store_key (nullable string, unique), address, latitude, longitude, phone, is_active, created_at, updated_at`
+
+> `store_level` null = an SDP, which always has `lga_id`. Otherwise the row is
+> the store of a hierarchy node, keeping its own Stock Card on the same
+> ledger: an LGA store has `lga_id`; a state store has `state_id` (and no
+> `lga_id`); the national store has neither. `store_key` (`lga:12`,
+> `state:3`, `national`) enforces one store per node; it is null for SDPs.
+> Stores are created with their node (model events, and
+> `Facility::ensureStores()` after the bulk hierarchy seed), named
+> "<LGA> LGA Store", "<State> State Store", "National Store", type `warehouse`.
+> Rollups (LGA/State/Federal summaries and activity) count SDPs only.
 
 ## Identity & access
 
@@ -76,15 +86,23 @@ NULLs are distinct in unique indexes, which would allow duplicate rows for non-b
 ## Delivery notes (mobile scanning flow)
 
 **delivery_notes**
-`id, facility_id (fk), delivery_note_no (nullable), source (string, e.g. supplier/warehouse name), received_date, status (enum: draft|confirmed|rejected), scanned_document_path (nullable, unused while OCR is on-device), capture_method (enum: manual|ocr), comments (nullable), created_by (fk users), confirmed_by (fk users, nullable), confirmed_at, rejected_by (fk users, nullable), rejected_at, rejection_reason (nullable), client_reference (nullable; unique per facility), created_at, updated_at`
+`id, facility_id (fk — the receiver), delivery_note_no (nullable), source (string, e.g. supplier/warehouse name), source_facility_id (nullable fk facilities — the store that dispatched it), dispatched_date (nullable date), received_date, status (enum: draft|confirmed|rejected), scanned_document_path (nullable, unused while OCR is on-device), capture_method (enum: manual|ocr), comments (nullable), created_by (fk users), confirmed_by (fk users, nullable), confirmed_at, rejected_by (fk users, nullable), rejected_at, rejection_reason (nullable), client_reference (nullable; unique per facility), created_at, updated_at`
 
 **delivery_note_items**
-`id, delivery_note_id (fk), product_id (fk), batch_no (nullable for non-batch-tracked products), expiry_date (nullable), quantity, stock_transaction_id (fk, nullable — set on confirmation), created_at, updated_at`
+`id, delivery_note_id (fk), product_id (fk), batch_no (nullable for non-batch-tracked products), expiry_date (nullable), quantity, stock_transaction_id (fk, nullable — set on confirmation), source_transaction_id (fk stock_transactions, nullable — the sender's issue, for a dispatch), return_transaction_id (fk stock_transactions, nullable — the receipt back onto the sender's card if the receiver rejected it), created_at, updated_at`
 
 > On confirmation, `DeliveryNoteService` posts one `stock_transactions` row
 > (type=`receipt`) per item through `StockLedgerService`, inline and all
 > or nothing, auto-creating the `batches` row if needed.
 > `stock_transactions.delivery_note_id` is a foreign key to `delivery_notes`.
+>
+> **Dispatches** (a store issuing down the chain) are delivery notes with
+> `source_facility_id` set. `DispatchService` posts one `issue` per line on
+> the sender's card immediately (counterparty = receiver, voucher =
+> `delivery_note_no`, generated as `DSP-000123` if not given) and creates the
+> receiver's note as a draft. Confirming posts the receipts as above
+> (counterparty = the sender store). Rejecting posts each line back onto the
+> sender's card as a `receipt` from "<receiver> (returned)".
 
 ## Consumption & reordering (the Excel "Bin Card" summary sheet)
 

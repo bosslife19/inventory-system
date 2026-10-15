@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Facility;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -53,10 +54,14 @@ class NigeriaStatesLgasSeeder extends Seeder
             DB::table('lgas')->upsert($lgas, ['state_id', 'name'], ['updated_at']);
         });
 
+        // Bulk upserts skip model events, so create the per-node stores here.
+        Facility::ensureStores();
+
         $this->command?->info(sprintf(
-            'Seeded %d states, %d LGAs.',
+            'Seeded %d states, %d LGAs, %d stores.',
             DB::table('states')->count(),
             DB::table('lgas')->count(),
+            Facility::whereNotNull('store_level')->count(),
         ));
     }
 }

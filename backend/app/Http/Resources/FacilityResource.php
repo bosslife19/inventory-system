@@ -11,7 +11,8 @@ class FacilityResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $this->loadMissing('lga.state');
+        $this->loadMissing(['lga.state', 'state']);
+        $state = $this->state ?? $this->lga?->state;
 
         return [
             'id' => $this->id,
@@ -22,8 +23,12 @@ class FacilityResource extends JsonResource
             'longitude' => $this->longitude,
             'phone' => $this->phone,
             'is_active' => $this->is_active,
-            'lga' => ['id' => $this->lga->id, 'name' => $this->lga->name],
-            'state' => ['id' => $this->lga->state->id, 'name' => $this->lga->state->name],
+            /** Null for SDPs; otherwise which node's store this is. */
+            'store_level' => $this->store_level,
+            /** Null for state and national stores. */
+            'lga' => $this->lga ? ['id' => $this->lga->id, 'name' => $this->lga->name] : null,
+            /** Null only for the national store. */
+            'state' => $state ? ['id' => $state->id, 'name' => $state->name] : null,
         ];
     }
 }
