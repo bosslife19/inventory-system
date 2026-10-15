@@ -115,4 +115,74 @@ final class HierarchyScope
             UserRole::SdpStaff => $query->whereKey($this->user->facility_id),
         };
     }
+
+    // ---------------------------------------------------------------- account management
+    // Admins manage every account; each officer manages the accounts one level
+    // below, within their area (docs/ROLES_AND_PERMISSIONS.md).
+
+    /** @return list<UserRole> roles this user may create and manage */
+    public function manageableRoles(): array
+    {
+        return match ($this->user->role) {
+            UserRole::Admin => UserRole::cases(),
+            UserRole::FederalOfficer => [UserRole::StateOfficer],
+            UserRole::StateOfficer => [UserRole::LgaOfficer],
+            UserRole::LgaOfficer => [UserRole::SdpStaff],
+            UserRole::SdpStaff => [],
+        };
+    }
+
+    public function canManageUsers(): bool
+    {
+        return $this->manageableRoles() !== [];
+    }
+
+    /** Accounts this user may see and change. Never their own: that's /auth/password. */
+    public function scopeManagedUsers(Builder $query): Builder
+    {
+        $query->whereKeyNot($this->user->id);
+
+        return match ($this->user->role) {
+            UserRole::Admin => $query,
+            UserRole::FederalOfficer => $query->where('role', UserRole::StateOfficer),
+            UserRole::StateOfficer => $query->where('role', UserRole::LgaOfficer)
+                ->whereIn('lga_id', Lga::select('id')->where('state_id', $this->user->state_id)),
+            UserRole::LgaOfficer => $query->where('role', UserRole::SdpStaff)
+                ->whereIn('facility_id', Facility::select('id')->where('lga_id', $this->user->lga_id)),
+            UserRole::SdpStaff => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    public function canManageUser(User $target): bool
+    {
+        return $this->scopeManagedUsers(User::query())->whereKey($target->id)->exists();
+    }
+
+    /**
+     * May this user give an account $role anchored at $nodeId (facility id
+     * for sdp_staff, LGA id, state id; null for federal / admin)? Null when
+     * allowed, else the reason. The node must exist and sit in the caller's area.
+     */
+    public function assignmentError(UserRole $role, ?int $nodeId): ?string
+    {
+        if (! in_array($role, $this->manageableRoles(), true)) {
+            return 'You can’t create or manage '.str_replace('_', ' ', $role->value).' accounts.';
+        }
+
+        return match ($role) {
+            UserRole::SdpStaff => match (true) {
+                ($facility = $nodeId ? Facility::find($nodeId) : null) === null => 'Choose the facility this account works at.',
+                $facility->isStore() => 'Stores are kept by LGA, State and Federal officers; choose a facility (SDP).',
+                $this->user->role === UserRole::LgaOfficer && $facility->lga_id !== $this->user->lga_id => 'That facility is outside your LGA.',
+                default => null,
+            },
+            UserRole::LgaOfficer => match (true) {
+                ($lga = $nodeId ? Lga::find($nodeId) : null) === null => 'Choose the LGA this account covers.',
+                $this->user->role === UserRole::StateOfficer && $lga->state_id !== $this->user->state_id => 'That LGA is outside your state.',
+                default => null,
+            },
+            UserRole::StateOfficer => $nodeId && State::whereKey($nodeId)->exists() ? null : 'Choose the state this account covers.',
+            UserRole::FederalOfficer, UserRole::Admin => null,
+        };
+    }
 }

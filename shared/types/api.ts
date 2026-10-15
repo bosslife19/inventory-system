@@ -113,6 +113,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change your own password — required before anything else while on a
+         *     temporary one. Other devices are signed out; this one stays signed in
+         */
+        post: operations["auth.changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/facilities/{facility}/delivery-notes": {
         parameters: {
             query?: never;
@@ -269,8 +289,26 @@ export interface paths {
             cookie?: never;
         };
         get: operations["facility.show"];
-        put?: never;
+        /** Change a facility's details, or close it with is_active=false (admin). Never deleted */
+        put: operations["facility.update"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a facility (SDP) to an LGA (admin) */
+        post: operations["facility.store"];
         delete?: never;
         options?: never;
         head?: never;
@@ -326,6 +364,24 @@ export interface paths {
         /** The product catalog. Not hierarchy-scoped: every role sees the same catalog */
         get: operations["product.index"];
         put?: never;
+        /** Add a product to the catalog (admin) */
+        post: operations["product.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/products/{product}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a product, or retire it with is_active=false (admin). Never deleted: the ledger references it */
+        put: operations["product.update"];
         post?: never;
         delete?: never;
         options?: never;
@@ -513,6 +569,58 @@ export interface paths {
          *     repeats one already recorded at this facility
          */
         post: operations["stockTransaction.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accounts the caller manages, by name */
+        get: operations["user.index"];
+        put?: never;
+        /** Create an account on a temporary password (generated unless given), returned once */
+        post: operations["user.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change name, email, role / node, or deactivate (signs the account out everywhere) */
+        put: operations["user.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set a new temporary password and sign the account out everywhere */
+        post: operations["user.resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -795,6 +903,49 @@ export interface components {
             /** @description Max stock minus usable stock, never negative. */
             suggested_quantity: number;
         };
+        /**
+         * SaveFacilityRequest
+         * @description POST /facilities and PUT /facilities/{facility} (admin). SDPs only — the
+         *     LGA / State / National stores are created with their node and aren't
+         *     edited here. A facility stays in its LGA: its Stock Card history and
+         *     rollups belong there, so moving one means a new facility.
+         */
+        SaveFacilityRequest: {
+            /** @description Create only: the LGA it sits in. */
+            lga_id: number;
+            name: string;
+            /** @enum {string} */
+            type: "health_center" | "hospital" | "pharmacy" | "warehouse" | "other";
+            address?: string | null;
+            latitude?: number | null;
+            longitude?: number | null;
+            phone?: string | null;
+            /** @description false closes it: no new Stock Card entries, history kept. */
+            is_active?: boolean;
+        };
+        /**
+         * SaveProductRequest
+         * @description POST /products and PUT /products/{product} (admin). On update every field
+         *     is optional. Thresholds must read min ≤ reorder (EOP) ≤ max, like the
+         *     paper Bin Card; batch tracking can't be switched once the product has a
+         *     Stock Card entry anywhere, or old and new rows would disagree.
+         */
+        SaveProductRequest: {
+            name: string;
+            /** @description Short product code, unique; upper-cased. Printed on delivery notes, so scanning matches on it. */
+            sku: string;
+            category: string;
+            /** @description e.g. pack, sachet, ampoule, box. */
+            unit_of_measure: string;
+            requires_batch_tracking: boolean;
+            requires_cold_chain: boolean;
+            min_stock_level: number;
+            max_stock_level: number;
+            /** @description The Emergency Order Point (EOP). */
+            reorder_level: number;
+            /** @description false retires it: hidden from entry forms, history kept. */
+            is_active?: boolean;
+        };
         /** StateResource */
         StateResource: {
             id: number;
@@ -914,11 +1065,46 @@ export interface components {
             transaction_date: string;
         };
         /**
+         * StoreUserRequest
+         * @description POST /users — a new account on a temporary password.
+         */
+        StoreUserRequest: {
+            name: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["UserRole"];
+            /** @description Required for sdp_staff: the facility (SDP) they work at. */
+            facility_id?: number | null;
+            /** @description Required for lga_officer. */
+            lga_id?: number | null;
+            /** @description Required for state_officer. */
+            state_id?: number | null;
+            /** @description Leave out to have one generated. Either way it must be changed at first sign-in. */
+            temporary_password?: string | null;
+        };
+        /**
          * TransactionType
          * @description Stock Card row types. quantity is always >= 0; the direction comes from the type. This is the single definition of how each type moves a balance — StockLedgerService and ReconcileStockBalances both go through apply().
          * @enum {string}
          */
         TransactionType: "receipt" | "issue" | "loss" | "adjustment_in" | "adjustment_out" | "physical_count" | "transfer_in" | "transfer_out";
+        /**
+         * UpdateUserRequest
+         * @description PUT /users/{user} — any subset of the fields; role and node are checked together.
+         */
+        UpdateUserRequest: {
+            name?: string;
+            /** Format: email */
+            email?: string;
+            role?: components["schemas"]["UserRole"];
+            facility_id?: number | null;
+            lga_id?: number | null;
+            state_id?: number | null;
+            /** @description false deactivates the account and signs it out everywhere; true reactivates it. */
+            is_active?: boolean;
+        };
+        /** UserCollection */
+        UserCollection: components["schemas"]["UserResource"][];
         /** UserResource */
         UserResource: {
             id: number;
@@ -941,6 +1127,10 @@ export interface components {
                 id: number;
                 name: string;
             } | null;
+            /** @description Deactivated accounts can't sign in. */
+            is_active: boolean;
+            /** @description Still on a temporary password: clients send the user to change it before anything else. */
+            must_change_password: boolean;
         };
         /**
          * UserRole
@@ -1182,6 +1372,39 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "auth.changePassword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    current_password: string;
+                    /** @description At least 8 characters, not the current one. */
+                    password: string;
+                    password_confirmation: string;
+                };
+            };
+        };
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "deliveryNote.index": {
@@ -1549,6 +1772,68 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "facility.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description `FacilityResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FacilityResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "facility.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFacilityRequest"];
+            };
+        };
+        responses: {
+            /** @description `FacilityResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FacilityResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
     "lga.index": {
         parameters: {
             query?: never;
@@ -1667,6 +1952,68 @@ export interface operations {
                 };
             };
             401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "product.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveProductRequest"];
+            };
+        };
+        responses: {
+            /** @description `ProductResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "product.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product ID */
+                product: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveProductRequest"];
+            };
+        };
+        responses: {
+            /** @description `ProductResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };
@@ -2105,6 +2452,143 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "user.index": {
+        parameters: {
+            query?: {
+                role?: components["schemas"]["UserRole"] | null;
+                is_active?: boolean | null;
+                /** @description Name or email contains. */
+                q?: string | null;
+                facility_id?: number | null;
+                lga_id?: number | null;
+                state_id?: number | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "user.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreUserRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                        /** @description Give this to the person; they must change it at first sign-in. Not retrievable later. */
+                        temporary_password: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "user.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user ID */
+                user: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "user.resetPassword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user ID */
+                user: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                        /** @description Give this to the person; they must change it at their next sign-in. */
+                        temporary_password: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
 }

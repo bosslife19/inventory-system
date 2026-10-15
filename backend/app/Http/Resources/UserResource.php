@@ -35,6 +35,10 @@ class UserResource extends JsonResource
              * @var array{id: int, name: string}|null
              */
             'store' => $this->store(),
+            /** Deactivated accounts can't sign in. */
+            'is_active' => $this->is_active,
+            /** Still on a temporary password: clients send the user to change it before anything else. */
+            'must_change_password' => $this->must_change_password,
         ];
     }
 

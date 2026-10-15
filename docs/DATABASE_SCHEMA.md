@@ -30,10 +30,17 @@ unique on `(state_id, name)`
 ## Identity & access
 
 **users**
-`id, name, email, password, role (enum: sdp_staff|lga_officer|state_officer|federal_officer|admin), facility_id (nullable fk), lga_id (nullable fk), state_id (nullable fk), fcm_token (nullable, for push), created_at, updated_at`
+`id, name, email, password, role (enum: sdp_staff|lga_officer|state_officer|federal_officer|admin), facility_id (nullable fk), lga_id (nullable fk), state_id (nullable fk), is_active (bool, default true), must_change_password (bool, default false), created_by (nullable fk users), fcm_token (nullable, for push), created_at, updated_at`
 
 > Exactly one of `facility_id` / `lga_id` / `state_id` is set, matching
 > `role`. `federal_officer` and `admin` have all three null.
+>
+> Accounts are never deleted (the ledger's `performed_by` points at them):
+> `is_active = false` blocks sign-in and revokes every token.
+> `must_change_password` is set when an account is created or its password
+> reset by someone else (a temporary password); until the user changes it,
+> the API only allows `/auth/me`, `/auth/password` and `/auth/logout`.
+> Products and facilities likewise are retired with `is_active`, never deleted.
 
 ## Product catalog
 

@@ -13,19 +13,49 @@ The generated OpenAPI spec (`shared/types/openapi.json`, from
 human-readable contract and the rules behind it.
 
 ## Auth
-- `POST /auth/login` → token. Body `email, password, device_name?`. Throttled to 6/min. Bad credentials → 422 on `email`.
+- `POST /auth/login` → token. Body `email, password, device_name?`. Throttled to 6/min. Bad credentials, or a deactivated account → 422 on `email`.
   - 200 → `{ "data": { "token": "…", "user": <User> } }`. Send the token as `Authorization: Bearer …`.
 - `POST /auth/logout` → 204, revokes the token used for the request.
 - `GET /auth/me` → current user + role + hierarchy node
   - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.
   - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
+  - `is_active`, `must_change_password`: see below.
+- `POST /auth/password` — body `current_password, password, password_confirmation`. Changes your own password
+  (≥ 8 characters, different from the current one), clears `must_change_password`, and signs out your other
+  devices; this token stays valid. 200 → `<User>`.
+- **Temporary passwords.** While `must_change_password` is true every other endpoint answers
+  **403** `{ "message": "…", "code": "password_change_required" }` — clients send the user to change it.
+- **Deactivated accounts.** Their tokens are revoked; any request still made with one gets 401.
 
 ## Hierarchy (admin-managed, read-only for everyone else)
 Lists return only what the caller can see — own node and below, never above or sideways. Not paginated.
 - `GET /states` — all for federal/admin, own state for state officers, empty for LGA/SDP users
 - `GET /states/{id}/lgas` — 403 unless the caller can see that state
 - `GET /lgas/{id}/facilities` — 403 unless the caller can see that LGA (SDP staff can't). SDPs only; the LGA's store is not listed.
+- `POST /facilities` (admin) — body `lga_id, name, type (health_center|hospital|pharmacy|warehouse|other),
+  address?, latitude?, longitude?, phone?, is_active?` → 201 `<Facility>`. Name unique within the LGA.
+- `PUT /facilities/{id}` (admin) — any of the same fields except `lga_id` (a facility can't move LGA: 422).
+  `is_active: false` closes it (no new Stock Card entries; history kept). Stores can't be edited (403).
 - `GET /facilities/{id}` — includes `store_level` (null for SDPs, else `lga|state|national`), `lga {id,name} | null` (null for state and national stores) and `state {id,name} | null` (null only for the national store)
+
+## Users (account management)
+Admins manage every account; each officer manages the accounts one level below, in their area: federal →
+state officers, state officer → LGA officers in their state, LGA officer → staff of the SDPs in their LGA.
+Nobody manages their own account here (403) — they use `POST /auth/password`.
+
+- `GET /users` (query: `role?, is_active?, q?` (name/email contains)`, facility_id?, lga_id?, state_id?,
+  per_page?` ≤ 100`, page?`) — the accounts the caller manages, by name, paginated
+  `{ data: [<User>], meta: { pagination } }`. 403 for SDP staff.
+- `POST /users` — body `name, email, role, facility_id? | lga_id? | state_id?, temporary_password?`.
+  The id matching the role is required (facility = an SDP, not a store) and must be in the caller's area;
+  a role the caller can't manage is a 422 on `role`. Email is trimmed, lower-cased and unique.
+  201 → `{ data: <User>, temporary_password }` — generated (10 characters, no look-alike letters) unless
+  given; shown only in this response. The account must change it at first sign-in.
+- `PUT /users/{id}` — any of `name, email, role, facility_id, lga_id, state_id, is_active`. Role and node
+  are re-checked together as on create. `is_active: false` deactivates the account and signs it out
+  everywhere (tokens revoked, FCM token cleared); `true` reactivates it. 200 → `<User>`.
+- `POST /users/{id}/reset-password` — sets a new temporary password, signs the account out everywhere.
+  200 → `{ data: <User>, temporary_password }`.
 
 ## Stores
 Every LGA, every state and the nation has one store: a facility with `store_level` set, keeping its own
@@ -37,8 +67,13 @@ staff never see stores. Rollups and their activity charts count SDPs only.
 
 ## Products
 - `GET /products` (filter: category, is_active — `true`/`false`/`1`/`0`). The catalog is not hierarchy-scoped.
-- `POST /products` (admin)
-- `PUT /products/{id}` (admin)
+- `POST /products` (admin) — body `name, sku, category, unit_of_measure, requires_batch_tracking,
+  requires_cold_chain, min_stock_level, reorder_level, max_stock_level, is_active?` → 201 `<Product>`.
+  `sku` is trimmed, upper-cased and unique. Levels must read min ≤ reorder (EOP) ≤ max (422 on
+  `reorder_level` / `max_stock_level`).
+- `PUT /products/{id}` (admin) — any subset of the same fields. `is_active: false` retires the product (hidden
+  from entry forms; history kept — products are never deleted). `requires_batch_tracking` can't change once
+  the product has any Stock Card entry (422).
 
 ## Stock — facility level (sdp_staff and above, scoped)
 - `GET /facilities/{id}/stock-balances` — current on-hand per product/batch

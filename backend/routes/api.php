@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\V1\StateController;
 use App\Http\Controllers\Api\V1\StockActivityController;
 use App\Http\Controllers\Api\V1\StockBalanceController;
 use App\Http\Controllers\Api\V1\StockTransactionController;
+use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Middleware\EnsureAccountUsable;
 use App\Http\Middleware\ScopeToHierarchy;
 use Illuminate\Support\Facades\Route;
 
@@ -23,9 +25,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
 
-    Route::middleware(['auth:sanctum', ScopeToHierarchy::class])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureAccountUsable::class, ScopeToHierarchy::class])->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::post('auth/password', [AuthController::class, 'changePassword']);
         Route::post('users/me/fcm-token', [DeviceTokenController::class, 'store']);
 
         Route::get('states', [StateController::class, 'index']);
@@ -39,8 +42,12 @@ Route::prefix('v1')->group(function () {
         Route::get('federal/stock-activity', [StockActivityController::class, 'federal']);
         Route::get('facilities/{facility}/stock-activity', [StockActivityController::class, 'facility']);
         Route::get('facilities/{facility}', [FacilityController::class, 'show']);
+        Route::post('facilities', [FacilityController::class, 'store']);
+        Route::put('facilities/{facility}', [FacilityController::class, 'update']);
 
         Route::get('products', [ProductController::class, 'index']);
+        Route::post('products', [ProductController::class, 'store']);
+        Route::put('products/{product}', [ProductController::class, 'update']);
 
         Route::get('facilities/{facility}/stock-balances', [StockBalanceController::class, 'index']);
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);
@@ -56,6 +63,11 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/dispatches', [DispatchController::class, 'index']);
         Route::post('facilities/{facility}/dispatches', [DispatchController::class, 'store']);
         Route::get('facilities/{facility}/dispatch-destinations', [DispatchController::class, 'destinations']);
+
+        Route::get('users', [UserController::class, 'index']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::put('users/{user}', [UserController::class, 'update']);
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
 
         Route::get('alerts', [AlertController::class, 'index']);
         Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);

@@ -16,12 +16,17 @@
 | View / acknowledge / resolve alerts | ✅ (own facility) | ✅ (any facility in LGA) | ✅ (any facility in state) | ✅ (any facility) | ✅ |
 | Receive push alerts | ✅ (own facility) | ✅ (LGA-level digest) | ✅ (state-level digest) | ✅ (national digest) | ✅ |
 | Manage product catalog | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Manage hierarchy (states/LGAs/facilities) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Manage users | ❌ | ❌ (facility staff in own LGA, optional) | ❌ | ❌ | ✅ |
+| Manage facilities (SDPs; states/LGAs come from the seed, stores are automatic) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Manage users | ❌ | ✅ (staff of SDPs in own LGA) | ✅ (LGA officers in own state) | ✅ (state officers) | ✅ (everyone) |
+| Change own password | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Each LGA, state and the nation has one **store** (a facility with
 `store_level` set) — the officers of that node keep its Stock Card, just as
 SDP staff keep theirs. Everything else officers see stays read-only.
+
+Accounts, products and facilities are deactivated, never deleted, so the
+Stock Card history that references them stays intact. New accounts and
+reset passwords are temporary and must be changed at the next sign-in.
 
 Everything is additionally scoped by hierarchy: an `lga_officer` for LGA
 X can never see facility data outside LGA X, even read-only, regardless

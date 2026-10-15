@@ -21,6 +21,12 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    /** Match the column defaults, so a freshly created model reads them without a refresh. */
+    protected $attributes = [
+        'is_active' => true,
+        'must_change_password' => false,
+    ];
+
     protected $fillable = [
         'name',
         'email',
@@ -30,6 +36,9 @@ class User extends Authenticatable
         'lga_id',
         'state_id',
         'fcm_token',
+        'is_active',
+        'must_change_password',
+        'created_by',
     ];
 
     /**
@@ -54,6 +63,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 

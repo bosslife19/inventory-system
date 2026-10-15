@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SaveProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -30,5 +31,19 @@ class ProductController extends Controller
                 ->orderBy('name')
                 ->get()
         );
+    }
+
+    /** Add a product to the catalog (admin). */
+    public function store(SaveProductRequest $request): ProductResource
+    {
+        return ProductResource::make(Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]));
+    }
+
+    /** Change a product, or retire it with is_active=false (admin). Never deleted: the ledger references it. */
+    public function update(SaveProductRequest $request, Product $product): ProductResource
+    {
+        $product->update($request->validated());
+
+        return ProductResource::make($product);
     }
 }
