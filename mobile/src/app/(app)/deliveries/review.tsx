@@ -152,7 +152,7 @@ export default function ReviewDelivery() {
   const unmatched = lines.filter((l) => !l.productId).length;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <View style={[styles.header, { paddingTop: insets.top + Spacing.three, borderColor: c.border, backgroundColor: c.surface }]}>
         <View style={{ flex: 1 }}>
           <Text variant="eyebrow" tone="primary">

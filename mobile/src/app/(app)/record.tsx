@@ -180,7 +180,7 @@ export default function Record() {
   const hasExpired = batches.some((b) => b.expiry_status === 'expired' && b.quantity_on_hand > 0);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? Spacing.four : insets.top + Spacing.three, borderColor: c.border, backgroundColor: c.surface }]}>
         <View style={{ flex: 1 }}>
           <Text variant="eyebrow" tone="primary">

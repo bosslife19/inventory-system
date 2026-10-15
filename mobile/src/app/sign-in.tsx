@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { AlertCircle, Boxes, CheckCircle2, Lock, Mail } from 'lucide-react-native';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,13 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const scroll = useRef<ScrollView>(null);
+
+  // The form sits at the bottom of the screen: when the keyboard opens, bring it into view.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scroll.current?.scrollToEnd({ animated: true }));
+    return () => sub.remove();
+  }, []);
   const [error, setError] = useState<string | null>(
     session.status === 'signedOut' && session.expired ? 'Your session expired. Please sign in again.' : null,
   );
@@ -43,12 +50,14 @@ export default function SignIn() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.ink }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // Padding on both platforms: edge-to-edge Android (Expo SDK 57) no longer resizes the window for the keyboard.
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.ink }} behavior="padding">
       <LinearGradient colors={['#0a0f1c', '#0f1d45', '#1d4ed8']} locations={[0, 0.5, 1]} start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
       <View style={[styles.glow, { top: -120, right: -100, width: 320, height: 320, backgroundColor: 'rgba(59,130,246,0.16)' }]} />
       <View style={[styles.glow, { bottom: 120, left: -120, width: 260, height: 260, backgroundColor: 'rgba(29,78,216,0.18)' }]} />
 
       <ScrollView
+        ref={scroll}
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Spacing.eight, paddingBottom: insets.bottom + Spacing.six }]}
         keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
