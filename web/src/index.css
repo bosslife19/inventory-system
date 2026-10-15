@@ -2010,3 +2010,42 @@ a.cell-title:hover {
     break-inside: avoid;
   }
 }
+
+/* ── Activity log ──────────────────────────────────────────────── */
+.activity-what {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.activity-what > svg {
+  flex: none;
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+.activity-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+.activity-details td {
+  padding-top: 0;
+  background: var(--surface-2);
+}
+.activity-changes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.4rem 1.25rem;
+  margin: 0;
+  padding: 0.6rem 0;
+  font-size: 0.85rem;
+}
+.activity-changes dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.activity-changes dd {
+  margin: 0;
+}

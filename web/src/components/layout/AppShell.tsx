@@ -1,4 +1,4 @@
-import { Bell, Boxes, Building2, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
+import { Bell, Boxes, Building2, ChevronRight, FileText, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, manageableRoles, useLogout } from '../../lib/auth'
@@ -76,6 +76,9 @@ export function AppShell({ user }: { user: User }) {
           )}
           <NavLink to="/reports" onClick={close}>
             <FileText size={18} /> Reports
+          </NavLink>
+          <NavLink to="/activity" onClick={close}>
+            <ListChecks size={18} /> Activity log
           </NavLink>
           <NavLink to="/alerts" onClick={close}>
             <Bell size={18} /> Alerts

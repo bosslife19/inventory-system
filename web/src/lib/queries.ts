@@ -336,3 +336,21 @@ export function useCreateDispatch(facilityId: number) {
     },
   })
 }
+
+export interface AuditFilters {
+  category?: 'stock' | 'deliveries' | 'accounts' | 'catalog' | 'facilities' | 'alerts'
+  q?: string
+  from?: string
+  to?: string
+  page: number
+  per_page: number
+}
+
+/** The audit log: who did what, where, newest first — scoped by the API to the caller's area. */
+export function useAuditEvents(filters: AuditFilters) {
+  return useQuery({
+    queryKey: ['audit-events', filters],
+    queryFn: () => unwrap(api.GET('/audit-events', { params: { query: filters } })),
+    placeholderData: keepPreviousData,
+  })
+}

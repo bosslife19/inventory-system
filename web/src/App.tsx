@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import { homePath, manageableRoles } from './lib/auth'
 import { useUser } from './lib/user-context'
 import { AccountPage } from './routes/account/AccountPage'
+import { ActivityPage } from './routes/activity/ActivityPage'
 import { FacilitiesPage } from './routes/admin/FacilitiesPage'
 import { ProductsPage } from './routes/admin/ProductsPage'
 import { UsersPage } from './routes/admin/UsersPage'
@@ -109,6 +110,7 @@ export default function App() {
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/account" element={<Account />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/activity" element={<ActivityPage />} />
         <Route path="/admin/users" element={<Admin page="users" />} />
         <Route path="/admin/products" element={<Admin page="products" />} />
         <Route path="/admin/facilities" element={<Admin page="facilities" />} />
