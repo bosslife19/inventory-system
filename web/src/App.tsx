@@ -12,6 +12,7 @@ import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
+import { ReportsPage } from './routes/reports/ReportsPage'
 import { FacilityPage } from './routes/sdp/FacilityPage'
 import { StatePage } from './routes/state/StatePage'
 
@@ -77,6 +78,10 @@ function Admin({ page }: { page: 'users' | 'products' | 'facilities' }) {
   }
 }
 
+function Reports() {
+  return <ReportsPage user={useUser()} />
+}
+
 function Account() {
   return <AccountPage user={useUser()} />
 }
@@ -103,6 +108,7 @@ export default function App() {
         <Route path="/federal" element={<Home level="federal" />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/admin/users" element={<Admin page="users" />} />
         <Route path="/admin/products" element={<Admin page="products" />} />
         <Route path="/admin/facilities" element={<Admin page="facilities" />} />

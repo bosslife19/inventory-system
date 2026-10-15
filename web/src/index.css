@@ -1869,3 +1869,144 @@ a.cell-title:hover {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+/* ── Reports ───────────────────────────────────────────────────── */
+.report-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.report-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  font: inherit;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.report-option svg {
+  flex: none;
+  margin-top: 0.1rem;
+  color: var(--muted);
+}
+.report-option strong {
+  display: block;
+  color: var(--text);
+}
+.report-option small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.report-option[aria-selected='true'] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.report-option[aria-selected='true'] svg {
+  color: var(--primary);
+}
+.report-option:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.report-filters {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.report-filters > label:not(.check) {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 10rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.report-check {
+  align-self: center;
+  padding-bottom: 0.4rem;
+}
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 1.1rem 1.25rem 0.9rem;
+}
+.report-head h2 {
+  margin: 0.1rem 0 0.2rem;
+}
+.report-head p {
+  margin: 0;
+}
+.report-note {
+  margin: 0 1.25rem 0.9rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-radius: var(--radius-sm);
+}
+.report-table td,
+.report-table th {
+  font-size: 0.84rem;
+}
+.report-opening td {
+  font-style: italic;
+  background: var(--surface-2);
+}
+
+/* Printing a report: just the sheet, black on white, on as many pages as it takes. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  body {
+    background: #fff !important;
+    color: #000;
+  }
+  .sidebar,
+  .topbar,
+  .scrim,
+  .no-print {
+    display: none !important;
+  }
+  .shell {
+    display: block;
+  }
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+  .report-sheet {
+    border: none;
+    box-shadow: none;
+  }
+  .report-head {
+    padding: 0 0 0.6rem;
+  }
+  .table-wrap {
+    overflow: visible;
+  }
+  .report-table th,
+  .report-table td {
+    padding: 0.25rem 0.4rem;
+    font-size: 8.5pt;
+    border-color: #999;
+    color: #000;
+  }
+  .report-table thead {
+    display: table-header-group; /* repeat the header on every page */
+  }
+  .report-table tr {
+    break-inside: avoid;
+  }
+}

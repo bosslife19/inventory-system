@@ -23,9 +23,6 @@ function initials(name: string) {
     .join('')
 }
 
-/** Upcoming roadmap areas, shown so the navigation reads as the whole product. */
-const SOON = [{ label: 'Reports', icon: FileText }]
-
 export function AppShell({ user }: { user: User }) {
   const logout = useLogout()
   const [navOpen, setNavOpen] = useState(false)
@@ -77,6 +74,9 @@ export function AppShell({ user }: { user: User }) {
               {deliveryCount}
             </NavLink>
           )}
+          <NavLink to="/reports" onClick={close}>
+            <FileText size={18} /> Reports
+          </NavLink>
           <NavLink to="/alerts" onClick={close}>
             <Bell size={18} /> Alerts
             {openAlerts > 0 && <span className="nav-count">{openAlerts > 99 ? '99+' : openAlerts}</span>}
@@ -106,14 +106,6 @@ export function AppShell({ user }: { user: User }) {
           </>
         )}
 
-        <div className="nav-label">Coming soon</div>
-        <nav className="nav" aria-label="Coming soon">
-          {SOON.map(({ label, icon: Icon }) => (
-            <a key={label} aria-disabled="true" style={{ opacity: 0.5, cursor: 'default' }}>
-              <Icon size={18} /> {label}
-            </a>
-          ))}
-        </nav>
 
         <div className="sidebar-foot">
           <Link to="/account" className="user-chip" onClick={close} title="Your account and password">
