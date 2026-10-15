@@ -30,7 +30,7 @@ export function RunningBalanceHistory({ facilityId, products, filters, onFilters
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Stock card history</h2>
+        <h2>Inventory history</h2>
         <div className="filters">
           <select
             aria-label="Product"

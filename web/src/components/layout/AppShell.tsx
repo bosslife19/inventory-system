@@ -53,7 +53,7 @@ export function AppShell({ user }: { user: User }) {
           </NavLink>
           {user.role === 'sdp_staff' && (
             <a href={`${home}#history`} onClick={close}>
-              <History size={18} /> Stock card history
+              <History size={18} /> Inventory history
             </a>
           )}
           {user.role === 'sdp_staff' && (
