@@ -3,6 +3,7 @@ import { useMe } from '../../lib/auth'
 import { useAuthStore } from '../../lib/auth-store'
 import { UserContext } from '../../lib/user-context'
 import { ErrorState, Loading } from '../layout/PageState'
+import { SetPasswordScreen } from './SetPasswordScreen'
 
 /** Resolves the signed-in user (GET /auth/me) for everything below it, or sends them to /login. */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!token) return <Navigate to="/login" replace state={signedOut ? null : { from: location.pathname }} />
   if (me.isPending) return <Loading label="Signing in…" />
   if (me.isError) return <ErrorState error={me.error} />
+  // A temporary password has to be replaced before anything else works (the API enforces it too).
+  if (me.data.must_change_password) return <SetPasswordScreen user={me.data} />
 
   return <UserContext.Provider value={me.data}>{children}</UserContext.Provider>
 }

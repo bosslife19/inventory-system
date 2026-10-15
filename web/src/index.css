@@ -231,6 +231,13 @@ code,
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
+  margin: -0.35rem -0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+a.user-chip:hover {
+  background: var(--sidebar-2);
 }
 .avatar {
   flex: none;
@@ -1801,4 +1808,64 @@ a.cell-title:hover {
 }
 .incoming-card {
   border-color: var(--status-warning);
+}
+
+/* Set-password step after signing in with a temporary password: just the card. */
+.login-single {
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--bg);
+}
+
+/* One-time temporary password hand-off. */
+.credentials {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.credentials dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.credentials dd {
+  margin: 0.1rem 0 0;
+  word-break: break-all;
+}
+.credentials-secret {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+/* Checkbox rows with a title and an explanation. */
+.checks {
+  display: grid;
+  gap: 0.6rem;
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+.check input {
+  width: auto;
+  margin-top: 0.2rem;
+  accent-color: var(--primary);
+}
+.check span {
+  font-weight: 500;
+}
+.check small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted);
 }

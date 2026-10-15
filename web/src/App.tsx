@@ -1,8 +1,12 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { RequireAuth } from './components/auth/RequireAuth'
 import { AppShell } from './components/layout/AppShell'
-import { homePath } from './lib/auth'
+import { homePath, manageableRoles } from './lib/auth'
 import { useUser } from './lib/user-context'
+import { AccountPage } from './routes/account/AccountPage'
+import { FacilitiesPage } from './routes/admin/FacilitiesPage'
+import { ProductsPage } from './routes/admin/ProductsPage'
+import { UsersPage } from './routes/admin/UsersPage'
 import { AlertsPage } from './routes/alerts/AlertsPage'
 import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
@@ -57,6 +61,26 @@ function Deliveries() {
   return <DeliveryNotesPage key={facilityId} facilityId={facilityId} user={user} />
 }
 
+/** Administration screens: accounts for anyone who manages some, catalog and facilities for admins. */
+function Admin({ page }: { page: 'users' | 'products' | 'facilities' }) {
+  const user = useUser()
+  const allowed = page === 'users' ? manageableRoles(user).length > 0 : user.role === 'admin'
+  if (!allowed) return <Navigate to={homePath(user)} replace />
+
+  switch (page) {
+    case 'users':
+      return <UsersPage me={user} />
+    case 'products':
+      return <ProductsPage />
+    case 'facilities':
+      return <FacilitiesPage />
+  }
+}
+
+function Account() {
+  return <AccountPage user={useUser()} />
+}
+
 function Shell() {
   return <AppShell user={useUser()} />
 }
@@ -78,6 +102,10 @@ export default function App() {
         <Route path="/state" element={<Home level="state" />} />
         <Route path="/federal" element={<Home level="federal" />} />
         <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/admin/users" element={<Admin page="users" />} />
+        <Route path="/admin/products" element={<Admin page="products" />} />
+        <Route path="/admin/facilities" element={<Admin page="facilities" />} />
         <Route path="/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id" element={<ById page="facility" />} />

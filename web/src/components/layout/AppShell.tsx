@@ -1,7 +1,7 @@
-import { Bell, Boxes, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Truck, Warehouse } from 'lucide-react'
+import { Bell, Boxes, Building2, ChevronRight, FileText, History, LayoutDashboard, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
-import { homePath, useLogout } from '../../lib/auth'
+import { homePath, manageableRoles, useLogout } from '../../lib/auth'
 import { useAlertCount, useDeliveryNoteCount } from '../../lib/queries'
 import { AlertBadge } from '../alerts/AlertBadge'
 import { ROLE_LABEL } from '../../lib/format'
@@ -83,6 +83,29 @@ export function AppShell({ user }: { user: User }) {
           </NavLink>
         </nav>
 
+        {(manageableRoles(user).length > 0 || user.role === 'admin') && (
+          <>
+            <div className="nav-label">Administration</div>
+            <nav className="nav" aria-label="Administration">
+              {manageableRoles(user).length > 0 && (
+                <NavLink to="/admin/users" onClick={close}>
+                  <UserCog size={18} /> Accounts
+                </NavLink>
+              )}
+              {user.role === 'admin' && (
+                <NavLink to="/admin/products" onClick={close}>
+                  <Package size={18} /> Products
+                </NavLink>
+              )}
+              {user.role === 'admin' && (
+                <NavLink to="/admin/facilities" onClick={close}>
+                  <Building2 size={18} /> Facilities
+                </NavLink>
+              )}
+            </nav>
+          </>
+        )}
+
         <div className="nav-label">Coming soon</div>
         <nav className="nav" aria-label="Coming soon">
           {SOON.map(({ label, icon: Icon }) => (
@@ -93,7 +116,7 @@ export function AppShell({ user }: { user: User }) {
         </nav>
 
         <div className="sidebar-foot">
-          <div className="user-chip">
+          <Link to="/account" className="user-chip" onClick={close} title="Your account and password">
             <span className="avatar" aria-hidden>
               {initials(user.name)}
             </span>
@@ -101,7 +124,7 @@ export function AppShell({ user }: { user: User }) {
               {user.name}
               <small>{ROLE_LABEL[user.role]}</small>
             </span>
-          </div>
+          </Link>
           <button
             type="button"
             className="btn btn-sm btn-signout"

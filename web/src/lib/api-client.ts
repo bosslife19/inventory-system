@@ -38,6 +38,14 @@ export class ApiError extends Error {
   }
 }
 
+/** A failed request as { field: first message }, for forms; anything else under "form". */
+export function fieldErrors(err: Error): Record<string, string> {
+  if (err instanceof ApiError && err.status === 422) {
+    return Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v[0]]))
+  }
+  return { form: err.message }
+}
+
 /** Resolve an openapi-fetch call to its data, or throw ApiError. */
 export async function unwrap<T>(
   call: Promise<{ data?: T; error?: unknown; response: Response }>,

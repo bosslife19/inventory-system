@@ -29,6 +29,11 @@ export type DeliveryNoteStatus = Schemas['DeliveryNoteStatus']
 export type NewDeliveryNote = Schemas['StoreDeliveryNoteRequest']
 export type NewDispatch = Schemas['StoreDispatchRequest']
 export type StoreLevel = Schemas['StoreLevel']
+export type NewUser = Schemas['StoreUserRequest']
+export type UpdateUser = Schemas['UpdateUserRequest']
+export type NewProduct = Schemas['SaveProductRequest']
+export type NewFacility = Schemas['SaveFacilityRequest']
+export type FacilityType = NonNullable<NewFacility['type']>
 
 type Json<P extends keyof paths> = NonNullable<
   paths[P] extends { get: { responses: { 200: { content: { 'application/json': infer B } } } } } ? B : never

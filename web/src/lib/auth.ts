@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from './api-client'
 import { useAuthStore } from './auth-store'
-import type { User } from './types'
+import type { User, UserRole } from './types'
 
 export function useMe() {
   const token = useAuthStore((s) => s.token)
@@ -55,6 +55,22 @@ export function homePath(user: User): string {
       return '/state'
     default:
       return '/federal'
+  }
+}
+
+/** Roles whose accounts this user creates and manages — mirrors HierarchyScope::manageableRoles(). UX only. */
+export function manageableRoles(user: User): UserRole[] {
+  switch (user.role) {
+    case 'admin':
+      return ['sdp_staff', 'lga_officer', 'state_officer', 'federal_officer', 'admin']
+    case 'federal_officer':
+      return ['state_officer']
+    case 'state_officer':
+      return ['lga_officer']
+    case 'lga_officer':
+      return ['sdp_staff']
+    default:
+      return []
   }
 }
 
