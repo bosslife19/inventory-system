@@ -15,7 +15,8 @@ import { api } from './api';
  * are silent: the app works fully without push.
  *
  * A notification tap deep-links into the alerts screen, focused on the
- * alert in the payload ({ alert_id }). Officers' digests carry no alert_id;
+ * alert in the payload ({ alert_id }); a reorder request update opens the
+ * requests screen ({ reorder_request_id }). Officers' digests carry no alert_id;
  * their app is the notifications list itself, so it opens with no deep link.
  */
 
@@ -53,8 +54,9 @@ async function registerPushToken(): Promise<void> {
 }
 
 function openFromNotification(response: Notifications.NotificationResponse | null) {
-  const alertId = response?.notification.request.content.data?.alert_id;
-  if (alertId != null) router.push({ pathname: '/alerts', params: { focus: String(alertId) } });
+  const data = response?.notification.request.content.data;
+  if (data?.reorder_request_id != null) router.push({ pathname: '/requests', params: { focus: String(data.reorder_request_id) } });
+  else if (data?.alert_id != null) router.push({ pathname: '/alerts', params: { focus: String(data.alert_id) } });
 }
 
 /**

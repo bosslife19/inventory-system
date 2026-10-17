@@ -127,6 +127,22 @@ NULLs are distinct in unique indexes, which would allow duplicate rows for non-b
 > (counterparty = the sender store). Rejecting posts each line back onto the
 > sender's card as a `receipt` from "<receiver> (returned)".
 
+## Reorder requests (requisitions up the chain)
+
+**reorder_requests**
+`id, facility_id (fk — who is asking: an SDP, LGA store or state store), supplier_facility_id (fk facilities — the store asked), status (pending|fulfilled|rejected|cancelled), comments (nullable), requested_by (fk users), responded_by (nullable fk users), responded_at (nullable), response_note (nullable — decline reason or note sent with the stock), delivery_note_id (nullable fk delivery_notes — the dispatch that fulfilled it), client_reference (nullable; unique per facility), created_at, updated_at`
+
+**reorder_request_items**
+`id, reorder_request_id (fk, cascade), product_id (fk), quantity_requested, quantity_supplied (nullable — set on fulfilment from the dispatch lines; 0 for a product not sent), created_at, updated_at`
+
+> The store asked must be above the requester in its own chain: an SDP may ask its LGA
+> store, its state store or the national store; an LGA store its state store or the
+> national store; a state store the national store. Fulfilling = a dispatch from the
+> store asked to the requester (`DispatchService`, allowed across several levels for a
+> request) — issues on the supplier's card now, a draft delivery note the requester
+> confirms. Numbered `REQ-000123` from the id. Each step notifies the other side
+> (`notifications.type = reorder_request`).
+
 ## Consumption & reordering (the Excel "Bin Card" summary sheet)
 
 **amc_snapshots** (Average Monthly Consumption, recomputed monthly)
@@ -162,7 +178,7 @@ unique on `(facility_id, product_id, period_month)`
 > that facility (its own levels, else the catalog's).
 
 **notifications** (what each user was told — written by the backend only)
-`id, user_id (fk), type (alert|digest), alert_id (nullable fk alerts, cascade), title, body, data (json, nullable), pushed_at (nullable), read_at (nullable), created_at, updated_at`
+`id, user_id (fk), type (alert|digest|reorder_request), alert_id (nullable fk alerts, cascade), title, body, data (json, nullable), pushed_at (nullable), read_at (nullable), created_at, updated_at`
 
 > `alert`: one row per new alert per person keeping that facility's Stock Card (SDP staff of
 > the SDP; the LGA / State / Federal officers of a store), written by `AlertNotifier` as the
@@ -180,7 +196,7 @@ unique on `(facility_id, product_id, period_month)`
 > Written by `App\Support\AuditLog::record()` inside the same DB transaction
 > as the action. Actions: `stock.recorded`; `delivery_note.created|confirmed|rejected`;
 > `dispatch.created`; `user.created|updated|deactivated|reactivated|password_reset|password_changed`;
-> `auth.signed_in`; `product.created|updated|retired|reactivated`; `product.levels_set|levels_reset` (filed at the facility);
+> `auth.signed_in`; `product.created|updated|retired|reactivated`; `product.levels_set|levels_reset` (filed at the facility); `reorder_request.created|cancelled` (at the requester), `reorder_request.fulfilled|rejected` (at the store asked);
 > `facility.created|updated|closed|reopened`; `alert.acknowledged|resolved`.
 > `changes` is `{ field: [before, after] }` for edits, the values set for
 > creations; passwords and tokens are never included.

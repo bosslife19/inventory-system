@@ -26,6 +26,8 @@ function FacilityApp() {
       <Stack.Screen name="product/[id]" />
       <Stack.Screen name="deliveries/scan" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       <Stack.Screen name="deliveries/review" />
+      <Stack.Screen name="requests" />
+      <Stack.Screen name="reorder" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

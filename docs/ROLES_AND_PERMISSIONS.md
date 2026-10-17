@@ -17,6 +17,8 @@
 | Receive push alerts | ✅ (own facility, per alert) | ✅ (own store per alert + daily LGA digest) | ✅ (own store per alert + daily state digest) | ✅ (national store per alert + daily national digest) | ✅ (daily national digest) |
 | Add products to the catalog | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Edit / retire a product | ✅ (ones they added) | ✅ (ones they added) | ✅ (ones they added) | ✅ (ones they added) | ✅ (any) |
+| Request a reorder from a store above | ✅ (own facility → LGA / state / national store) | ✅ (LGA store → state / national store) | ✅ (state store → national store) | ❌ (nothing above) | ✅ |
+| Fulfil / decline reorder requests | ❌ | ✅ (asked of their LGA store) | ✅ (asked of their state store) | ✅ (asked of the national store) | ✅ |
 | Set own min / EOP / max per product | ✅ (own facility) | ✅ (LGA store) | ✅ (state store) | ✅ (national store) | ✅ (any facility) |
 | Manage facilities (SDPs; states/LGAs come from the seed, stores are automatic) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Manage users | ❌ | ✅ (staff of SDPs in own LGA) | ✅ (LGA officers in own state) | ✅ (state officers) | ✅ (everyone) |

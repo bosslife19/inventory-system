@@ -1,8 +1,8 @@
-import { Bell, Boxes, Building2, ChevronRight, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
+import { Bell, Boxes, Building2, ChevronRight, ClipboardList, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, manageableRoles, useLogout } from '../../lib/auth'
-import { useAlertCount, useDeliveryNoteCount } from '../../lib/queries'
+import { useAlertCount, useDeliveryNoteCount, useReorderRequests } from '../../lib/queries'
 import { AlertBadge } from '../alerts/AlertBadge'
 import { ROLE_LABEL } from '../../lib/format'
 import type { User } from '../../lib/types'
@@ -30,6 +30,9 @@ export function AppShell({ user }: { user: User }) {
   // Deliveries waiting to be signed for where this user records: own facility or own store.
   const ownFacilityId = user.facility_id ?? user.store?.id ?? null
   const pendingDeliveries = useDeliveryNoteCount(ownFacilityId ?? 0, 'draft', ownFacilityId !== null).data ?? 0
+  // Officers: requests waiting for their store to answer.
+  const waitingRequests =
+    useReorderRequests(user.store?.id ?? 0, 'incoming', 'pending', 1, 1, user.store != null).data?.meta.pagination.total ?? 0
   const deliveryCount = pendingDeliveries > 0 && <span className="nav-count">{pendingDeliveries > 99 ? '99+' : pendingDeliveries}</span>
   const home = homePath(user)
   const close = () => setNavOpen(false)
@@ -73,6 +76,12 @@ export function AppShell({ user }: { user: User }) {
               <Truck size={18} /> Delivery notes
               {deliveryCount}
             </NavLink>
+          )}
+          {ownFacilityId !== null && (
+            <a href={user.store ? `/facilities/${user.store.id}#requests` : `${home}#my-requests`} onClick={close}>
+              <ClipboardList size={18} /> Reorder requests
+              {waitingRequests > 0 && <span className="nav-count">{waitingRequests > 99 ? '99+' : waitingRequests}</span>}
+            </a>
           )}
           {ownFacilityId !== null && (
             <NavLink to="/levels" onClick={close}>

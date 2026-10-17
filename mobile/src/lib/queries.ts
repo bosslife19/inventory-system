@@ -122,3 +122,46 @@ export function useMarkNotificationsRead() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
+
+/** The stores above this facility it may ask, nearest first — cached for offline requests. */
+export function useReorderSuppliers(facilityId: number) {
+  return useQuery({
+    queryKey: ['reorder-suppliers', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/reorder-suppliers', { params: { path: { facility: facilityId } } }))).data,
+    staleTime: 60 * 60_000,
+  });
+}
+
+/** What this facility has asked the stores above for, pending first. */
+export function useMyReorderRequests(facilityId: number) {
+  return useQuery({
+    queryKey: ['reorder-requests', facilityId, 'outgoing'],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/reorder-requests', {
+          params: { path: { facility: facilityId }, query: { direction: 'outgoing', per_page: 30 } },
+        }),
+      ),
+  });
+}
+
+export function useCancelReorderRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await unwrap(api.POST('/reorder-requests/{reorderRequest}/cancel', { params: { path: { reorderRequest: id } } }))).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reorder-requests'] }),
+  });
+}
+
+/** Sign for a delivery sent from a store (e.g. a fulfilled reorder request): posts the receipts. Needs a connection. */
+export function useConfirmDelivery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await unwrap(api.POST('/delivery-notes/{deliveryNote}/confirm', { params: { path: { deliveryNote: id } }, body: {} }))).data,
+    // Balances, history, alerts and the request's delivery status all change.
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+}

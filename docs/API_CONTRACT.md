@@ -183,6 +183,36 @@ delivery, so stock only lands in their balance once someone there has signed for
   sent, newest first, paginated like delivery notes. `status` is the receiver's: `draft` = in transit /
   not yet signed for. Anyone who can see the store.
 
+## Reorder requests (requisitions up the chain)
+A facility asks a store above it for stock; the store fulfils it with a dispatch or declines it. Both sides are
+told (push + in-app notification, type `reorder_request`, push data `{ type, reorder_request_id, direction:
+"incoming" | "outgoing", facility_id, url: "stockcard://reorder-requests?focus=<id>" }`): on a new request, the
+officers keeping the store asked; on fulfilment or decline, whoever keeps the requester's Stock Card.
+
+- `<ReorderRequest>` = `{ id, number ("REQ-000123"), status: pending|fulfilled|rejected|cancelled,
+  facility: { id, name, store_level }, supplier: { id, name, store_level }, comments, requested_by_name, created_at,
+  responded_by_name, responded_at, response_note, delivery_note: { id, delivery_note_no, status } | null,
+  items: [{ id, product: { id, name, sku, unit_of_measure, pack_size, requires_batch_tracking }, quantity_requested,
+  quantity_supplied }] }`.
+- `GET /facilities/{id}/reorder-suppliers` — the stores this facility may ask, nearest first: SDP → its LGA store,
+  state store, national store; LGA store → state, national; state store → national. `[<Facility>]`. 403 for the
+  national store and for callers who can't record at the facility.
+- `POST /facilities/{id}/reorder-requests` — body `supplier_facility_id, comments?, client_reference?,
+  items: [{ product_id, quantity }]` (1–100, distinct active products). Who: whoever records at the facility (own
+  SDP, own store, admin); facility active. A supplier not in the list above → 422 on `supplier_facility_id`.
+  201 → `<ReorderRequest>`; a repeated `client_reference` returns the existing one with 200.
+- `GET /facilities/{id}/reorder-requests` (query: `direction` (`incoming` = asked of this store | `outgoing` = made by
+  this facility, required), `status?`, `per_page?` ≤ 100, `page?`) — anyone who can see the facility. Pending first,
+  then newest; paginated `{ data, meta: { pagination } }`. Dashboards badge with `status=pending&per_page=1`.
+- `GET /reorder-requests/{id}` — anyone who can see either facility.
+- `POST /reorder-requests/{id}/fulfil` — body as a dispatch without the destination: `dispatched_date, voucher_no?,
+  comments?, items: [{ product_id, batch_no?, quantity }]` (what is actually sent — may differ from what was
+  asked). Who: whoever records at the store asked (403 otherwise). Same ledger rules and 422s as
+  `POST /facilities/{id}/dispatches`; nothing changes on failure. Sets `quantity_supplied`, `delivery_note`, status
+  `fulfilled`. 422 on `status` if no longer pending.
+- `POST /reorder-requests/{id}/reject` — body `reason?`; the store asked. Pending only (422 on `status`).
+- `POST /reorder-requests/{id}/cancel` — the requester's side. Pending only.
+
 ## Rollups (LGA / State / Federal — read only, SDPs only)
 - `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
 - `GET /states/{id}/stock-summary` — aggregated across LGAs

@@ -5,9 +5,12 @@ import type {
   AlertStatus,
   AlertType,
   DeliveryNoteStatus,
+  FulfilReorderRequest,
   NewDeliveryNote,
   NewDispatch,
+  NewReorderRequest,
   NewStockTransaction,
+  ReorderRequestStatus,
   StockActivity,
   TransactionType,
 } from './types'
@@ -223,6 +226,7 @@ function invalidateLedger(queryClient: ReturnType<typeof useQueryClient>, facili
     ['reorder-suggestions', facilityId],
     ['delivery-notes', facilityId],
     ['dispatches'],
+    ['reorder-requests'],
   ]) {
     queryClient.invalidateQueries({ queryKey: key })
   }
@@ -352,5 +356,80 @@ export function useAuditEvents(filters: AuditFilters) {
     queryKey: ['audit-events', filters],
     queryFn: () => unwrap(api.GET('/audit-events', { params: { query: filters } })),
     placeholderData: keepPreviousData,
+  })
+}
+
+// ---------------------------------------------------------------- reorder requests
+
+/** Stores above this facility it may ask for stock, nearest first. */
+export function useReorderSuppliers(facilityId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['reorder-suppliers', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/reorder-suppliers', { params: { path: { facility: facilityId } } }))).data,
+    enabled,
+    staleTime: 10 * 60_000,
+  })
+}
+
+/** incoming = asked of this store; outgoing = made by this facility. Pending first. */
+export function useReorderRequests(
+  facilityId: number,
+  direction: 'incoming' | 'outgoing',
+  status?: ReorderRequestStatus,
+  page = 1,
+  perPage = 10,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['reorder-requests', facilityId, direction, status ?? 'all', page, perPage],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/reorder-requests', {
+          params: { path: { facility: facilityId }, query: { direction, status, page, per_page: perPage } },
+        }),
+      ),
+    placeholderData: keepPreviousData,
+    enabled,
+    refetchInterval: 60_000,
+  })
+}
+
+export function useCreateReorderRequest(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: NewReorderRequest) =>
+      (await unwrap(api.POST('/facilities/{facility}/reorder-requests', { params: { path: { facility: facilityId } }, body }))).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reorder-requests'] }),
+  })
+}
+
+/** Send the stock for a request: a dispatch from the supplier store, so its ledger moves too. */
+export function useFulfilReorderRequest(supplierId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: FulfilReorderRequest }) =>
+      (await unwrap(api.POST('/reorder-requests/{reorderRequest}/fulfil', { params: { path: { reorderRequest: id } }, body }))).data,
+    onSuccess: (r) => {
+      invalidateLedger(queryClient, supplierId)
+      queryClient.invalidateQueries({ queryKey: ['delivery-notes', r.facility.id] })
+    },
+  })
+}
+
+export function useAnswerReorderRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, action, reason }: { id: number; action: 'reject' | 'cancel'; reason?: string }) => {
+      const params = { path: { reorderRequest: id } }
+      return (
+        await unwrap(
+          action === 'reject'
+            ? api.POST('/reorder-requests/{reorderRequest}/reject', { params, body: { reason: reason || null } })
+            : api.POST('/reorder-requests/{reorderRequest}/cancel', { params }),
+        )
+      ).data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reorder-requests'] }),
   })
 }

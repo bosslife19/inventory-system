@@ -47,6 +47,8 @@ export async function flushOutbox(): Promise<void> {
         const params = { path: { facility: item.facilityId } };
         if (item.kind === 'transaction') {
           await unwrap(api.POST('/facilities/{facility}/stock-transactions', { params, body: item.body }));
+        } else if (item.kind === 'reorder_request') {
+          await unwrap(api.POST('/facilities/{facility}/reorder-requests', { params, body: item.body }));
         } else {
           await unwrap(api.POST('/facilities/{facility}/delivery-notes', { params, body: item.body }));
         }

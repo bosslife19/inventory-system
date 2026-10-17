@@ -130,6 +130,18 @@ export default function Home() {
           </Card>
         </View>
 
+        <Card onPress={() => router.push('/requests')} style={styles.banner}>
+          <IconChip icon={ShoppingCart} size={38} />
+          <View style={{ flex: 1 }}>
+            <Text variant="label">Reorder requests</Text>
+            <Text variant="caption" tone="muted">
+              {toOrder.length > 0
+                ? `${toOrder.length} product${toOrder.length === 1 ? '' : 's'} to order — ask your LGA store`
+                : 'Ask a store above for stock, and follow your requests'}
+            </Text>
+          </View>
+        </Card>
+
         {failed > 0 && (
           <Card onPress={() => router.push('/account')} style={[styles.banner, { backgroundColor: c.warningSoft, borderColor: c.warningSoft }]}>
             <IconChip icon={TriangleAlert} tone="warning" size={38} />

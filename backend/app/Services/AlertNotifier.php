@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Contracts\PushSender;
 use App\Enums\AlertType;
 use App\Enums\StoreLevel;
 use App\Enums\UserRole;
@@ -10,13 +9,12 @@ use App\Models\Alert;
 use App\Models\Facility;
 use App\Models\User;
 use App\Models\UserNotification;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 /**
  * Tells the people who keep a facility's Stock Card about each newly raised
- * alert there: SDP staff for their facility, the LGA / State / Federal
+ * alert there (through UserNotifier): SDP staff for their facility, the LGA / State / Federal
  * officers for their own store. Each gets an in-app notification row, and a
  * push when they have registered a device. Officers hear about the
  * facilities below them through the daily digest (AlertDigest) instead.
@@ -26,7 +24,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  */
 class AlertNotifier
 {
-    public function __construct(private readonly PushSender $push) {}
+    public function __construct(private readonly UserNotifier $notifier) {}
 
     /** @param  iterable<Alert>  $alerts  just raised */
     public function notify(iterable $alerts): void
@@ -42,41 +40,14 @@ class AlertNotifier
             $keepers[$facility->id] = self::keepersOf($facility)->get(['id', 'fcm_token']);
         }
 
-        $now = CarbonImmutable::now();
-        $dead = [];
-
         foreach ($alerts as $alert) {
-            $users = $keepers[$alert->facility_id];
-            if ($users->isEmpty()) {
-                continue;
-            }
             [$title, $body] = $this->message($alert);
-            $data = [
+            $this->notifier->send($keepers[$alert->facility_id], UserNotification::TYPE_ALERT, $title, $body, [
                 'alert_id' => (string) $alert->id,
                 'alert_type' => $alert->alert_type->value,
                 'facility_id' => (string) $alert->facility_id,
                 'url' => "stockcard://alerts?focus={$alert->id}",
-            ];
-
-            $tokens = $users->pluck('fcm_token')->filter()->unique()->values()->all();
-            $deadNow = $tokens === [] ? [] : $this->push->send($tokens, $title, $body, $data);
-            $dead = [...$dead, ...$deadNow];
-
-            UserNotification::insert($users->map(fn (User $u) => [
-                'user_id' => $u->id,
-                'type' => UserNotification::TYPE_ALERT,
-                'alert_id' => $alert->id,
-                'title' => $title,
-                'body' => $body,
-                'data' => json_encode($data),
-                'pushed_at' => $u->fcm_token && ! in_array($u->fcm_token, $deadNow, true) ? $now : null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->all());
-        }
-
-        if ($dead !== []) {
-            User::whereIn('fcm_token', array_unique($dead))->update(['fcm_token' => null]);
+            ], alertId: $alert->id);
         }
     }
 

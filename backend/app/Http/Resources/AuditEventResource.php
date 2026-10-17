@@ -49,6 +49,7 @@ class AuditEventResource extends JsonResource
         'stock' => 'stock',
         'delivery_note' => 'deliveries',
         'dispatch' => 'deliveries',
+        'reorder_request' => 'deliveries',
         'user' => 'accounts',
         'auth' => 'accounts',
         'product' => 'catalog',

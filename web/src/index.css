@@ -767,6 +767,13 @@ a.user-chip:hover {
   background: var(--text);
   color: var(--surface);
 }
+.btn-danger {
+  background: var(--critical);
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
 .btn-ghost {
   background: var(--surface);
   color: var(--text);
@@ -1715,6 +1722,10 @@ a.cell-title:hover {
 .dispatch-lines .line-editor-head,
 .dispatch-lines .line-editor-row {
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) auto;
+}
+.request-lines .line-editor-head,
+.request-lines .line-editor-row {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr) auto;
 }
 .line-editor-head {
   font-size: 0.72rem;

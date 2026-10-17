@@ -1,4 +1,4 @@
-import { Activity, AlertOctagon, ArrowLeft, Building2, Gauge, Lock, MapPin, Package, PackageX, Plus, Send, TrendingDown, Truck } from 'lucide-react'
+import { Activity, AlertOctagon, ArrowLeft, Building2, ClipboardList, Gauge, Lock, MapPin, Package, PackageX, Plus, Send, TrendingDown, Truck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AlertList } from '../../components/alerts/AlertList'
@@ -9,6 +9,8 @@ import { ActivityChart } from '../../components/charts/ActivityChart'
 import { StockPositionChart } from '../../components/charts/StockPositionChart'
 import { StatusDonut } from '../../components/charts/StatusDonut'
 import { ErrorState, Loading } from '../../components/layout/PageState'
+import { ReorderRequestForm } from '../../components/reorder/ReorderRequestForm'
+import { ReorderRequestList } from '../../components/reorder/ReorderRequestList'
 import { ReorderSuggestionsTable } from '../../components/stock/ReorderSuggestionsTable'
 import { RunningBalanceHistory } from '../../components/stock/RunningBalanceHistory'
 import { ExpiryBadge } from '../../components/stock/StatusBadges'
@@ -75,6 +77,7 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   // null = closed; 0 = open with no product chosen; otherwise the product to pre-select.
   const [recording, setRecording] = useState<number | null>(null)
   const [dispatching, setDispatching] = useState(false)
+  const [requesting, setRequesting] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
   const { hash } = useLocation()
   const loaded = !facility.isPending && !stock.isPending
@@ -94,6 +97,8 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const canRecord = canRecordAt(user, facilityId)
   const isStore = f.store_level !== null
   const back = backLink(f, user)
+  // Everyone but the National Store has a store above to ask.
+  const canRequest = canRecord && f.store_level !== 'national'
   const place = [f.lga?.name, f.state?.name ?? 'Nigeria'].filter(Boolean).join(', ')
   const deliveriesHref = user.role === 'sdp_staff' ? '/delivery-notes' : `/facilities/${facilityId}/delivery-notes`
   const count = (pred: (s: ProductStock) => boolean) => rows.filter(pred).length
@@ -139,6 +144,11 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           <Link to={deliveriesHref} className="btn btn-ghost">
             <Truck size={18} /> Delivery notes
           </Link>
+          {canRequest && (
+            <button type="button" className="btn btn-ghost" onClick={() => setRequesting(true)}>
+              <ClipboardList size={18} /> Request reorder
+            </button>
+          )}
           {canRecord && isStore && (
             <button type="button" className="btn btn-ghost" onClick={() => setDispatching(true)}>
               <Send size={18} /> Issue to facility
@@ -163,6 +173,8 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
       )}
 
       <IncomingDeliveries facilityId={facilityId} canAct={canRecord} deliveriesHref={deliveriesHref} />
+
+      {isStore && <ReorderRequestList facilityId={facilityId} direction="incoming" canAct={canRecord} hideWhenEmpty={!canRecord} />}
 
       <div className="kpi-grid">
         <KpiTile tone="primary" icon={Package} label="Products tracked" value={rows.length} sub={`${okCount} at a healthy level`} />
@@ -314,6 +326,8 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
         </div>
       )}
 
+      {f.store_level !== 'national' && <ReorderRequestList facilityId={facilityId} direction="outgoing" canAct={canRecord} hideWhenEmpty={!canRecord} />}
+
       <section className="card card-flush">
         {reorder.isError ? (
           <ErrorState error={reorder.error} />
@@ -347,6 +361,26 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
             stock={rows}
             initialProductId={recording || undefined}
             onCancel={() => setRecording(null)}
+          />
+        </Modal>
+      )}
+
+      {canRequest && (
+        <Modal
+          open={requesting}
+          onClose={() => setRequesting(false)}
+          size="lg"
+          title="Request a reorder"
+          description={`Ask a store above ${f.name} to send stock`}
+          icon={<ClipboardList size={20} />}
+        >
+          <ReorderRequestForm
+            facilityId={facilityId}
+            onCancel={() => setRequesting(false)}
+            onDone={(r) => {
+              setRequesting(false)
+              setFlash(`${r.number} sent to ${r.supplier.name}. Their officers have been notified; you'll hear when it's on its way.`)
+            }}
           />
         </Modal>
       )}

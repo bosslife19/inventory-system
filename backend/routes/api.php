@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductLevelController;
+use App\Http\Controllers\Api\V1\ReorderRequestController;
 use App\Http\Controllers\Api\V1\ReorderSuggestionController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RollupSummaryController;
@@ -70,6 +71,14 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/dispatches', [DispatchController::class, 'index']);
         Route::post('facilities/{facility}/dispatches', [DispatchController::class, 'store']);
         Route::get('facilities/{facility}/dispatch-destinations', [DispatchController::class, 'destinations']);
+
+        Route::get('facilities/{facility}/reorder-requests', [ReorderRequestController::class, 'index']);
+        Route::post('facilities/{facility}/reorder-requests', [ReorderRequestController::class, 'store']);
+        Route::get('facilities/{facility}/reorder-suppliers', [ReorderRequestController::class, 'suppliers']);
+        Route::get('reorder-requests/{reorderRequest}', [ReorderRequestController::class, 'show']);
+        Route::post('reorder-requests/{reorderRequest}/fulfil', [ReorderRequestController::class, 'fulfil']);
+        Route::post('reorder-requests/{reorderRequest}/reject', [ReorderRequestController::class, 'reject']);
+        Route::post('reorder-requests/{reorderRequest}/cancel', [ReorderRequestController::class, 'cancel']);
 
         Route::get('reports/{report}', [ReportController::class, 'show'])
             ->whereIn('report', ['stock-card', 'stock-status', 'reorder', 'expiry']);

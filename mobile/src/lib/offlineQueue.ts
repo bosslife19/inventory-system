@@ -3,10 +3,10 @@ import { useSyncExternalStore } from 'react';
 
 import { formatDate, formatQty, transactionLabel } from './format';
 import { storage } from './storage';
-import type { NewDeliveryNote, NewStockTransaction } from './types';
+import type { NewDeliveryNote, NewReorderRequest, NewStockTransaction } from './types';
 
 /**
- * The outbox: Stock Card entries and delivery notes recorded on this device
+ * The outbox: Stock Card entries, delivery notes and reorder requests made on this device
  * and not yet accepted by the server (mobile/CLAUDE.md rule 1). Everything
  * is written here first, online or not, then sync.ts sends them one by one.
  *
@@ -34,11 +34,13 @@ export type OutboxItem = Base &
   (
     | { kind: 'transaction'; body: NewStockTransaction; productName: string; unit: string }
     | { kind: 'delivery_note'; body: NewDeliveryNote }
+    | { kind: 'reorder_request'; body: NewReorderRequest; supplierName: string }
   );
 
 type NewItem =
   | { kind: 'transaction'; facilityId: number; body: NewStockTransaction; productName: string; unit: string }
-  | { kind: 'delivery_note'; facilityId: number; body: NewDeliveryNote };
+  | { kind: 'delivery_note'; facilityId: number; body: NewDeliveryNote }
+  | { kind: 'reorder_request'; facilityId: number; body: NewReorderRequest; supplierName: string };
 
 let items: OutboxItem[] = [];
 let loaded = false;
@@ -119,8 +121,9 @@ export function useOutbox(): OutboxItem[] {
   return useSyncExternalStore(subscribe, getOutbox, getOutbox);
 }
 
-/** Products an unsynced item will change. */
+/** Products an unsynced item will change on this Stock Card (a reorder request changes none until it arrives). */
 export function productIdsOf(item: OutboxItem): number[] {
+  if (item.kind === 'reorder_request') return [];
   return item.kind === 'transaction' ? [item.body.product_id] : item.body.items.map((l) => l.product_id);
 }
 
@@ -134,6 +137,13 @@ export function describe(item: OutboxItem): { title: string; detail: string; fig
     };
   }
   const n = item.body.items.length;
+  if (item.kind === 'reorder_request') {
+    return {
+      title: `Reorder request · ${item.supplierName}`,
+      detail: `${formatDate(item.createdAt.slice(0, 10))} · ${n} product${n === 1 ? '' : 's'}`,
+      figure: `${n} product${n === 1 ? '' : 's'}`,
+    };
+  }
   return {
     title: `Delivery${item.body.delivery_note_no ? ` ${item.body.delivery_note_no}` : ''} · ${item.body.source}`,
     detail: `${formatDate(item.body.received_date)} · ${n} line${n === 1 ? '' : 's'}`,

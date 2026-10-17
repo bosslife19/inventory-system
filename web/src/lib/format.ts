@@ -67,6 +67,12 @@ export const UNITS: { value: UnitOfMeasure; label: string; plural: string; conta
 
 export const isContainerUnit = (u: UnitOfMeasure | '') => UNITS.some((x) => x.value === u && x.container)
 
+/** 'sachets', 'boxes' */
+export const unitPlural = (u: UnitOfMeasure) => UNITS.find((x) => x.value === u)?.plural ?? u
+
+/** '60 sachets', '1 box' */
+export const quantityWithUnit = (n: number, u: UnitOfMeasure) => `${formatQty(n)} ${n === 1 ? u : unitPlural(u)}`
+
 /** 'pack of 10' / 'sachet' — what one unit on the Stock Card is. */
 export function unitDescription(p: Pick<Product, 'unit_of_measure' | 'pack_size'>): string {
   return p.pack_size ? `${p.unit_of_measure} of ${formatQty(p.pack_size)}` : p.unit_of_measure

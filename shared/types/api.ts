@@ -491,6 +491,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/facilities/{facility}/reorder-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A facility's requests: `incoming` = asked of this store, `outgoing` = made by this facility.
+         *     Pending first, then newest
+         */
+        get: operations["reorderRequest.index"];
+        put?: never;
+        /** Ask a store above for stock. 201; 200 with the existing request when client_reference repeats one */
+        post: operations["reorderRequest.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/reorder-suppliers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The stores above this facility it may ask, nearest first */
+        get: operations["reorderRequest.suppliers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reorder-requests/{reorderRequest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["reorderRequest.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reorder-requests/{reorderRequest}/fulfil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the stock: a dispatch from the store asked to the requester. 422 if no longer pending */
+        post: operations["reorderRequest.fulfil"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reorder-requests/{reorderRequest}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline it, optionally saying why */
+        post: operations["reorderRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reorder-requests/{reorderRequest}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw it (the requester), while still pending */
+        post: operations["reorderRequest.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/facilities/{facility}/reorder-suggestions": {
         parameters: {
             query?: never;
@@ -990,6 +1095,25 @@ export interface components {
             /** @description Products with any flag or at/below reorder level. */
             flagged_products: components["schemas"]["ProductStockResource"][];
         };
+        /**
+         * FulfilReorderRequestRequest
+         * @description POST /reorder-requests/{reorderRequest}/fulfil: what the store actually
+         *     sends — a dispatch to the requester. Ledger rules (enough stock, known
+         *     unexpired batch, no back-dating) are checked as each line is issued.
+         */
+        FulfilReorderRequestRequest: {
+            /** Format: date */
+            dispatched_date: string;
+            /** @description Issue voucher / waybill number; DSP-000123 is generated when omitted. */
+            voucher_no?: string | null;
+            comments?: string | null;
+            items: {
+                product_id: number;
+                /** @description Required for batch-tracked products; a batch the store holds. */
+                batch_no?: string | null;
+                quantity: number;
+            }[];
+        };
         /** LgaResource */
         LgaResource: {
             id: number;
@@ -1100,6 +1224,61 @@ export interface components {
             /** @description Earliest expiry first. */
             batches: components["schemas"]["BatchStockResource"][];
         };
+        /** ReorderRequestCollection */
+        ReorderRequestCollection: components["schemas"]["ReorderRequestResource"][];
+        /** ReorderRequestResource */
+        ReorderRequestResource: {
+            id: number;
+            /** @description REQ-000123 */
+            number: string;
+            status: components["schemas"]["ReorderRequestStatus"];
+            /** @description Who is asking. */
+            facility: {
+                id: number;
+                name: string;
+                store_level: components["schemas"]["StoreLevel"] | null;
+            };
+            /** @description The store asked. */
+            supplier: {
+                id: number;
+                name: string;
+                store_level: components["schemas"]["StoreLevel"] | null;
+            };
+            comments: string | null;
+            requested_by_name: string;
+            /** Format: date-time */
+            created_at: string | null;
+            responded_by_name: string | null;
+            /** Format: date-time */
+            responded_at: string | null;
+            /** @description Why it was declined, or the note sent with the stock. */
+            response_note: string | null;
+            /** @description The dispatch that fulfilled it; `status` is the requester's (draft = not yet received). */
+            delivery_note: {
+                id: number;
+                delivery_note_no: string | null;
+                status: string;
+            } | null;
+            items: {
+                id: number;
+                product: {
+                    id: number;
+                    name: string;
+                    sku: string;
+                    unit_of_measure: components["schemas"]["UnitOfMeasure"];
+                    pack_size: number | null;
+                    requires_batch_tracking: boolean;
+                };
+                quantity_requested: number;
+                /** @description Null until fulfilled. */
+                quantity_supplied: number | null;
+            }[];
+        };
+        /**
+         * ReorderRequestStatus
+         * @enum {string}
+         */
+        ReorderRequestStatus: "pending" | "fulfilled" | "rejected" | "cancelled";
         /** ReorderSuggestionResource */
         ReorderSuggestionResource: {
             product: components["schemas"]["ProductResource"];
@@ -1275,6 +1454,21 @@ export interface components {
          * @enum {string}
          */
         StoreLevel: "lga" | "state" | "national";
+        /**
+         * StoreReorderRequestRequest
+         * @description POST /facilities/{facility}/reorder-requests: ask a store above for stock.
+         */
+        StoreReorderRequestRequest: {
+            /** @description A store above this facility (GET /facilities/{facility}/reorder-suppliers). */
+            supplier_facility_id: number;
+            comments?: string | null;
+            /** @description Idempotency key: re-sending it returns the request already made. */
+            client_reference?: string | null;
+            items: {
+                product_id: number;
+                quantity: number;
+            }[];
+        };
         /**
          * StoreStockTransactionRequest
          * @description Shape validation for POST /facilities/{facility}/stock-transactions.
@@ -2475,6 +2669,235 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "reorderRequest.index": {
+        parameters: {
+            query: {
+                direction: "incoming" | "outgoing";
+                status?: components["schemas"]["ReorderRequestStatus"] | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "reorderRequest.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreReorderRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "reorderRequest.suppliers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `FacilityResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FacilityResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "reorderRequest.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The reorder request ID */
+                reorderRequest: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "reorderRequest.fulfil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The reorder request ID */
+                reorderRequest: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FulfilReorderRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "reorderRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The reorder request ID */
+                reorderRequest: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "reorderRequest.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The reorder request ID */
+                reorderRequest: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `ReorderRequestResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReorderRequestResource"];
+                    };
+                };
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];

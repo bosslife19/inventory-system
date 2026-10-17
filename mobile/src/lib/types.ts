@@ -24,6 +24,9 @@ export type AlertStatus = Schemas['AlertStatus'];
 export type AlertSeverity = Schemas['AlertSeverity'];
 export type ReorderSuggestion = Schemas['ReorderSuggestionResource'];
 export type AppNotification = Schemas['NotificationResource'];
+export type ReorderRequest = Schemas['ReorderRequestResource'];
+export type ReorderRequestStatus = Schemas['ReorderRequestStatus'];
+export type NewReorderRequest = Schemas['StoreReorderRequestRequest'];
 
 type ActivityResponse = NonNullable<
   paths['/facilities/{facility}/stock-activity']['get']['responses'][200]['content']['application/json']
