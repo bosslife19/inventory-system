@@ -101,3 +101,24 @@ export function useAlertAction() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
   });
 }
+
+/** The signed-in user's own notifications (per-alert notices and officer digests), newest first. */
+export function useNotifications() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => unwrap(api.GET('/notifications', { params: { query: { per_page: 50 } } })),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    /** One notification, or all of them with no id. */
+    mutationFn: async (id?: number) => {
+      if (id !== undefined) await unwrap(api.POST('/notifications/{notification}/read', { params: { path: { notification: id } } }));
+      else await api.POST('/notifications/read-all');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}

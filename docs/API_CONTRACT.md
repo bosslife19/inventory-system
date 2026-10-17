@@ -67,19 +67,41 @@ staff never see stores. Rollups and their activity charts count SDPs only.
 
 ## Products
 - `GET /products` (filter: category, is_active — `true`/`false`/`1`/`0`). The catalog is not hierarchy-scoped.
-- `POST /products` (admin) — body `name, sku, category, unit_of_measure, requires_batch_tracking,
-  requires_cold_chain, min_stock_level, reorder_level, max_stock_level, is_active?` → 201 `<Product>`.
-  `sku` is trimmed, upper-cased and unique. Levels must read min ≤ reorder (EOP) ≤ max (422 on
-  `reorder_level` / `max_stock_level`).
-- `PUT /products/{id}` (admin) — any subset of the same fields. `is_active: false` retires the product (hidden
-  from entry forms; history kept — products are never deleted). `requires_batch_tracking` can't change once
-  the product has any Stock Card entry (422).
+- `<Product>` = `{ id, name, sku, category, unit_of_measure, pack_size, requires_batch_tracking, requires_cold_chain,
+  min_stock_level, max_stock_level, reorder_level, is_active, created_by }` — levels are the catalog defaults.
+- `POST /products` (anyone signed in — every level may add products to the shared catalog) — body `name, sku,
+  category, unit_of_measure, pack_size?, requires_batch_tracking, requires_cold_chain, min_stock_level, reorder_level,
+  max_stock_level, is_active?` → 201 `<Product>`, `created_by` = the caller.
+  - `sku` is trimmed, upper-cased and unique.
+  - `unit_of_measure` (trimmed, lower-cased) is one of `piece, tablet, capsule, sachet, ampoule, vial, bottle, tube,
+    pair, roll, pack, box, carton, bag, kit` — what every Stock Card quantity of the product counts.
+  - `pack_size`: pieces in each unit, 1–1,000,000; required for `pack, box, carton, bag, kit` (422 on `pack_size`),
+    optional (null) for the others.
+  - Levels must read **EOP < min ≤ max** — `reorder_level` (EOP) lower than `min_stock_level` unless both are 0
+    (422 on `reorder_level`), `max_stock_level` ≥ min (422 on `max_stock_level`).
+- `PUT /products/{id}` (admins, or the user who added it; else 403) — any subset of the same fields, checked
+  together with the stored values. `is_active: false` retires the product (hidden from entry forms; history kept —
+  products are never deleted). `requires_batch_tracking` can't change once the product has any Stock Card entry (422).
+
+## Stock levels per facility (min / EOP / max)
+Each SDP and store sets its own levels per product — the right EOP differs between an SDP, an LGA store, a state
+store and the national store. Without its own, a facility uses the catalog's. Everything that judges stock (level,
+flags, alerts and their push, reorder max, the stock-status and reorder reports) uses the levels in force there.
+
+- `GET /facilities/{id}/product-levels` — anyone who can see the facility. Every active product (plus retired ones
+  with levels set here), by name: `[{ product: <Product>, min_stock_level, reorder_level, max_stock_level,
+  source: "facility" | "catalog", updated_by_name, updated_at }]` (the last two null for `catalog`).
+- `PUT /facilities/{id}/product-levels/{product_id}` — body `min_stock_level, reorder_level, max_stock_level`, same
+  EOP < min ≤ max rule. Who: whoever records at the facility (own SDP, own store, admin), else 403. 200 → the entry
+  above. The product's level, flags and alerts there are re-evaluated at once (a new alert is notified as usual).
+- `DELETE /facilities/{id}/product-levels/{product_id}` — back to the catalog's levels; same who. 204.
 
 ## Stock — facility level (sdp_staff and above, scoped)
 - `GET /facilities/{id}/stock-balances` — current on-hand per product/batch
-  - `data`: one entry per product stocked at the facility: `{ product, quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level, flags, batches: [{ batch_id, batch_no, expiry_date, expiry_status, quantity_on_hand, last_transaction_id }] }`. Batches are listed earliest expiry first and include zero-quantity rows.
+  - `data`: one entry per product stocked at the facility: `{ product, levels: { min_stock_level, reorder_level, max_stock_level, source: "facility" | "catalog" }, quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level, flags, batches: [{ batch_id, batch_no, expiry_date, expiry_status, quantity_on_hand, last_transaction_id }] }`. Batches are listed earliest expiry first and include zero-quantity rows.
+  - `levels`: the min / EOP / max in force at this facility (see "Stock levels per facility") — use these, not `product.*_level`.
   - `usable_quantity` = on hand minus expired batches. Thresholds are judged on usable stock.
-  - `level`: `stock_out` (usable 0) | `low_stock` (< min) | `reorder` (≤ reorder_level / EOP) | `ok`.
+  - `level`: `stock_out` (usable 0) | `low_stock` (≤ EOP — raises the alert and push) | `reorder` (< min — time to order) | `ok`.
   - `flags` ⊆ `stock_out, expired, low_stock, expiring_soon` (same values as `alerts.alert_type`), most severe first. "Expiring soon" = within `INVENTORY_EXPIRING_SOON_DAYS` (default 90).
   - These are display-only interpretations of `stock_balances`; nothing is written back.
 - `GET /facilities/{id}/stock-transactions` — ledger history (filters: product_id, date range, transaction_type)
@@ -104,7 +126,7 @@ staff never see stores. Rollups and their activity charts count SDPs only.
     amc_period_month, months_of_stock, max_stock_quantity, basis, suggested_quantity }`.
   - `amc_quantity` from the latest `amc_snapshots` row (null if none, or no complete month of history).
   - `max_stock_quantity` = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 3) when there is an
-    AMC > 0 (`basis: "amc"`), else the product's `max_stock_level` (`basis: "product_max"`).
+    AMC > 0 (`basis: "amc"`), else the max level in force at the facility (`basis: "product_max"`).
   - `suggested_quantity` = max(0, `max_stock_quantity` − live `usable_quantity`);
     `months_of_stock` = `usable_quantity` / AMC, one decimal (null without an AMC).
   - Display-only: nothing is written back.
@@ -183,7 +205,7 @@ delivery, so stock only lands in their balance once someone there has signed for
       "children": [{ "level": "facility", id, name, type, is_active, product_count,
                      flag_counts: {…},            // this facility's products carrying each flag
                      last_transaction_date,       // most recent Stock Card entry (YYYY-MM-DD) or null
-                     needs_reorder_count,         // products at/below reorder level
+                     needs_reorder_count,         // products below their min level
                      flagged_products: [<stock-balances entry>] }]   // worst first
   } }
   ```
@@ -197,14 +219,15 @@ delivery, so stock only lands in their balance once someone there has signed for
                  geopolitical_zone,            // states only, else null
                  facility_count, reporting_facility_count,   // reporting = ≥1 product on the Stock Card
                  flag_counts: {…},             // facilities here with ≥1 product so flagged
-                 needs_reorder_count,          // facilities with ≥1 product at/below reorder level
+                 needs_reorder_count,          // facilities with ≥1 product below its min level
                  last_transaction_date,
                  stock_out_products: [{ product: { id, name, sku }, facility_count }] }]   // top 3
   ```
   Sorted worst-first like the LGA children (stock-outs, then expired, low, expiring). Every child
   in scope is listed, including ones with no facilities yet.
 - `facility_status` rule (all levels): no_data if nothing recorded; else stock_out if any product is
-  stocked out; else low_stock; else reorder if any product is at/below EOP or has expired stock; else ok.
+  stocked out; else low_stock (a product at/below its EOP); else reorder if any product is below its min or has
+  expired stock; else ok.
 
 ## Recording activity
 - `GET /facilities/{id}/stock-activity`, `GET /lgas/{id}/stock-activity`, `GET /states/{id}/stock-activity`,
@@ -243,7 +266,7 @@ reads, like the dashboards; nothing is written back.
 | Report | Extra query | Rows (from) |
 |---|---|---|
 | `stock-card` | `from?`, `to?` (inclusive dates). `area` must be `facility` (else 422 on `area`). | One per ledger entry in card order (date, voucher, received from / issued to, entry type, batch, expiry, received, issued, losses / adj. (signed), balance, by, comments). With `product_id` and `from`, the first row is the opening balance carried forward. |
-| `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level, min / EOP / max, last entry (`facility_product_status`). |
+| `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level ("At / below EOP", "Below min"…), min / EOP / max in force there, last entry (`facility_product_status`). |
 | `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
 | `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
 
@@ -278,18 +301,33 @@ reads, like the dashboards; nothing is written back.
 - Alerts are raised and auto-resolved by the backend only (see `alerts` in
   DATABASE_SCHEMA.md); clients never create them.
 
-## Notifications (mobile)
+## Notifications
 Push is sent through FCM (Firebase Admin SDK, credentials in `FIREBASE_CREDENTIALS`, default
-`storage/app/firebase-credentials.json`, never committed) when `AlertEngine` raises a **new** alert,
-to the `sdp_staff` of that facility who have registered a token. Android only for now (iOS needs
-APNs configured). Payload: notification `{ title, body }` on Android channel `stock-alerts`, and
-data `{ alert_id, alert_type, url: "stockcard://alerts?focus=<alert_id>" }` for the deep link.
-Tokens FCM reports as invalid are cleared. LGA / State / Federal digests are not built yet.
+`storage/app/firebase-credentials.json`, never committed). Android only for now (iOS needs APNs
+configured); notification `{ title, body }` on Android channel `stock-alerts`. Tokens FCM reports as
+invalid are cleared. Every notice is also stored as an in-app notification, pushed or not.
+
+- **Per alert** — when `AlertEngine` raises a **new** alert, to the active people keeping that facility's
+  Stock Card: its `sdp_staff` for an SDP; the LGA / State / Federal officers of the node for its store.
+  Titles: `Stock-out: ORS`, `At EOP: ORS` (low_stock = usable at or below the EOP in force there),
+  `Expired batch: …`, `Expiring soon: …`. Push data `{ alert_id, alert_type, facility_id,
+  url: "stockcard://alerts?focus=<alert_id>" }`.
+- **Daily digest** (`alerts:send-digests`, scheduled 08:30 Africa/Lagos) — to each active LGA, State and
+  Federal officer and admin: the alerts raised since their previous digest (first ever: the last 24 h) at the
+  facilities they can see, minus their own store (told per alert). Nothing new → nothing sent. Title
+  e.g. `Kaduna North LGA: 3 new stock alerts` (or `Kaduna State`, `Nigeria`), body
+  `1 stock-out, 2 at EOP across 2 facilities.`. Push data `{ type: "digest", url: "stockcard://notifications" }`.
 
 - `POST /users/me/fcm-token` — body `{ token: string | null }`; stores the signed-in user's FCM token (null clears it,
-  e.g. on sign-out). 204. The app sends it on sign-in and every foreground, since tokens rotate.
-- `GET /notifications` — in-app list
-- `POST /notifications/{id}/read`
+  e.g. on sign-out). 204. The app sends it on sign-in and every foreground, since tokens rotate. Any role.
+- `GET /notifications` (query: `unread?` (`true` = unread only), `type?` (`alert` | `digest`), `per_page?` ≤ 100,
+  default 30, `page?`) — the caller's own, newest first:
+  `{ data: [<Notification>], meta: { pagination, unread_count } }` (`unread_count` ignores the filters).
+  - `<Notification>` = `{ id, type, alert_id, title, body, payload, created_at, pushed_at, read_at }`;
+    `payload` = the push data (alert) or `{ url, counts: { stock_out, expired, low_stock, expiring_soon },
+    facility_count, since }` (digest). `pushed_at` null = not pushed (no device, or a dead token).
+- `POST /notifications/{id}/read` → 200 `<Notification>`; keeps the first read time. Someone else's → 404.
+- `POST /notifications/read-all` → 204.
 
 ## Standard response shape
 ```json

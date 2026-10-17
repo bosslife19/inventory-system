@@ -23,6 +23,7 @@ export type Alert = Schemas['AlertResource'];
 export type AlertStatus = Schemas['AlertStatus'];
 export type AlertSeverity = Schemas['AlertSeverity'];
 export type ReorderSuggestion = Schemas['ReorderSuggestionResource'];
+export type AppNotification = Schemas['NotificationResource'];
 
 type ActivityResponse = NonNullable<
   paths['/facilities/{facility}/stock-activity']['get']['responses'][200]['content']['application/json']

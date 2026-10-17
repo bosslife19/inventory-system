@@ -110,7 +110,7 @@ export function RollupDashboard({ eyebrow, title, subtitle, back, store, summary
           <div className="card-head">
             <div>
               <h2>Reorder needs by product</h2>
-              <p>Facilities at or below the reorder level (EOP)</p>
+              <p>Facilities below the minimum level</p>
             </div>
           </div>
           <ReorderNeedsChart rows={s.products} childNoun="Facilities" />

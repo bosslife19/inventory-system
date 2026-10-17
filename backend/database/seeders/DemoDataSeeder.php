@@ -35,13 +35,13 @@ use RuntimeException;
 class DemoDataSeeder extends Seeder
 {
     private const PRODUCTS = [
-        // sku => [name, category, unit, batch tracked, cold chain, min, max, reorder]
-        'AL-20-120' => ['Artemether/Lumefantrine 20/120mg tablets (6x4)', 'Antimalarials', 'pack', true, false, 20, 60, 30],
-        'AMX-250' => ['Amoxicillin 250mg dispersible tablets (10)', 'Antibiotics', 'pack', true, false, 30, 90, 45],
-        'ORS-LO' => ['Oral Rehydration Salts, low osmolarity', 'Diarrhoea management', 'sachet', true, false, 100, 300, 150],
-        'ZNC-20' => ['Zinc sulphate 20mg dispersible tablets (10)', 'Diarrhoea management', 'pack', true, false, 40, 120, 60],
-        'OXY-10IU' => ['Oxytocin 10 IU/ml injection', 'Maternal health', 'ampoule', true, true, 20, 60, 30],
-        'GLV-EXM-M' => ['Examination gloves, medium (100)', 'Consumables', 'box', false, false, 5, 20, 8],
+        // sku => [name, category, unit, pieces per unit, batch tracked, cold chain, min, max, EOP (below min)]
+        'AL-20-120' => ['Artemether/Lumefantrine 20/120mg tablets (6x4)', 'Antimalarials', 'pack', 24, true, false, 30, 60, 20],
+        'AMX-250' => ['Amoxicillin 250mg dispersible tablets (10)', 'Antibiotics', 'pack', 10, true, false, 45, 90, 30],
+        'ORS-LO' => ['Oral Rehydration Salts, low osmolarity', 'Diarrhoea management', 'sachet', null, true, false, 150, 300, 100],
+        'ZNC-20' => ['Zinc sulphate 20mg dispersible tablets (10)', 'Diarrhoea management', 'pack', 10, true, false, 60, 120, 40],
+        'OXY-10IU' => ['Oxytocin 10 IU/ml injection', 'Maternal health', 'ampoule', null, true, true, 30, 60, 20],
+        'GLV-EXM-M' => ['Examination gloves, medium (100)', 'Consumables', 'box', 100, false, false, 8, 20, 5],
     ];
 
     // sku => [batch A (older), batch B (newer)] as [batch_no, expiry in days from today]
@@ -135,12 +135,13 @@ class DemoDataSeeder extends Seeder
 
     private function seedProducts(): void
     {
-        foreach (self::PRODUCTS as $sku => [$name, $category, $unit, $batched, $cold, $min, $max, $reorder]) {
+        foreach (self::PRODUCTS as $sku => [$name, $category, $unit, $packSize, $batched, $cold, $min, $max, $reorder]) {
             $this->productIds[$sku] = DB::table('products')->insertGetId([
                 'name' => $name,
                 'sku' => $sku,
                 'category' => $category,
                 'unit_of_measure' => $unit,
+                'pack_size' => $packSize,
                 'requires_batch_tracking' => $batched,
                 'requires_cold_chain' => $cold,
                 'min_stock_level' => $min,

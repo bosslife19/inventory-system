@@ -45,7 +45,23 @@ unique on `(state_id, name)`
 ## Product catalog
 
 **products**
-`id, name, sku, category, unit_of_measure, requires_batch_tracking (bool), requires_cold_chain (bool), min_stock_level, max_stock_level, reorder_level (the Excel "EOP"), is_active, created_at, updated_at`
+`id, name, sku, category, unit_of_measure (enum: piece|tablet|capsule|sachet|ampoule|vial|bottle|tube|pair|roll|pack|box|carton|bag|kit), pack_size (nullable — pieces in each unit; required for pack|box|carton|bag|kit), requires_batch_tracking (bool), requires_cold_chain (bool), min_stock_level, max_stock_level, reorder_level (the Excel "EOP"), is_active, created_by (nullable fk users), created_at, updated_at`
+
+> Every Stock Card quantity for a product counts `unit_of_measure`s. Any level may add a
+> product (`created_by`); admins and the creator may edit it. Levels read
+> **EOP < min ≤ max** (EOP 0 with min 0 allowed): usable stock at or below the EOP
+> (emergency order point) raises the `low_stock` alert and its push; below min only marks
+> the product as due for an order. These are the catalog defaults — each facility may set
+> its own (`facility_product_levels`).
+
+**facility_product_levels** (a facility's or store's own levels, overriding the catalog's)
+`id, facility_id (fk), product_id (fk), min_stock_level, reorder_level (its EOP), max_stock_level, updated_by (nullable fk users), created_at, updated_at`
+unique on `(facility_id, product_id)`
+
+> Set by whoever keeps that Stock Card (its SDP staff, the officers of a store, admins), since
+> the right EOP differs between an SDP, an LGA store, a state store and the national store.
+> Same EOP < min ≤ max rule. Read by `StockStatusService` (levels, flags, alerts), the
+> reorder arithmetic (max), and the stock-status / reorder reports.
 
 **batches**
 `id, product_id (fk), batch_no, manufacture_date (nullable), expiry_date, created_at, updated_at`
@@ -142,10 +158,19 @@ unique on `(facility_id, product_id, period_month)`
 > `resolved_by` null). A user resolving an alert whose condition still
 > holds suppresses it until the condition clears and recurs.
 > Severity: stock_out/expired = critical, low_stock = warning,
-> expiring_soon = info.
+> expiring_soon = info. `low_stock` means usable stock is at or below the EOP in force at
+> that facility (its own levels, else the catalog's).
 
-**notifications**
-`id, user_id (fk), alert_id (fk), channel (enum: push|in_app), sent_at, read_at (nullable)`
+**notifications** (what each user was told — written by the backend only)
+`id, user_id (fk), type (alert|digest), alert_id (nullable fk alerts, cascade), title, body, data (json, nullable), pushed_at (nullable), read_at (nullable), created_at, updated_at`
+
+> `alert`: one row per new alert per person keeping that facility's Stock Card (SDP staff of
+> the SDP; the LGA / State / Federal officers of a store), written by `AlertNotifier` as the
+> alert is raised. `digest`: one row per LGA / State / Federal officer and admin per
+> `alerts:send-digests` run (daily, 08:30 Africa/Lagos) that found new alerts in their area —
+> facilities they can see, minus their own store — since their previous digest (first ever:
+> the last 24 hours). `pushed_at` is set when FCM accepted the push (null: no device
+> registered, or the token was dead). Not Laravel's database-notification table.
 
 ## Audit log
 
@@ -155,13 +180,13 @@ unique on `(facility_id, product_id, period_month)`
 > Written by `App\Support\AuditLog::record()` inside the same DB transaction
 > as the action. Actions: `stock.recorded`; `delivery_note.created|confirmed|rejected`;
 > `dispatch.created`; `user.created|updated|deactivated|reactivated|password_reset|password_changed`;
-> `auth.signed_in`; `product.created|updated|retired|reactivated`;
+> `auth.signed_in`; `product.created|updated|retired|reactivated`; `product.levels_set|levels_reset` (filed at the facility);
 > `facility.created|updated|closed|reopened`; `alert.acknowledged|resolved`.
 > `changes` is `{ field: [before, after] }` for edits, the values set for
 > creations; passwords and tokens are never included.
 > Where: a facility event carries the facility, its LGA and state (a state
 > store: state only; the national store: facility only); an account event
-> the account's own node; catalog events none (national). Reading is scoped
+> the account's own node; a product added by an SDP / LGA / State user at their node; other catalog events none (national). Reading is scoped
 > on these columns (`HierarchyScope::scopeAuditEvents`).
 > History from before the log existed: `php artisan audit:backfill`
 > (idempotent) logs Stock Card entries, delivery notes and accounts.
@@ -169,7 +194,7 @@ unique on `(facility_id, product_id, period_month)`
 ## Rollup tables
 
 **facility_product_status** (derived — materialized stock status per facility + product)
-`id, facility_id (fk), product_id (fk), quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level (enum: stock_out|low_stock|reorder|ok), flag_stock_out, flag_expired, flag_low_stock, flag_expiring_soon (bools), last_transaction_date (nullable), refreshed_at`
+`id, facility_id (fk), product_id (fk), quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level (enum: stock_out|low_stock (≤ EOP)|reorder (< min)|ok), flag_stock_out, flag_expired, flag_low_stock, flag_expiring_soon (bools), last_transaction_date (nullable), refreshed_at`
 unique on `(facility_id, product_id)`
 
 > The same interpretation StockStatusService gives `stock_balances`
@@ -195,6 +220,6 @@ unique on `(facility_id, product_id)`
 | QUANTITY ISSUED | `stock_transactions` row with `transaction_type=issue`, `quantity` |
 | LOSSES/ADJUSTMENT | `stock_transactions` row with `transaction_type=loss`, `adjustment_in` or `adjustment_out` |
 | STOCK BALANCE | `stock_transactions.running_balance` (history) / `stock_balances.quantity_on_hand` (current) |
-| Min SL / Max SL / EOP | `products.min_stock_level` / `max_stock_level` / `reorder_level` |
+| Min SL / Max SL / EOP | `facility_product_levels` for that facility, else `products.min_stock_level` / `max_stock_level` / `reorder_level` |
 | Average Monthly Consumption | `amc_snapshots.amc_quantity` |
 | Quantity to order | `amc_snapshots.suggested_reorder_quantity` |

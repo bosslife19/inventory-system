@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatQty } from '@/lib/format';
+import { formatQty, unitDescription } from '@/lib/format';
 import type { ProductStock } from '@/lib/types';
 
 import { Badge, ExpiryBadge, LevelBadge } from './ui/badge';
@@ -17,7 +17,8 @@ const METER_TONE = { stock_out: 'critical', low_stock: 'warning', reorder: 'prim
 export function ProductCard({ stock, pending, onPress }: { stock: ProductStock; pending: number; onPress: () => void }) {
   const c = useTheme();
   const p = stock.product;
-  const pct = p.max_stock_level > 0 ? (stock.usable_quantity / p.max_stock_level) * 100 : 0;
+  const max = stock.levels.max_stock_level;
+  const pct = max > 0 ? (stock.usable_quantity / max) * 100 : 0;
   const expiry = stock.flags.includes('expired') ? 'expired' : stock.flags.includes('expiring_soon') ? 'expiring_soon' : null;
 
   return (
@@ -29,7 +30,7 @@ export function ProductCard({ stock, pending, onPress }: { stock: ProductStock; 
           </Text>
           <View style={styles.meta}>
             <Text variant="caption" tone="muted">
-              {p.sku} · {p.unit_of_measure}
+              {p.sku} · {unitDescription(p)}
             </Text>
             {p.requires_cold_chain && <Snowflake size={12} color={c.chart1} />}
           </View>
@@ -50,7 +51,7 @@ export function ProductCard({ stock, pending, onPress }: { stock: ProductStock; 
           <Meter value={pct} tone={METER_TONE[stock.level]} />
         </View>
         <Text variant="caption" tone="muted" style={styles.pct}>
-          {p.max_stock_level > 0 ? `${Math.round(pct)}% of max` : '—'}
+          {max > 0 ? `${Math.round(pct)}% of max` : '—'}
         </Text>
       </View>
 

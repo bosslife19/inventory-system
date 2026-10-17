@@ -3,6 +3,7 @@
 namespace App\Reports;
 
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -49,13 +50,19 @@ class StockStatusReport extends Report
     {
         $query = DB::table('facility_product_status as fps')
             ->join('products as p', 'p.id', '=', 'fps.product_id')
+            ->leftJoin('facility_product_levels as fpl', fn (JoinClause $j) => $j
+                ->on('fpl.facility_id', '=', 'fps.facility_id')->on('fpl.product_id', '=', 'fps.product_id'))
             ->whereIn('fps.facility_id', $scope->facilityIds())
             ->when($filters['level'] ?? null, fn ($q, $level) => $q->where('fps.level', $level))
             ->select([
                 'fps.quantity_on_hand', 'fps.usable_quantity', 'fps.expired_quantity', 'fps.expiring_soon_quantity',
                 'fps.level', 'fps.last_transaction_date',
-                'p.sku', 'p.name as product_name', 'p.unit_of_measure', 'p.min_stock_level', 'p.reorder_level', 'p.max_stock_level',
-            ]);
+                'p.sku', 'p.name as product_name', 'p.unit_of_measure',
+            ])
+            // The facility's own levels where it set them.
+            ->selectRaw('COALESCE(fpl.min_stock_level, p.min_stock_level) as min_stock_level')
+            ->selectRaw('COALESCE(fpl.reorder_level, p.reorder_level) as reorder_level')
+            ->selectRaw('COALESCE(fpl.max_stock_level, p.max_stock_level) as max_stock_level');
         ReportScope::joinPlace($query, 'fps.facility_id');
 
         return $this->filterProducts($query, $filters)->orderBy('s.name')->orderBy('l.name')->orderBy('f.name')->orderBy('p.name')->orderBy('fps.id');
@@ -80,5 +87,5 @@ class StockStatusReport extends Report
         ];
     }
 
-    public const LEVELS = ['stock_out' => 'Stock-out', 'low_stock' => 'Low stock', 'reorder' => 'Reorder', 'ok' => 'OK'];
+    public const LEVELS = ['stock_out' => 'Stock-out', 'low_stock' => 'At / below EOP', 'reorder' => 'Below min', 'ok' => 'OK'];
 }

@@ -75,11 +75,10 @@ export function RunningBalanceHistory({ facilityId, products, filters, onFilters
         </div>
       </div>
 
-      {showProduct && (
-        <p className="muted small">
-          Stock balance is per product — pick a product to read it as a single stock card.
-        </p>
-      )}
+      <p className="muted small">
+        {showProduct && 'Stock balance is per product — pick a product to read it as a single stock card. '}
+        <span className="legend-count">Red rows</span> are physical inventory counts.
+      </p>
 
       {history.isError ? (
         <ErrorState error={history.error} />
@@ -112,7 +111,7 @@ export function RunningBalanceHistory({ facilityId, products, filters, onFilters
               {history.data?.data.map((tx) => {
                 const col = column(tx)
                 return (
-                  <tr key={tx.id}>
+                  <tr key={tx.id} className={col === 'count' ? 'row-count' : undefined}>
                     <td className="nowrap">{formatDate(tx.transaction_date)}</td>
                     {showProduct && <td>{tx.product_name}</td>}
                     <td className="hide-sm mono">{tx.voucher_no ?? ''}</td>

@@ -21,13 +21,13 @@ interface Row {
  */
 export function StockPositionChart({ stock, limit = 10 }: { stock: ProductStock[]; limit?: number }) {
   const rows: Row[] = stock
-    .filter((s) => s.product.max_stock_level > 0)
+    .filter((s) => s.levels.max_stock_level > 0)
     .map((s) => ({
       name: s.product.name,
       sku: s.product.sku,
-      pct: Math.round((s.usable_quantity / s.product.max_stock_level) * 100),
+      pct: Math.round((s.usable_quantity / s.levels.max_stock_level) * 100),
       usable: s.usable_quantity,
-      max: s.product.max_stock_level,
+      max: s.levels.max_stock_level,
       unit: s.product.unit_of_measure,
       level: s.level,
     }))

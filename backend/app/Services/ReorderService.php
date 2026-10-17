@@ -22,7 +22,8 @@ use Carbon\CarbonImmutable;
  *
  * Quantity to order = max stock − usable stock (never negative), where max
  * stock = AMC × `inventory.max_months_of_stock`, or the product's fixed
- * max_stock_level when there is no consumption history yet.
+ * max level (the facility's own, else the catalog's) when there is no
+ * consumption history yet.
  */
 class ReorderService
 {
@@ -117,7 +118,7 @@ class ReorderService
 
     public function suggest(ProductStock $stock, ?float $amc, int $monthsUsed, ?string $periodMonth): ReorderSuggestion
     {
-        $plan = self::plan($amc, $stock->product->max_stock_level, $stock->usableQuantity);
+        $plan = self::plan($amc, $stock->levels->max, $stock->usableQuantity);
 
         return new ReorderSuggestion(
             stock: $stock,

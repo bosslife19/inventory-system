@@ -29,7 +29,7 @@ src/
     _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
     sign-in.tsx
     set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
-    (app)/_layout.tsx          <- signed-in stack; wires sync + push; non-facility users get a notice
+    (app)/_layout.tsx          <- signed-in stack; wires sync + push; officers / admins get OfficerHome (notifications + daily digests)
     (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
     (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first
     (app)/product/[id].tsx     <- one product's Stock Card
@@ -40,7 +40,7 @@ src/
     session.tsx                <- token in SecureStore; works offline with the last known user
     offlineQueue.ts            <- outbox: pending transactions not yet synced (expo-sqlite kv-store)
     sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
-    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>
+    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id> (officers: refresh the list)
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)
 ```
 

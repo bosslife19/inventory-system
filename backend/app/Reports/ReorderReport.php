@@ -59,8 +59,11 @@ class ReorderReport extends Report
                 ->on('a.facility_id', '=', 'fps.facility_id')
                 ->on('a.product_id', '=', 'fps.product_id')
                 ->on('a.period_month', '=', 'lat.period_month'))
+            ->leftJoin('facility_product_levels as fpl', fn (JoinClause $j) => $j
+                ->on('fpl.facility_id', '=', 'fps.facility_id')->on('fpl.product_id', '=', 'fps.product_id'))
             ->whereIn('fps.facility_id', $scope->facilityIds())
-            ->select(['fps.usable_quantity', 'a.amc_quantity', 'p.sku', 'p.name as product_name', 'p.unit_of_measure', 'p.max_stock_level']);
+            ->select(['fps.usable_quantity', 'a.amc_quantity', 'p.sku', 'p.name as product_name', 'p.unit_of_measure'])
+            ->selectRaw('COALESCE(fpl.max_stock_level, p.max_stock_level) as max_stock_level');
         ReportScope::joinPlace($query, 'fps.facility_id');
 
         return $this->filterProducts($query, $filters)->orderBy('s.name')->orderBy('l.name')->orderBy('f.name')->orderBy('p.name')->orderBy('fps.id');

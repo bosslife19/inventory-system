@@ -20,8 +20,8 @@ type Filter = 'all' | 'stock_out' | 'low_stock' | 'reorder' | 'expiring';
 const FILTERS: { value: Filter; label: string; test: (s: ProductStock) => boolean }[] = [
   { value: 'all', label: 'All', test: () => true },
   { value: 'stock_out', label: 'Stock-out', test: (s) => s.level === 'stock_out' },
-  { value: 'low_stock', label: 'Low', test: (s) => s.level === 'low_stock' },
-  { value: 'reorder', label: 'Reorder', test: (s) => s.level === 'reorder' },
+  { value: 'low_stock', label: 'At EOP', test: (s) => s.level === 'low_stock' },
+  { value: 'reorder', label: 'Below min', test: (s) => s.level === 'reorder' },
   { value: 'expiring', label: 'Expiry', test: (s) => s.flags.includes('expired') || s.flags.includes('expiring_soon') },
 ];
 

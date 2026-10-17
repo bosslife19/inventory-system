@@ -38,7 +38,7 @@ export function ProductRollupTable({ rows, childNoun }: { rows: ProductRollup[];
               <td className={`num${r.facility_counts.low_stock ? ' text-warning' : ''}`}>
                 {r.facility_counts.low_stock}
               </td>
-              <td className="num" title={`${noun} at or below the reorder level (EOP)`}>
+              <td className="num" title={`${noun} below the minimum level`}>
                 {r.facilities_needing_reorder}
               </td>
             </tr>

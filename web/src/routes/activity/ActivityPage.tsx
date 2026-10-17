@@ -23,7 +23,8 @@ const when = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 
 const FIELD: Record<string, string> = {
   is_active: 'Active',
   min_stock_level: 'Minimum level',
-  reorder_level: 'Reorder level (EOP)',
+  reorder_level: 'EOP',
+  pack_size: 'Pieces per unit',
   max_stock_level: 'Maximum level',
   requires_batch_tracking: 'Batch tracking',
   requires_cold_chain: 'Cold chain',

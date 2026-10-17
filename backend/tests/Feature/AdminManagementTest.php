@@ -143,20 +143,32 @@ it('moves staff within the area only, and never lets anyone manage themselves', 
 
 // ---------------------------------------------------------------- products
 
-it('lets only admins add and change products, keeping thresholds in order', function () {
+it('lets any level add products; only admins and the creator change them; EOP below min', function () {
     $body = [
-        'name' => 'Paracetamol 500mg tablets', 'sku' => ' pcm-500 ', 'category' => 'Analgesics', 'unit_of_measure' => 'pack',
+        'name' => 'Paracetamol 500mg tablets', 'sku' => ' pcm-500 ', 'category' => 'Analgesics', 'unit_of_measure' => ' Pack ',
         'requires_batch_tracking' => true, 'requires_cold_chain' => false,
-        'min_stock_level' => 10, 'reorder_level' => 20, 'max_stock_level' => 50,
+        'min_stock_level' => 20, 'reorder_level' => 10, 'max_stock_level' => 50,
     ];
 
-    $this->actingAs($this->u['federal'], 'sanctum')->postJson('/api/v1/products', $body)->assertForbidden();
+    $this->actingAs($this->u['sdp'], 'sanctum');
+    $this->postJson('/api/v1/products', $body)->assertUnprocessable()->assertJsonValidationErrors('pack_size');
+    $this->postJson('/api/v1/products', [...$body, 'unit_of_measure' => 'crate', 'pack_size' => 10])
+        ->assertUnprocessable()->assertJsonValidationErrors('unit_of_measure');
+    $this->postJson('/api/v1/products', [...$body, 'pack_size' => 10, 'reorder_level' => 20])
+        ->assertUnprocessable()->assertJsonValidationErrors('reorder_level'); // EOP must be below min
+    $id = $this->postJson('/api/v1/products', [...$body, 'pack_size' => 10])->assertCreated()
+        ->assertJsonPath('data.sku', 'PCM-500')->assertJsonPath('data.unit_of_measure', 'pack')->assertJsonPath('data.pack_size', 10)
+        ->assertJsonPath('data.created_by', $this->u['sdp']->id)->assertJsonPath('data.is_active', true)->json('data.id');
+    $this->postJson('/api/v1/products', [...$body, 'pack_size' => 10])->assertUnprocessable()->assertJsonValidationErrors('sku');
+    $this->putJson("/api/v1/products/{$id}", ['pack_size' => 20])->assertOk()->assertJsonPath('data.pack_size', 20);
+    $this->putJson("/api/v1/products/{$id}", ['pack_size' => null])->assertUnprocessable()->assertJsonValidationErrors('pack_size');
+    $this->putJson("/api/v1/products/{$id}", ['unit_of_measure' => 'tablet', 'pack_size' => null])->assertOk()
+        ->assertJsonPath('data.unit_of_measure', 'tablet')->assertJsonPath('data.pack_size', null);
+
+    $this->actingAs($this->u['federal'], 'sanctum')->putJson("/api/v1/products/{$id}", ['max_stock_level' => 80])->assertForbidden();
 
     $this->actingAs($this->u['admin'], 'sanctum');
-    $id = $this->postJson('/api/v1/products', $body)->assertCreated()
-        ->assertJsonPath('data.sku', 'PCM-500')->assertJsonPath('data.is_active', true)->json('data.id');
-    $this->postJson('/api/v1/products', $body)->assertUnprocessable()->assertJsonValidationErrors('sku');
-    $this->putJson("/api/v1/products/{$id}", ['reorder_level' => 5])->assertUnprocessable()->assertJsonValidationErrors('reorder_level');
+    $this->putJson("/api/v1/products/{$id}", ['reorder_level' => 25])->assertUnprocessable()->assertJsonValidationErrors('reorder_level');
     $this->putJson("/api/v1/products/{$id}", ['max_stock_level' => 15])->assertUnprocessable()->assertJsonValidationErrors('max_stock_level');
     $this->putJson("/api/v1/products/{$id}", ['max_stock_level' => 80, 'is_active' => false])->assertOk()
         ->assertJsonPath('data.max_stock_level', 80)->assertJsonPath('data.is_active', false);
@@ -165,8 +177,8 @@ it('lets only admins add and change products, keeping thresholds in order', func
 it('freezes batch tracking once a product has Stock Card entries', function () {
     $this->actingAs($this->u['admin'], 'sanctum');
     $product = Product::create([
-        'name' => 'Gloves', 'sku' => 'GLV', 'category' => 'Consumables', 'unit_of_measure' => 'box',
-        'requires_batch_tracking' => false, 'min_stock_level' => 1, 'max_stock_level' => 10, 'reorder_level' => 2,
+        'name' => 'Gloves', 'sku' => 'GLV', 'category' => 'Consumables', 'unit_of_measure' => 'box', 'pack_size' => 100,
+        'requires_batch_tracking' => false, 'min_stock_level' => 2, 'max_stock_level' => 10, 'reorder_level' => 1,
     ]);
     $this->putJson("/api/v1/products/{$product->id}", ['requires_batch_tracking' => true])->assertOk();
     $this->putJson("/api/v1/products/{$product->id}", ['requires_batch_tracking' => false])->assertOk();

@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, unwrap } from './api-client'
+import { ApiError, api, unwrap } from './api-client'
 import { useAuthStore } from './auth-store'
-import type { Facility, NewFacility, NewProduct, NewUser, UpdateUser, UserRole } from './types'
+import type { Facility, NewFacility, NewProduct, NewUser, SaveProductLevels, UpdateUser, UserRole } from './types'
 
 // Account, catalog and facility management (docs/API_CONTRACT.md: Users,
 // Products, Hierarchy). The API decides who may do what; these just call it.
@@ -114,6 +114,37 @@ export function useSaveFacility() {
       queryClient.invalidateQueries({ queryKey: ['lga-facilities'] })
       queryClient.invalidateQueries({ queryKey: ['facility', f.id] })
       queryClient.invalidateQueries({ queryKey: ['lga-summary'] })
+    },
+  })
+}
+
+/** A facility's min / EOP / max per product: its own where set, else the catalog's. */
+export function useProductLevels(facilityId: number) {
+  return useQuery({
+    queryKey: ['product-levels', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/product-levels', { params: { path: { facility: facilityId } } }))).data,
+  })
+}
+
+/** Set (levels given) or clear (null: back to the catalog's) one product's levels at a facility. */
+export function useSaveProductLevels(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ productId, levels }: { productId: number; levels: SaveProductLevels | null }) => {
+      const params = { path: { facility: facilityId, product: productId } }
+      if (levels) await unwrap(api.PUT('/facilities/{facility}/product-levels/{product}', { params, body: levels }))
+      else {
+        // 204: no body for unwrap() to return.
+        const { response, error } = await api.DELETE('/facilities/{facility}/product-levels/{product}', { params })
+        if (!response.ok) throw new ApiError(response.status, error)
+      }
+    },
+    onSuccess: () => {
+      // Thresholds moved: the facility's status, alerts and the rollups above may have too.
+      for (const key of [['product-levels', facilityId], ['stock-balances', facilityId], ['reorder-suggestions', facilityId], ['alerts'], ['lga-summary'], ['state-summary'], ['federal-summary']]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
     },
   })
 }

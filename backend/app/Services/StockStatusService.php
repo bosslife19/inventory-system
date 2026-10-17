@@ -7,11 +7,13 @@ use App\Data\FacilityStockSummary;
 use App\Data\FlagCounts;
 use App\Data\ProductRollup;
 use App\Data\ProductStock;
+use App\Data\StockLevels;
 use App\Enums\AlertType;
 use App\Enums\ExpiryStatus;
 use App\Enums\StockLevel;
 use App\Models\Batch;
 use App\Models\Facility;
+use App\Models\FacilityProductLevel;
 use App\Models\StockBalance;
 use App\Models\StockTransaction;
 use Carbon\CarbonImmutable;
@@ -23,6 +25,7 @@ use Illuminate\Support\Collection;
  *
  * Thresholds are judged on *usable* stock (unexpired batches), since expired
  * stock on the shelf can't be dispensed. Expired stock is flagged separately.
+ * Each facility's own levels (facility_product_levels) win over the catalog's.
  */
 class StockStatusService
 {
@@ -54,6 +57,11 @@ class StockStatusService
             ->get()
             ->groupBy('facility_id');
 
+        $ownLevels = FacilityProductLevel::query()
+            ->whereIn('facility_id', $facilities->map(fn (Facility $f) => $f->id)->all())
+            ->get()
+            ->keyBy(fn (FacilityProductLevel $l) => "{$l->facility_id}:{$l->product_id}");
+
         $lastEntries = StockTransaction::query()
             ->whereIn('facility_id', $facilities->map(fn (Facility $f) => $f->id)->all())
             ->groupBy('facility_id')
@@ -64,7 +72,7 @@ class StockStatusService
         foreach ($facilities as $facility) {
             $products = ($balances[$facility->id] ?? collect())
                 ->groupBy('product_id')
-                ->map(fn (Collection $rows) => $this->productStock($rows))
+                ->map(fn (Collection $rows) => $this->productStock($rows, $ownLevels["{$facility->id}:{$rows->first()->product_id}"] ?? null))
                 ->sortBy(fn (ProductStock $p) => $p->product->name)
                 ->values()
                 ->all();
@@ -111,9 +119,10 @@ class StockStatusService
     }
 
     /** @param  Collection<int, StockBalance>  $rows  one product's balance rows at one facility */
-    private function productStock(Collection $rows): ProductStock
+    private function productStock(Collection $rows, ?FacilityProductLevel $ownLevels): ProductStock
     {
         $product = $rows->first()->product;
+        $levels = StockLevels::resolve($product, $ownLevels);
 
         $batches = $rows
             ->map(fn (StockBalance $b) => new BatchStock(
@@ -130,12 +139,7 @@ class StockStatusService
         $expiringSoon = $batches->where('expiryStatus', ExpiryStatus::ExpiringSoon)->sum('quantityOnHand');
         $usable = $onHand - $expired;
 
-        $level = match (true) {
-            $usable === 0 => StockLevel::StockOut,
-            $usable < $product->min_stock_level => StockLevel::LowStock,
-            $usable <= $product->reorder_level => StockLevel::Reorder,
-            default => StockLevel::Ok,
-        };
+        $level = self::level($usable, $levels);
 
         $flags = array_values(array_filter([
             $level === StockLevel::StockOut ? AlertType::StockOut : null,
@@ -144,7 +148,18 @@ class StockStatusService
             $expiringSoon > 0 ? AlertType::ExpiringSoon : null,
         ]));
 
-        return new ProductStock($product, $batches->all(), $onHand, $usable, $expired, $expiringSoon, $level, $flags);
+        return new ProductStock($product, $levels, $batches->all(), $onHand, $usable, $expired, $expiringSoon, $level, $flags);
+    }
+
+    /** Stock-out at 0; at or below the EOP raises the low-stock alert; below the minimum is time to order. */
+    public static function level(int $usable, StockLevels $levels): StockLevel
+    {
+        return match (true) {
+            $usable <= 0 => StockLevel::StockOut,
+            $usable <= $levels->eop => StockLevel::LowStock,
+            $usable < $levels->min => StockLevel::Reorder,
+            default => StockLevel::Ok,
+        };
     }
 
     private function expiryStatus(Batch $batch): ExpiryStatus

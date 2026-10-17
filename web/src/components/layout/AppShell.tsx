@@ -1,4 +1,4 @@
-import { Bell, Boxes, Building2, ChevronRight, FileText, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
+import { Bell, Boxes, Building2, ChevronRight, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, manageableRoles, useLogout } from '../../lib/auth'
@@ -74,6 +74,14 @@ export function AppShell({ user }: { user: User }) {
               {deliveryCount}
             </NavLink>
           )}
+          {ownFacilityId !== null && (
+            <NavLink to="/levels" onClick={close}>
+              <Gauge size={18} /> Stock levels
+            </NavLink>
+          )}
+          <NavLink to="/products" onClick={close}>
+            <Package size={18} /> Products
+          </NavLink>
           <NavLink to="/reports" onClick={close}>
             <FileText size={18} /> Reports
           </NavLink>
@@ -93,11 +101,6 @@ export function AppShell({ user }: { user: User }) {
               {manageableRoles(user).length > 0 && (
                 <NavLink to="/admin/users" onClick={close}>
                   <UserCog size={18} /> Accounts
-                </NavLink>
-              )}
-              {user.role === 'admin' && (
-                <NavLink to="/admin/products" onClick={close}>
-                  <Package size={18} /> Products
                 </NavLink>
               )}
               {user.role === 'admin' && (

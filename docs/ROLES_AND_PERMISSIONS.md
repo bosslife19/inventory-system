@@ -14,8 +14,10 @@
 | Confirm / reject delivery note | ✅ (own facility) | ✅ (own store) | ✅ (own store) | ✅ (own store) | ✅ |
 | View delivery notes | ✅ (own facility) | ✅ (any facility in LGA) | ✅ (any facility in state) | ✅ (any facility) | ✅ |
 | View / acknowledge / resolve alerts | ✅ (own facility) | ✅ (any facility in LGA) | ✅ (any facility in state) | ✅ (any facility) | ✅ |
-| Receive push alerts | ✅ (own facility) | ✅ (LGA-level digest) | ✅ (state-level digest) | ✅ (national digest) | ✅ |
-| Manage product catalog | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Receive push alerts | ✅ (own facility, per alert) | ✅ (own store per alert + daily LGA digest) | ✅ (own store per alert + daily state digest) | ✅ (national store per alert + daily national digest) | ✅ (daily national digest) |
+| Add products to the catalog | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Edit / retire a product | ✅ (ones they added) | ✅ (ones they added) | ✅ (ones they added) | ✅ (ones they added) | ✅ (any) |
+| Set own min / EOP / max per product | ✅ (own facility) | ✅ (LGA store) | ✅ (state store) | ✅ (national store) | ✅ (any facility) |
 | Manage facilities (SDPs; states/LGAs come from the seed, stores are automatic) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Manage users | ❌ | ✅ (staff of SDPs in own LGA) | ✅ (LGA officers in own state) | ✅ (state officers) | ✅ (everyone) |
 | Change own password | ✅ | ✅ | ✅ | ✅ | ✅ |

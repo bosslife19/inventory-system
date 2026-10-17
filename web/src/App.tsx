@@ -16,6 +16,7 @@ import { LoginPage } from './routes/login/LoginPage'
 import { ReportsPage } from './routes/reports/ReportsPage'
 import { FacilityPage } from './routes/sdp/FacilityPage'
 import { StatePage } from './routes/state/StatePage'
+import { StockLevelsPage } from './routes/sdp/StockLevelsPage'
 
 // One dashboard shell, role-driven routing (web/CLAUDE.md rule 1). Access is
 // enforced by the API; these routes only decide what to show.
@@ -63,8 +64,8 @@ function Deliveries() {
   return <DeliveryNotesPage key={facilityId} facilityId={facilityId} user={user} />
 }
 
-/** Administration screens: accounts for anyone who manages some, catalog and facilities for admins. */
-function Admin({ page }: { page: 'users' | 'products' | 'facilities' }) {
+/** Administration screens: accounts for anyone who manages some, facilities for admins. */
+function Admin({ page }: { page: 'users' | 'facilities' }) {
   const user = useUser()
   const allowed = page === 'users' ? manageableRoles(user).length > 0 : user.role === 'admin'
   if (!allowed) return <Navigate to={homePath(user)} replace />
@@ -72,11 +73,23 @@ function Admin({ page }: { page: 'users' | 'products' | 'facilities' }) {
   switch (page) {
     case 'users':
       return <UsersPage me={user} />
-    case 'products':
-      return <ProductsPage />
     case 'facilities':
       return <FacilitiesPage />
   }
+}
+
+/** The shared catalog: every level may add products. */
+function Products() {
+  return <ProductsPage me={useUser()} />
+}
+
+/** A facility's own min / EOP / max: your own facility or store, or one you drilled into. */
+function Levels() {
+  const user = useUser()
+  const id = useParams().id
+  const facilityId = id ? Number(id) : (user.facility_id ?? user.store?.id ?? null)
+  if (facilityId == null) return <Navigate to="/products" replace />
+  return <StockLevelsPage key={facilityId} facilityId={facilityId} user={user} />
 }
 
 function Reports() {
@@ -112,7 +125,10 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/admin/users" element={<Admin page="users" />} />
-        <Route path="/admin/products" element={<Admin page="products" />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/admin/products" element={<Navigate to="/products" replace />} />
+        <Route path="/levels" element={<Levels />} />
+        <Route path="/facilities/:id/levels" element={<Levels />} />
         <Route path="/admin/facilities" element={<Admin page="facilities" />} />
         <Route path="/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id/delivery-notes" element={<Deliveries />} />

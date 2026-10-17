@@ -1,4 +1,4 @@
-import { Activity, AlertOctagon, ArrowLeft, Building2, Lock, MapPin, Package, PackageX, Plus, Send, TrendingDown, Truck } from 'lucide-react'
+import { Activity, AlertOctagon, ArrowLeft, Building2, Gauge, Lock, MapPin, Package, PackageX, Plus, Send, TrendingDown, Truck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { AlertList } from '../../components/alerts/AlertList'
@@ -133,6 +133,9 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           </div>
         </div>
         <div className="head-actions">
+          <Link to={`/facilities/${facilityId}/levels`} className="btn btn-ghost" title="Min / EOP / max per product here">
+            <Gauge size={18} /> Stock levels
+          </Link>
           <Link to={deliveriesHref} className="btn btn-ghost">
             <Truck size={18} /> Delivery notes
           </Link>
@@ -173,9 +176,9 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
         <KpiTile
           tone={low ? 'warning' : 'default'}
           icon={TrendingDown}
-          label="Low stock"
+          label="At EOP"
           value={low}
-          sub="Below the minimum level"
+          sub="At or below the emergency order point"
         />
         <KpiTile tone="dark" icon={AlertOctagon} label="Expired stock" value={expired} sub={`${expiring} more expiring soon`} />
         <KpiTile

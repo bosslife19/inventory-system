@@ -21,26 +21,33 @@ export const NEEDS_COUNTERPARTY: readonly TransactionType[] = ['receipt', 'issue
 
 export const counterpartyLabel = (t: TransactionType) => (INBOUND.includes(t) ? 'Received from' : 'Issued to');
 
+// The EOP (emergency order point) sits below the minimum: at or below it the
+// low-stock alert and push go out; between it and the minimum it's time to order.
 export const LEVEL_LABEL: Record<StockLevel, string> = {
   stock_out: 'Stock-out',
-  low_stock: 'Low stock',
-  reorder: 'Reorder',
+  low_stock: 'At EOP',
+  reorder: 'Below min',
   ok: 'OK',
 };
 
 export const FLAG_LABEL: Record<AlertType, string> = {
   stock_out: 'Stock-out',
   expired: 'Expired stock',
-  low_stock: 'Low stock',
+  low_stock: 'At EOP',
   expiring_soon: 'Expiring soon',
 };
 
 export const ALERT_TITLE: Record<AlertType, string> = {
   stock_out: 'Stock-out',
   expired: 'Expired batch',
-  low_stock: 'Low stock',
+  low_stock: 'Reached the EOP',
   expiring_soon: 'Batch expiring soon',
 };
+
+/** 'pack of 10' / 'sachet' — what one unit on the Stock Card is. */
+export function unitDescription(p: { unit_of_measure: string; pack_size: number | null }): string {
+  return p.pack_size ? `${p.unit_of_measure} of ${formatQty(p.pack_size)}` : p.unit_of_measure;
+}
 
 export const EXPIRY_LABEL: Record<ExpiryStatus, string> = {
   ok: 'OK',

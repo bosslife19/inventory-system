@@ -17,8 +17,8 @@ const REPORTS: { name: ReportName; label: string; blurb: string; icon: typeof Fi
 const LEVELS = [
   { value: '', label: 'All levels' },
   { value: 'stock_out', label: 'Stock-out' },
-  { value: 'low_stock', label: 'Low stock' },
-  { value: 'reorder', label: 'Reorder' },
+  { value: 'low_stock', label: 'At / below EOP' },
+  { value: 'reorder', label: 'Below min' },
   { value: 'ok', label: 'OK' },
 ] as const
 
@@ -382,7 +382,7 @@ function ReportTable({ columns, rows }: { columns: { key: string; label: string;
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={r.type === 'Opening balance' ? 'report-opening' : undefined}>
+            <tr key={i} className={r.type === 'Opening balance' ? 'report-opening' : r.type === 'Physical count' ? 'row-count' : undefined}>
               {columns.map((c) => (
                 <td key={c.key} className={c.type === 'number' ? 'num' : c.type === 'date' ? 'nowrap' : undefined}>
                   {show(c.type, r[c.key])}

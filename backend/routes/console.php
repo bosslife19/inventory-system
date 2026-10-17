@@ -36,3 +36,10 @@ Schedule::command('stock:compute-amc')
     ->when(fn () => now(config('app.business_timezone'))->day <= 2)
     ->timezone(config('app.business_timezone'))
     ->withoutOverlapping();
+
+// LGA / State / Federal digest of new alerts in each officer's area, once the
+// morning status refresh (05:00–08:00) has raised the day's expiry alerts.
+Schedule::command('alerts:send-digests')
+    ->dailyAt('08:30')
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping();

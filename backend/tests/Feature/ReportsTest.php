@@ -17,11 +17,11 @@ beforeEach(function () {
     $this->u = $this->h['users'];
     $this->al = Product::create([
         'name' => 'AL 20/120', 'sku' => 'AL', 'category' => 'Antimalarials', 'unit_of_measure' => 'pack',
-        'requires_batch_tracking' => true, 'min_stock_level' => 20, 'max_stock_level' => 60, 'reorder_level' => 30,
+        'requires_batch_tracking' => true, 'min_stock_level' => 30, 'max_stock_level' => 60, 'reorder_level' => 20,
     ]);
     $this->ors = Product::create([
         'name' => 'ORS', 'sku' => 'ORS', 'category' => 'Diarrhoea', 'unit_of_measure' => 'sachet',
-        'requires_batch_tracking' => false, 'min_stock_level' => 10, 'max_stock_level' => 100, 'reorder_level' => 40,
+        'requires_batch_tracking' => false, 'min_stock_level' => 40, 'max_stock_level' => 100, 'reorder_level' => 10,
     ]);
     $this->record = fn (Facility $f, Product $p, TransactionType $type, int $qty, string $date, ?string $batch = null, ?string $expiry = null) => app(StockLedgerService::class)->record(
         facility: $f, product: $p, type: $type, quantity: $qty, transactionDate: CarbonImmutable::parse($date),
@@ -55,9 +55,9 @@ it('reports stock status for an area, SDPs only, worst detail per row', function
 
     expect(array_column($data['columns'], 'key'))->toContain('facility', 'usable', 'level')
         ->and(array_map(fn ($r) => [$r['facility'], $r['sku'], $r['usable'], $r['level']], $data['rows']))->toBe([
-            ['Kawo PHC', 'AL', 25, 'Reorder'],
+            ['Kawo PHC', 'AL', 25, 'Below min'],
             ['Kawo PHC', 'ORS', 80, 'OK'],
-            ['Rimi PHC', 'ORS', 5, 'Low stock'],
+            ['Rimi PHC', 'ORS', 5, 'At / below EOP'],
         ]);
 
     // One facility (here the LGA's own store): no place columns.

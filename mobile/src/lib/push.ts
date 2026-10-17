@@ -15,7 +15,8 @@ import { api } from './api';
  * are silent: the app works fully without push.
  *
  * A notification tap deep-links into the alerts screen, focused on the
- * alert in the payload ({ alert_id }).
+ * alert in the payload ({ alert_id }). Officers' digests carry no alert_id;
+ * their app is the notifications list itself, so it opens with no deep link.
  */
 
 Notifications.setNotificationHandler({
@@ -56,22 +57,25 @@ function openFromNotification(response: Notifications.NotificationResponse | nul
   if (alertId != null) router.push({ pathname: '/alerts', params: { focus: String(alertId) } });
 }
 
-/** Mount once inside the signed-in app. */
-export function usePushNotifications() {
+/**
+ * Mount once inside the signed-in app. `onOpen` replaces the alerts deep
+ * link (officers, who have no alerts tab, just refresh their list).
+ */
+export function usePushNotifications(onOpen: (response: Notifications.NotificationResponse | null) => void = openFromNotification) {
   const lastResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
     void registerPushToken();
     const app = AppState.addEventListener('change', (state) => state === 'active' && void registerPushToken());
-    const tap = Notifications.addNotificationResponseReceivedListener(openFromNotification);
+    const tap = Notifications.addNotificationResponseReceivedListener(onOpen);
     return () => {
       app.remove();
       tap.remove();
     };
-  }, []);
+  }, [onOpen]);
 
   // Cold start from a notification tap.
   useEffect(() => {
-    if (lastResponse) openFromNotification(lastResponse);
-  }, [lastResponse]);
+    if (lastResponse) onOpen(lastResponse);
+  }, [lastResponse, onOpen]);
 }

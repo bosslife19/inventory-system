@@ -52,7 +52,7 @@ export function RollupSummaryCard({ title, subtitle, eyebrow, back, childCount, 
         <KpiTile
           tone={counts.low_stock ? 'warning' : 'default'}
           icon={TrendingDown}
-          label="Facilities with low stock"
+          label="Facilities at EOP"
           value={counts.low_stock}
           sub={share(counts.low_stock)}
         />

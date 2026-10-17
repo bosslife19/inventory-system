@@ -5,8 +5,8 @@ import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { useCatalog, useSaveProduct } from '../../lib/admin-queries'
 import { fieldErrors } from '../../lib/api-client'
-import { formatQty } from '../../lib/format'
-import type { Product } from '../../lib/types'
+import { UNITS, formatQty, isContainerUnit, unitDescription } from '../../lib/format'
+import type { Product, UnitOfMeasure, User } from '../../lib/types'
 
 const STATUS: { value: boolean | undefined; label: string }[] = [
   { value: true, label: 'Active' },
@@ -15,11 +15,12 @@ const STATUS: { value: boolean | undefined; label: string }[] = [
 ]
 
 /**
- * The product catalog (admin): add products, change their thresholds, and
- * retire ones no longer supplied. Products are never deleted — the Stock
- * Card history refers to them.
+ * The shared product catalog. Anyone may add a product; admins, and whoever
+ * added it, may change or retire it. Products are never deleted — the Stock
+ * Card history refers to them. The levels here are catalog defaults: each
+ * facility and store sets its own on its Stock levels page.
  */
-export function ProductsPage() {
+export function ProductsPage({ me }: { me: User }) {
   const catalog = useCatalog()
   const [status, setStatus] = useState<boolean | undefined>(true)
   const [query, setQuery] = useState('')
@@ -38,9 +39,9 @@ export function ProductsPage() {
     <div className="stack">
       <header className="page-head">
         <div>
-          <p className="eyebrow">Administration</p>
+          <p className="eyebrow">Catalog</p>
           <h1>Products</h1>
-          <p className="muted">The catalog every facility records against, with its stock thresholds</p>
+          <p className="muted">The catalog every facility records against, with default min / EOP / max levels</p>
         </div>
         <div className="head-actions">
           <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
@@ -81,7 +82,7 @@ export function ProductsPage() {
                   <th>Product</th>
                   <th className="hide-sm">Category</th>
                   <th className="hide-sm">Unit</th>
-                  <th className="num">Min / EOP / Max</th>
+                  <th className="num" title="Catalog defaults; facilities may set their own">Min / EOP / Max</th>
                   <th className="hide-sm">Tracking</th>
                   <th>Status</th>
                   <th />
@@ -95,7 +96,7 @@ export function ProductsPage() {
                       <div className="muted small mono">{p.sku}</div>
                     </td>
                     <td className="hide-sm">{p.category}</td>
-                    <td className="hide-sm">{p.unit_of_measure}</td>
+                    <td className="hide-sm">{unitDescription(p)}</td>
                     <td className="num nowrap">
                       {formatQty(p.min_stock_level)} / {formatQty(p.reorder_level)} / {formatQty(p.max_stock_level)}
                     </td>
@@ -109,9 +110,11 @@ export function ProductsPage() {
                     </td>
                     <td>{p.is_active ? <span className="badge badge-ok">Active</span> : <span className="badge badge-neutral">Retired</span>}</td>
                     <td className="num">
-                      <button type="button" className="btn btn-icon" aria-label={`Edit ${p.name}`} title="Edit" onClick={() => setEditing(p)}>
-                        <Pencil size={16} />
-                      </button>
+                      {(me.role === 'admin' || p.created_by === me.id) && (
+                        <button type="button" className="btn btn-icon" aria-label={`Edit ${p.name}`} title="Edit" onClick={() => setEditing(p)}>
+                          <Pencil size={16} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -142,7 +145,8 @@ function ProductForm({ product, categories, onDone }: { product?: Product; categ
     name: product?.name ?? '',
     sku: product?.sku ?? '',
     category: product?.category ?? '',
-    unit_of_measure: product?.unit_of_measure ?? '',
+    unit_of_measure: (product?.unit_of_measure ?? '') as UnitOfMeasure | '',
+    pack_size: product?.pack_size ? String(product.pack_size) : '',
     requires_batch_tracking: product?.requires_batch_tracking ?? true,
     requires_cold_chain: product?.requires_cold_chain ?? false,
     min_stock_level: String(product?.min_stock_level ?? ''),
@@ -156,17 +160,22 @@ function ProductForm({ product, categories, onDone }: { product?: Product; categ
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const found: Record<string, string> = {}
-    for (const k of ['name', 'sku', 'category', 'unit_of_measure'] as const) if (!f[k].trim()) found[k] = 'Required.'
+    for (const k of ['name', 'sku', 'category'] as const) if (!f[k].trim()) found[k] = 'Required.'
+    if (!f.unit_of_measure) found.unit_of_measure = 'Choose a unit.'
+    const container = isContainerUnit(f.unit_of_measure)
+    const packSize = Number(f.pack_size)
+    if (container && (!Number.isInteger(packSize) || packSize < 1)) found.pack_size = `How many pieces in each ${f.unit_of_measure}?`
     const level = (k: 'min_stock_level' | 'reorder_level' | 'max_stock_level') => {
       const n = Number(f[k])
       if (f[k] === '' || !Number.isInteger(n) || n < 0) found[k] = 'Whole number, 0 or more.'
       return n
     }
     const [min, eop, max] = [level('min_stock_level'), level('reorder_level'), level('max_stock_level')]
-    if (!found.reorder_level && !found.min_stock_level && eop < min) found.reorder_level = 'Can’t be below the minimum.'
-    if (!found.max_stock_level && !found.reorder_level && max < eop) found.max_stock_level = 'Can’t be below the reorder level.'
+    if (!found.reorder_level && !found.min_stock_level && eop >= min && !(eop === 0 && min === 0))
+      found.reorder_level = 'Must be lower than the minimum level.'
+    if (!found.max_stock_level && !found.min_stock_level && max < min) found.max_stock_level = 'Can’t be below the minimum level.'
     setErrors(found)
-    if (Object.keys(found).length) return
+    if (Object.keys(found).length || !f.unit_of_measure) return
 
     save.mutate(
       {
@@ -176,7 +185,8 @@ function ProductForm({ product, categories, onDone }: { product?: Product; categ
           name: f.name.trim(),
           sku: f.sku.trim(),
           category: f.category.trim(),
-          unit_of_measure: f.unit_of_measure.trim(),
+          unit_of_measure: f.unit_of_measure,
+          pack_size: container ? packSize : null,
           min_stock_level: min,
           reorder_level: eop,
           max_stock_level: max,
@@ -205,16 +215,33 @@ function ProductForm({ product, categories, onDone }: { product?: Product; categ
             <option key={c} value={c} />
           ))}
         </datalist>
-        <Field label="Unit of measure" hint="e.g. pack, sachet, ampoule" error={errors.unit_of_measure}>
-          <input value={f.unit_of_measure} onChange={(e) => set({ unit_of_measure: e.target.value })} />
+        <Field label="Unit of measure" hint="What one counts as on the Stock Card" error={errors.unit_of_measure}>
+          <select value={f.unit_of_measure} onChange={(e) => set({ unit_of_measure: e.target.value as UnitOfMeasure | '' })}>
+            <option value="">Choose…</option>
+            {UNITS.map((u) => (
+              <option key={u.value} value={u.value}>
+                {u.label}
+              </option>
+            ))}
+          </select>
         </Field>
+        {isContainerUnit(f.unit_of_measure) && (
+          <Field label={`Pieces per ${f.unit_of_measure}`} hint={`How many pieces are in each ${f.unit_of_measure}`} error={errors.pack_size}>
+            <input type="number" min={1} step={1} value={f.pack_size} onChange={(e) => set({ pack_size: e.target.value })} placeholder="e.g. 10" />
+          </Field>
+        )}
       </div>
+      <p className="muted small" style={{ margin: 0 }}>
+        Default levels, in {f.unit_of_measure ? UNITS.find((u) => u.value === f.unit_of_measure)?.plural : 'units'}. The EOP
+        (emergency order point) sits below the minimum: alerts and push notifications go out when usable stock reaches it.
+        Each facility and store can set its own levels.
+      </p>
       <div className="field-row">
-        <Field label="Minimum level" error={errors.min_stock_level}>
-          <input type="number" min={0} step={1} value={f.min_stock_level} onChange={(e) => set({ min_stock_level: e.target.value })} />
-        </Field>
-        <Field label="Reorder level (EOP)" error={errors.reorder_level}>
+        <Field label="EOP" hint="Lower than the minimum" error={errors.reorder_level}>
           <input type="number" min={0} step={1} value={f.reorder_level} onChange={(e) => set({ reorder_level: e.target.value })} />
+        </Field>
+        <Field label="Minimum level" hint="Below it: time to order" error={errors.min_stock_level}>
+          <input type="number" min={0} step={1} value={f.min_stock_level} onChange={(e) => set({ min_stock_level: e.target.value })} />
         </Field>
         <Field label="Maximum level" error={errors.max_stock_level}>
           <input type="number" min={0} step={1} value={f.max_stock_level} onChange={(e) => set({ max_stock_level: e.target.value })} />

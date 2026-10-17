@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\V1\DispatchController;
 use App\Http\Controllers\Api\V1\FacilityController;
 use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProductLevelController;
 use App\Http\Controllers\Api\V1\ReorderSuggestionController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RollupSummaryController;
@@ -50,6 +52,9 @@ Route::prefix('v1')->group(function () {
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'store']);
         Route::put('products/{product}', [ProductController::class, 'update']);
+        Route::get('facilities/{facility}/product-levels', [ProductLevelController::class, 'index']);
+        Route::put('facilities/{facility}/product-levels/{product}', [ProductLevelController::class, 'update']);
+        Route::delete('facilities/{facility}/product-levels/{product}', [ProductLevelController::class, 'destroy']);
 
         Route::get('facilities/{facility}/stock-balances', [StockBalanceController::class, 'index']);
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);
@@ -79,5 +84,9 @@ Route::prefix('v1')->group(function () {
         Route::get('alerts', [AlertController::class, 'index']);
         Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);
         Route::post('alerts/{alert}/resolve', [AlertController::class, 'resolve']);
+
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
+        Route::post('notifications/{notification}/read', [NotificationController::class, 'read']);
     });
 });

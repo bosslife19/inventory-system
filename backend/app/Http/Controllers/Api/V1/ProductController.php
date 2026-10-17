@@ -35,13 +35,15 @@ class ProductController extends Controller
         );
     }
 
-    /** Add a product to the catalog (admin). */
+    /** Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels. */
     public function store(SaveProductRequest $request): ProductResource
     {
         $product = DB::transaction(function () use ($request) {
-            $product = Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]);
+            $user = $request->user();
+            $product = Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true), 'created_by' => $user->id]);
             AuditLog::record('product.created', "Product {$product->sku} — {$product->name} added to the catalog", $product,
-                changes: AuditLog::snapshot($product, ['sku', 'name', 'category', 'unit_of_measure', 'requires_batch_tracking', 'requires_cold_chain', 'min_stock_level', 'reorder_level', 'max_stock_level']));
+                place: AuditLog::placeOfUser($user),
+                changes: AuditLog::snapshot($product, ['sku', 'name', 'category', 'unit_of_measure', 'pack_size', 'requires_batch_tracking', 'requires_cold_chain', 'min_stock_level', 'reorder_level', 'max_stock_level']));
 
             return $product;
         });
@@ -49,7 +51,7 @@ class ProductController extends Controller
         return ProductResource::make($product);
     }
 
-    /** Change a product, or retire it with is_active=false (admin). Never deleted: the ledger references it. */
+    /** Change a product, or retire it with is_active=false (admin, or whoever added it). Never deleted: the ledger references it. */
     public function update(SaveProductRequest $request, Product $product): ProductResource
     {
         DB::transaction(function () use ($request, $product) {

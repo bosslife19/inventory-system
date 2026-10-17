@@ -17,7 +17,7 @@ beforeEach(function () {
     $this->u = $this->h['users'];
     $this->ors = Product::create([
         'name' => 'ORS', 'sku' => 'ORS-LO', 'category' => 'Diarrhoea', 'unit_of_measure' => 'sachet',
-        'requires_batch_tracking' => false, 'min_stock_level' => 10, 'max_stock_level' => 100, 'reorder_level' => 40,
+        'requires_batch_tracking' => false, 'min_stock_level' => 40, 'max_stock_level' => 100, 'reorder_level' => 10,
     ]);
     $this->receive = fn (Facility $f, int $qty) => app(StockLedgerService::class)->record(
         facility: $f, product: $this->ors, type: TransactionType::Receipt, quantity: $qty,

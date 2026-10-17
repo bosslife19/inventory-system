@@ -24,7 +24,7 @@ beforeEach(function () {
 
     $this->al = Product::create([
         'name' => 'AL 20/120', 'sku' => 'AL', 'category' => 'Antimalarials', 'unit_of_measure' => 'pack',
-        'requires_batch_tracking' => true, 'min_stock_level' => 20, 'max_stock_level' => 60, 'reorder_level' => 30,
+        'requires_batch_tracking' => true, 'min_stock_level' => 30, 'max_stock_level' => 60, 'reorder_level' => 20,
     ]);
     $this->gloves = Product::create([
         'name' => 'Gloves', 'sku' => 'GLV', 'category' => 'Consumables', 'unit_of_measure' => 'box',

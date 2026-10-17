@@ -12,7 +12,7 @@ import { EmptyState, Loading, SectionHeader } from '@/components/ui/misc';
 import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { INBOUND, formatDate, formatQty, transactionLabel } from '@/lib/format';
+import { INBOUND, formatDate, formatQty, transactionLabel, unitDescription } from '@/lib/format';
 import { describe, productIdsOf, useOutbox } from '@/lib/offlineQueue';
 import { useProductHistory, useReorderSuggestions, useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
@@ -58,7 +58,7 @@ export default function ProductDetail() {
                   {formatQty(s.usable_quantity)}
                 </Text>
                 <Text variant="caption" style={{ color: '#b8c3d8' }}>
-                  {p.unit_of_measure} · {formatQty(s.quantity_on_hand)} on hand
+                  {unitDescription(p)} · {formatQty(s.quantity_on_hand)} on hand
                   {s.expired_quantity > 0 ? ` · ${formatQty(s.expired_quantity)} expired` : ''}
                 </Text>
               </View>
@@ -66,9 +66,9 @@ export default function ProductDetail() {
             </View>
             <View style={styles.levels}>
               {[
-                ['Min', p.min_stock_level],
-                ['Reorder (EOP)', p.reorder_level],
-                ['Max', p.max_stock_level],
+                [s.levels.source === 'facility' ? 'EOP (set here)' : 'EOP', s.levels.reorder_level],
+                ['Min', s.levels.min_stock_level],
+                ['Max', s.levels.max_stock_level],
               ].map(([label, value]) => (
                 <View key={label} style={styles.levelCell}>
                   <Text variant="caption" style={{ color: '#9fb0cc' }}>
@@ -148,11 +148,19 @@ export default function ProductDetail() {
               ))}
               {history.data?.map((t, i) => {
                 const inbound = INBOUND.includes(t.transaction_type);
-                const sign = t.transaction_type === 'physical_count' ? '=' : inbound ? '+' : '−';
+                const isCount = t.transaction_type === 'physical_count';
+                const sign = isCount ? '=' : inbound ? '+' : '−';
                 return (
-                  <View key={t.id} style={[styles.txRow, (i > 0 || pending.length > 0) && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.border }]}>
+                  <View
+                    key={t.id}
+                    style={[
+                      styles.txRow,
+                      (i > 0 || pending.length > 0) && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.border },
+                      // Physical inventory counts stand out in red, as on the web Stock Card.
+                      isCount && { backgroundColor: c.criticalSoft },
+                    ]}>
                     <View style={{ flex: 1, gap: 1 }}>
-                      <Text variant="label">
+                      <Text variant="label" tone={isCount ? 'critical' : 'default'}>
                         {transactionLabel(t.transaction_type)}
                         <Text variant="caption" tone="muted">
                           {'  '}
@@ -164,7 +172,7 @@ export default function ProductDetail() {
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text variant="label" style={{ color: inbound ? c.primary : c.text }}>
+                      <Text variant="label" style={{ color: isCount ? c.critical : inbound ? c.primary : c.text }}>
                         {sign}
                         {formatQty(t.quantity)}
                       </Text>

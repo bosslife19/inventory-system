@@ -26,7 +26,7 @@ import { Card } from '@/components/ui/card';
 import { KpiTile } from '@/components/ui/kpi-tile';
 import { IconChip, SectionHeader } from '@/components/ui/misc';
 import { Text } from '@/components/ui/text';
-import { MaxContentWidth, Spacing, TabBarInset } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing, TabBarInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { INBOUND, formatDate, formatQty, greeting, initials, transactionLabel } from '@/lib/format';
 import { describe, useOutbox } from '@/lib/offlineQueue';
@@ -104,7 +104,7 @@ export default function Home() {
             <KpiTile tone={levels.stock_out ? 'critical' : 'default'} icon={PackageX} label="Stock-outs" value={levels.stock_out} sub={levels.stock_out ? 'No usable stock' : 'None — good'} />
           </View>
           <View style={styles.kpiRow}>
-            <KpiTile tone={levels.low_stock ? 'warning' : 'default'} icon={TrendingDown} label="Low stock" value={levels.low_stock} sub="Below minimum" />
+            <KpiTile tone={levels.low_stock ? 'warning' : 'default'} icon={TrendingDown} label="At EOP" value={levels.low_stock} sub="Order urgently" />
             <KpiTile tone="ink" icon={AlertOctagon} label="Expired stock" value={expired} sub="Products affected" />
           </View>
         </View>
@@ -224,11 +224,12 @@ export default function Home() {
             ))}
             {recent.data?.map((t) => {
               const inbound = INBOUND.includes(t.transaction_type);
+              const isCount = t.transaction_type === 'physical_count';
               return (
-                <View key={t.id} style={styles.listRow}>
+                <View key={t.id} style={[styles.listRow, isCount && { backgroundColor: c.criticalSoft, borderRadius: Radius.md, padding: Spacing.two }]}>
                   <IconChip icon={t.transaction_type === 'physical_count' ? ClipboardList : inbound ? ArrowDownToLine : ArrowUpFromLine} tone={inbound ? 'primary' : 'ink'} size={36} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="label" numberOfLines={1}>
+                    <Text variant="label" numberOfLines={1} tone={isCount ? 'critical' : 'default'}>
                       {transactionLabel(t.transaction_type)} · {t.product_name}
                     </Text>
                     <Text variant="caption" tone="muted" numberOfLines={1}>

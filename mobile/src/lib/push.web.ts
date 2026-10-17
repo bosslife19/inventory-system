@@ -1,2 +1,2 @@
 /** Web preview: no push notifications. */
-export function usePushNotifications() {}
+export function usePushNotifications(_onOpen?: (response: unknown) => void) {}

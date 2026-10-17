@@ -370,6 +370,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Newest first */
+        get: operations["notification.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all of the caller's notifications read */
+        post: operations["notification.readAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{notification}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one read; already-read ones keep their first read time */
+        post: operations["notification.read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -380,7 +431,7 @@ export interface paths {
         /** The product catalog. Not hierarchy-scoped: every role sees the same catalog */
         get: operations["product.index"];
         put?: never;
-        /** Add a product to the catalog (admin) */
+        /** Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels */
         post: operations["product.store"];
         delete?: never;
         options?: never;
@@ -396,10 +447,45 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Change a product, or retire it with is_active=false (admin). Never deleted: the ledger references it */
+        /** Change a product, or retire it with is_active=false (admin, or whoever added it). Never deleted: the ledger references it */
         put: operations["product.update"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/product-levels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every active product, plus any retired one this facility set levels for, by name */
+        get: operations["productLevel.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/product-levels/{product}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set this facility's levels for a product. Its level, flags and alerts follow at once */
+        put: operations["productLevel.update"];
+        post?: never;
+        /** Go back to the catalog's levels for this product */
+        delete: operations["productLevel.destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -686,7 +772,7 @@ export interface components {
                 id: number;
                 name: string;
                 sku: string;
-                unit_of_measure: string;
+                unit_of_measure: components["schemas"]["UnitOfMeasure"];
             };
             /** @description Set for expiry alerts only. */
             batch: {
@@ -836,7 +922,7 @@ export interface components {
                     id: number;
                     name: string;
                     sku: string;
-                    unit_of_measure: string;
+                    unit_of_measure: components["schemas"]["UnitOfMeasure"];
                 };
                 batch_no: string | null;
                 expiry_date: string | null;
@@ -910,19 +996,67 @@ export interface components {
             state_id: number;
             name: string;
         };
+        /** NotificationCollection */
+        NotificationCollection: components["schemas"]["NotificationResource"][];
+        /** NotificationResource */
+        NotificationResource: {
+            id: number;
+            /** @enum {string} */
+            type: "alert" | "digest";
+            /** @description The alert it is about (type "alert"); null for digests. */
+            alert_id: number | null;
+            title: string;
+            body: string;
+            /**
+             * @description Named payload, not data: a resource with a "data" key isn't wrapped in one.
+             *     alert: { alert_id, alert_type, facility_id, url }; digest: { url, counts: { stock_out, expired,
+             *     low_stock, expiring_soon }, facility_count, since }.
+             */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /**
+             * Format: date-time
+             * @description Null when it wasn't pushed (no device registered, or the push failed).
+             */
+            pushed_at: string | null;
+            /** Format: date-time */
+            read_at: string | null;
+        };
+        /** ProductLevelResource */
+        ProductLevelResource: {
+            product: components["schemas"]["ProductResource"];
+            min_stock_level: number;
+            /** @description The EOP in force here. */
+            reorder_level: number;
+            max_stock_level: number;
+            /**
+             * @description 'facility' = set here, 'catalog' = the product's defaults.
+             * @enum {string}
+             */
+            source: "facility" | "catalog";
+            updated_by_name: string | null;
+            updated_at: string | null;
+        };
         /** ProductResource */
         ProductResource: {
             id: number;
             name: string;
             sku: string;
             category: string;
-            unit_of_measure: string;
+            unit_of_measure: components["schemas"]["UnitOfMeasure"];
+            /** @description Pieces in each unit (pack, box, carton…); null for single-piece units. */
+            pack_size: number | null;
             requires_batch_tracking: boolean;
             requires_cold_chain: boolean;
             min_stock_level: number;
             max_stock_level: number;
             reorder_level: number;
             is_active: boolean;
+            /** @description Who added it (may edit it, as may admins); null for seeded products. */
+            created_by: number | null;
         };
         /** ProductRollupResource */
         ProductRollupResource: {
@@ -943,6 +1077,17 @@ export interface components {
         /** ProductStockResource */
         ProductStockResource: {
             product: components["schemas"]["ProductResource"];
+            /**
+             * @description The min / EOP / max judged against here: this facility's own when set (`source: "facility"`),
+             *     else the catalog's (`source: "catalog"`). EOP < min ≤ max.
+             */
+            levels: {
+                min_stock_level: number;
+                reorder_level: number;
+                max_stock_level: number;
+                /** @enum {string} */
+                source: "facility" | "catalog";
+            };
             /** @description Sum of stock_balances.quantity_on_hand across batches, including expired stock. */
             quantity_on_hand: number;
             /** @description On hand minus expired batches; thresholds are judged on this. */
@@ -996,24 +1141,39 @@ export interface components {
             is_active?: boolean;
         };
         /**
+         * SaveProductLevelsRequest
+         * @description PUT /facilities/{facility}/product-levels/{product}: this facility's own min / EOP / max, EOP < min ≤ max.
+         */
+        SaveProductLevelsRequest: {
+            min_stock_level: number;
+            /** @description This facility's Emergency Order Point: alerts and push notifications fire when usable stock reaches it. */
+            reorder_level: number;
+            max_stock_level: number;
+        };
+        /**
          * SaveProductRequest
-         * @description POST /products and PUT /products/{product} (admin). On update every field
-         *     is optional. Thresholds must read min ≤ reorder (EOP) ≤ max, like the
-         *     paper Bin Card; batch tracking can't be switched once the product has a
-         *     Stock Card entry anywhere, or old and new rows would disagree.
+         * @description POST /products (anyone signed in — every level may add products) and
+         *     PUT /products/{product} (admins, or whoever added it). On update every
+         *     field is optional. The catalog levels must read EOP < min ≤ max; each
+         *     facility may then set its own (PUT /facilities/{id}/product-levels/{product}).
+         *     Container units (pack, box, carton…) say how many pieces each holds.
+         *     Batch tracking can't be switched once the product has a Stock Card entry
+         *     anywhere, or old and new rows would disagree.
          */
         SaveProductRequest: {
             name: string;
             /** @description Short product code, unique; upper-cased. Printed on delivery notes, so scanning matches on it. */
             sku: string;
             category: string;
-            /** @description e.g. pack, sachet, ampoule, box. */
-            unit_of_measure: string;
+            /** @description What one counts as on the Stock Card. */
+            unit_of_measure: components["schemas"]["UnitOfMeasure"];
+            /** @description Pieces in each pack / box / carton / bag / kit — required for those units, optional otherwise. */
+            pack_size?: number | null;
             requires_batch_tracking: boolean;
             requires_cold_chain: boolean;
             min_stock_level: number;
             max_stock_level: number;
-            /** @description The Emergency Order Point (EOP). */
+            /** @description The Emergency Order Point (EOP): below the minimum; alerts fire when usable stock reaches it. */
             reorder_level: number;
             /** @description false retires it: hidden from entry forms, history kept. */
             is_active?: boolean;
@@ -1026,7 +1186,7 @@ export interface components {
         };
         /**
          * StockLevel
-         * @description Where a product's *usable* (unexpired) quantity sits against its thresholds — the Bin Card's Min SL / EOP columns.
+         * @description Where a product's *usable* (unexpired) quantity sits against its thresholds — the Bin Card's Min SL / EOP columns. The EOP (emergency order point) sits below the minimum.
          * @enum {string}
          */
         StockLevel: "stock_out" | "low_stock" | "reorder" | "ok";
@@ -1160,6 +1320,12 @@ export interface components {
          * @enum {string}
          */
         TransactionType: "receipt" | "issue" | "loss" | "adjustment_in" | "adjustment_out" | "physical_count" | "transfer_in" | "transfer_out";
+        /**
+         * UnitOfMeasure
+         * @description The unit a product is counted in on the Stock Card — every quantity for that product is a number of these. Container units (pack, box, carton…) also record how many pieces each one holds (products.pack_size).
+         * @enum {string}
+         */
+        UnitOfMeasure: "piece" | "tablet" | "capsule" | "sachet" | "ampoule" | "vial" | "bottle" | "tube" | "pair" | "roll" | "pack" | "box" | "carton" | "bag" | "kit";
         /**
          * UpdateUserRequest
          * @description PUT /users/{user} — any subset of the fields; role and node are checked together.
@@ -2050,6 +2216,94 @@ export interface operations {
             404: components["responses"]["ModelNotFoundException"];
         };
     };
+    "notification.index": {
+        parameters: {
+            query?: {
+                /** @description true = unread only. */
+                unread?: boolean | null;
+                type?: "alert" | "digest" | null;
+                per_page?: number | null;
+                page?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `NotificationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationCollection"];
+                        meta: {
+                            pagination: {
+                                current_page: number;
+                                /** @description Number of items shown per page. */
+                                per_page: number;
+                                /** @description Total number of items being paginated. */
+                                total: number;
+                                last_page: number;
+                            };
+                            /** @description All of the caller's unread notifications, whatever the filters. */
+                            unread_count: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "notification.readAll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "notification.read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The notification ID */
+                notification: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `NotificationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["NotificationResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "product.index": {
         parameters: {
             query?: {
@@ -2137,6 +2391,94 @@ export interface operations {
             403: components["responses"]["AuthorizationException"];
             404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "productLevel.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `ProductLevelResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductLevelResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "productLevel.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+                /** @description The product ID */
+                product: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveProductLevelsRequest"];
+            };
+        };
+        responses: {
+            /** @description `ProductLevelResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductLevelResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "productLevel.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+                /** @description The product ID */
+                product: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
         };
     };
     "reorderSuggestion.index": {

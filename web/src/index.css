@@ -1142,6 +1142,23 @@ a.cell-title:hover {
   font-size: 0.95rem;
 }
 
+/* Physical inventory counts stand out in red on the Stock Card, on screen and in print. */
+.table tbody tr.row-count > td,
+.table tbody tr.row-count:hover > td {
+  background: var(--critical-soft);
+  color: var(--critical);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.table tbody tr.row-count .muted,
+.table tbody tr.row-count strong {
+  color: inherit;
+}
+.legend-count {
+  color: var(--critical);
+  font-weight: 600;
+}
+
 .meter {
   width: 100%;
   min-width: 90px;

@@ -14,8 +14,8 @@ export const AXIS_TICK = { fill: 'var(--chart-axis)', fontSize: 12 }
 
 const FACILITY_STATUS: { key: keyof FacilityStatusCounts; label: string; color: string }[] = [
   { key: 'stock_out', label: 'Has a stock-out', color: 'var(--status-critical)' },
-  { key: 'low_stock', label: 'Low stock', color: 'var(--status-warning)' },
-  { key: 'reorder', label: 'Needs reorder / expired', color: 'var(--status-notice)' },
+  { key: 'low_stock', label: 'At EOP', color: 'var(--status-warning)' },
+  { key: 'reorder', label: 'Below min / expired', color: 'var(--status-notice)' },
   { key: 'ok', label: 'All OK', color: 'var(--status-ok)' },
   { key: 'no_data', label: 'Nothing recorded yet', color: 'var(--chart-3)' },
 ]

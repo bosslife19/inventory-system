@@ -11,7 +11,7 @@ export function ReorderNeedsChart({ rows, childNoun, limit = 8 }: { rows: Produc
     .slice(0, limit)
     .map((r) => ({ sku: r.product.sku, name: r.product.name, value: r.facilities_needing_reorder }))
 
-  if (data.length === 0) return <div className="chart-empty">No product is at or below its reorder level.</div>
+  if (data.length === 0) return <div className="chart-empty">No product is below its minimum level.</div>
 
   return (
     <div className="chart-box" style={{ height: Math.max(180, data.length * 36 + 40) }}>

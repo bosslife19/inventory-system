@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react'
-import { formatDate, formatQty } from '../../lib/format'
+import { formatDate, formatQty, unitDescription } from '../../lib/format'
 import type { ProductStock } from '../../lib/types'
 import { ExpiryBadge, FlagBadges, LevelBadge } from './StatusBadges'
 
@@ -36,6 +36,7 @@ export function StockBalanceTable({ stock, onShowHistory, onRecord }: Props) {
         <tbody>
           {stock.map((row) => {
             const p = row.product
+            const max = row.levels.max_stock_level
             const isOpen = open === p.id
             const batches = row.batches.filter((b) => b.quantity_on_hand > 0)
 
@@ -45,7 +46,7 @@ export function StockBalanceTable({ stock, onShowHistory, onRecord }: Props) {
                   <td>
                     <div className="cell-title">{p.name}</div>
                     <div className="muted small">
-                      {p.sku} · {p.unit_of_measure}
+                      {p.sku} · {unitDescription(p)}
                       {p.requires_cold_chain && ' · cold chain'}
                     </div>
                   </td>
@@ -67,17 +68,21 @@ export function StockBalanceTable({ stock, onShowHistory, onRecord }: Props) {
                       <div className={`meter${METER_TONE[row.level]}`}>
                         <span
                           style={{
-                            width: `${p.max_stock_level > 0 ? Math.min(100, (row.usable_quantity / p.max_stock_level) * 100) : 0}%`,
+                            width: `${max > 0 ? Math.min(100, (row.usable_quantity / max) * 100) : 0}%`,
                           }}
                         />
                       </div>
                       <span className="small muted">
-                        {p.max_stock_level > 0 ? `${Math.round((row.usable_quantity / p.max_stock_level) * 100)}%` : '—'}
+                        {max > 0 ? `${Math.round((row.usable_quantity / max) * 100)}%` : '—'}
                       </span>
                     </div>
                   </td>
-                  <td className="num muted hide-sm">
-                    {p.min_stock_level} / {p.reorder_level} / {p.max_stock_level}
+                  <td
+                    className="num muted hide-sm"
+                    title={row.levels.source === 'facility' ? 'Levels set for this facility' : 'Catalog levels'}
+                  >
+                    {row.levels.min_stock_level} / {row.levels.reorder_level} / {max}
+                    {row.levels.source === 'facility' && <div className="small">set here</div>}
                   </td>
                   <td className="actions">
                     {p.requires_batch_tracking && batches.length > 0 && (

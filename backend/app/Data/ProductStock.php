@@ -15,6 +15,7 @@ final readonly class ProductStock
      */
     public function __construct(
         public Product $product,
+        public StockLevels $levels,
         public array $batches,
         public int $quantityOnHand,
         public int $usableQuantity,
@@ -29,7 +30,7 @@ final readonly class ProductStock
         return in_array($flag, $this->flags, true);
     }
 
-    /** At or below the emergency order point (EOP), including low and stocked-out. */
+    /** Below the minimum level: time to order (includes at-EOP and stocked-out). */
     public function needsReorder(): bool
     {
         return $this->level !== StockLevel::Ok;

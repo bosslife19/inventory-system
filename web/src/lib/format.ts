@@ -1,4 +1,4 @@
-import type { AlertType, ExpiryStatus, StockLevel, TransactionType, UserRole } from './types'
+import type { AlertType, ExpiryStatus, Product, StockLevel, TransactionType, UnitOfMeasure, UserRole } from './types'
 
 export const TRANSACTION_TYPES: { value: TransactionType; label: string }[] = [
   { value: 'receipt', label: 'Receipt' },
@@ -23,25 +23,53 @@ export function counterpartyLabel(t: TransactionType): string {
   return INBOUND.includes(t) ? 'Received from' : 'Issued to'
 }
 
+// The EOP (emergency order point) sits below the minimum: at or below it the
+// low-stock alert fires; between it and the minimum it's simply time to order.
 export const LEVEL_LABEL: Record<StockLevel, string> = {
   stock_out: 'Stock-out',
-  low_stock: 'Low stock',
-  reorder: 'Reorder',
+  low_stock: 'At EOP',
+  reorder: 'Below min',
   ok: 'OK',
 }
 
 export const FLAG_LABEL: Record<AlertType, string> = {
   stock_out: 'Stock-out',
   expired: 'Expired stock',
-  low_stock: 'Low stock',
+  low_stock: 'At EOP',
   expiring_soon: 'Expiring soon',
 }
 
 export const ALERT_TITLE: Record<AlertType, string> = {
   stock_out: 'Stock-out',
   expired: 'Expired batch',
-  low_stock: 'Low stock',
+  low_stock: 'Reached the EOP',
   expiring_soon: 'Batch expiring soon',
+}
+
+// Mirrors App\Enums\UnitOfMeasure. Containers say how many pieces each one holds.
+export const UNITS: { value: UnitOfMeasure; label: string; plural: string; container?: true }[] = [
+  { value: 'piece', label: 'Piece', plural: 'pieces' },
+  { value: 'tablet', label: 'Tablet', plural: 'tablets' },
+  { value: 'capsule', label: 'Capsule', plural: 'capsules' },
+  { value: 'sachet', label: 'Sachet', plural: 'sachets' },
+  { value: 'ampoule', label: 'Ampoule', plural: 'ampoules' },
+  { value: 'vial', label: 'Vial', plural: 'vials' },
+  { value: 'bottle', label: 'Bottle', plural: 'bottles' },
+  { value: 'tube', label: 'Tube', plural: 'tubes' },
+  { value: 'pair', label: 'Pair', plural: 'pairs' },
+  { value: 'roll', label: 'Roll', plural: 'rolls' },
+  { value: 'pack', label: 'Pack', plural: 'packs', container: true },
+  { value: 'box', label: 'Box', plural: 'boxes', container: true },
+  { value: 'carton', label: 'Carton', plural: 'cartons', container: true },
+  { value: 'bag', label: 'Bag', plural: 'bags', container: true },
+  { value: 'kit', label: 'Kit', plural: 'kits', container: true },
+]
+
+export const isContainerUnit = (u: UnitOfMeasure | '') => UNITS.some((x) => x.value === u && x.container)
+
+/** 'pack of 10' / 'sachet' — what one unit on the Stock Card is. */
+export function unitDescription(p: Pick<Product, 'unit_of_measure' | 'pack_size'>): string {
+  return p.pack_size ? `${p.unit_of_measure} of ${formatQty(p.pack_size)}` : p.unit_of_measure
 }
 
 const relative = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' })
