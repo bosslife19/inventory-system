@@ -1,4 +1,4 @@
-import type { AlertType, ExpiryStatus, StockLevel, TransactionType, UserRole } from './types';
+import type { AlertType, ExpiryStatus, StockLevel, StockTransaction, TransactionType, UserRole } from './types';
 
 // Labels and rules mirror web/src/lib/format.ts and App\Enums\TransactionType.
 
@@ -82,6 +82,19 @@ export function formatShortDate(iso: string): string {
 }
 
 export const formatQty = (n: number) => n.toLocaleString('en-NG');
+
+/**
+ * A history row's figure, as in the web Stock Card's columns: +/− quantity,
+ * or for a physical inventory the shortfall (−) / surplus (+) it found.
+ */
+export function transactionFigure(t: StockTransaction): string {
+  if (t.transaction_type === 'physical_count') {
+    const d = t.count_difference;
+    if (d === null) return `=${formatQty(t.quantity)}`;
+    return `${d > 0 ? '+' : d < 0 ? '−' : ''}${formatQty(Math.abs(d))}`;
+  }
+  return `${INBOUND.includes(t.transaction_type) ? '+' : '−'}${formatQty(t.quantity)}`;
+}
 
 export function timeAgo(iso: string | null | undefined): string {
   if (!iso) return '—';

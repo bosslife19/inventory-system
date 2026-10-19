@@ -12,7 +12,7 @@ import { EmptyState, Loading, SectionHeader } from '@/components/ui/misc';
 import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { INBOUND, formatDate, formatQty, transactionLabel, unitDescription } from '@/lib/format';
+import { INBOUND, formatDate, formatQty, transactionFigure, transactionLabel, unitDescription } from '@/lib/format';
 import { describe, productIdsOf, useOutbox } from '@/lib/offlineQueue';
 import { useProductHistory, useReorderSuggestions, useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
@@ -149,7 +149,6 @@ export default function ProductDetail() {
               {history.data?.map((t, i) => {
                 const inbound = INBOUND.includes(t.transaction_type);
                 const isCount = t.transaction_type === 'physical_count';
-                const sign = isCount ? '=' : inbound ? '+' : '−';
                 return (
                   <View
                     key={t.id}
@@ -173,9 +172,13 @@ export default function ProductDetail() {
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text variant="label" style={{ color: isCount ? c.critical : inbound ? c.primary : c.text }}>
-                        {sign}
-                        {formatQty(t.quantity)}
+                        {transactionFigure(t)}
                       </Text>
+                      {isCount && (
+                        <Text variant="caption" tone="critical">
+                          physical count: {formatQty(t.quantity)}
+                        </Text>
+                      )}
                       <Text variant="caption" tone="muted">
                         bal {formatQty(t.running_balance)}
                       </Text>

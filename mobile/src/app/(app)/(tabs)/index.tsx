@@ -28,7 +28,7 @@ import { IconChip, SectionHeader } from '@/components/ui/misc';
 import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Radius, Spacing, TabBarInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { INBOUND, formatDate, formatQty, greeting, initials, transactionLabel } from '@/lib/format';
+import { INBOUND, formatDate, formatQty, greeting, initials, transactionFigure, transactionLabel } from '@/lib/format';
 import { describe, useOutbox } from '@/lib/offlineQueue';
 import { useActivity, useAlerts, useFacility, useRecentTransactions, useReorderSuggestions, useStockBalances } from '@/lib/queries';
 import { useFacilityId, useUser } from '@/lib/session';
@@ -250,10 +250,12 @@ export default function Home() {
                     </Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text variant="label">
-                      {t.transaction_type === 'physical_count' ? '=' : inbound ? '+' : '−'}
-                      {formatQty(t.quantity)}
-                    </Text>
+                    <Text variant="label">{transactionFigure(t)}</Text>
+                    {isCount && (
+                      <Text variant="caption" tone="critical">
+                        physical count: {formatQty(t.quantity)}
+                      </Text>
+                    )}
                     <Text variant="caption" tone="muted">
                       bal {formatQty(t.running_balance)}
                     </Text>
