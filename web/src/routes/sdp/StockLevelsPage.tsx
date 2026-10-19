@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
-import { useProductLevels, useSaveProductLevels } from '../../lib/admin-queries'
+import { useProductLevels, useSaveEnteredAmc, useSaveProductLevels } from '../../lib/admin-queries'
 import { fieldErrors } from '../../lib/api-client'
 import { canRecordAt } from '../../lib/auth'
 import { UNITS, formatDate, formatQty, unitDescription } from '../../lib/format'
@@ -17,6 +17,10 @@ import type { ProductLevel, User } from '../../lib/types'
  * so whoever keeps the Stock Card sets them; until they do, the catalog's
  * defaults apply. Alerts and push notifications go out when usable stock
  * reaches the EOP in force here.
+ *
+ * A facility or store new to the platform can also enter a starting AMC per
+ * product; reorder suggestions use it until there are 3 full months of
+ * records here to compute one.
  */
 export function StockLevelsPage({ facilityId, user }: { facilityId: number; user: User }) {
   const facility = useFacility(facilityId)
@@ -47,7 +51,8 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
           <h1>Min / EOP / max at {f.name}</h1>
           <p className="muted">
             The EOP (emergency order point) is lower than the minimum. When usable stock reaches it, alerts and push
-            notifications go out. Below the minimum, it's time to order.
+            notifications go out. Below the minimum, it's time to order. New here? Enter a starting AMC (average monthly
+            consumption) for each product: reorder suggestions use it until there are 3 full months of records to work it out.
           </p>
         </div>
         <div className="head-actions">
@@ -86,6 +91,9 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
                   <th className="num">Min</th>
                   <th className="num">Max</th>
                   <th>Source</th>
+                  <th className="num" title="Average monthly consumption entered here, used until there are 3 full months of records">
+                    Starting AMC
+                  </th>
                   {canEdit && <th />}
                 </tr>
               </thead>
@@ -111,9 +119,10 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
                         <span className="badge badge-neutral badge-plain">Catalog default</span>
                       )}
                     </td>
+                    <td className="num">{r.entered_amc === null ? <span className="muted">—</span> : formatQty(r.entered_amc)}</td>
                     {canEdit && (
                       <td className="num">
-                        <button type="button" className="btn btn-icon" aria-label={`Set levels for ${r.product.name}`} title="Set levels" onClick={() => setEditing(r)}>
+                        <button type="button" className="btn btn-icon" aria-label={`Set levels and AMC for ${r.product.name}`} title="Set levels and AMC" onClick={() => setEditing(r)}>
                           <Pencil size={16} />
                         </button>
                       </td>
@@ -126,7 +135,7 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
         )}
       </section>
 
-      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing ? editing.product.name : ''} description={`Levels at ${f.name}`} icon={<Gauge size={20} />}>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing ? editing.product.name : ''} description={`Levels and starting AMC at ${f.name}`} icon={<Gauge size={20} />}>
         {editing && <LevelsForm facilityId={facilityId} row={editing} onDone={() => setEditing(null)} />}
       </Modal>
     </div>
@@ -135,18 +144,24 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
 
 function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: ProductLevel; onDone: () => void }) {
   const save = useSaveProductLevels(facilityId)
+  const saveAmc = useSaveEnteredAmc(facilityId)
   const [f, setF] = useState({
     reorder_level: String(row.reorder_level),
     min_stock_level: String(row.min_stock_level),
     max_stock_level: String(row.max_stock_level),
   })
+  const enteredAmc = row.entered_amc === null ? '' : String(row.entered_amc)
+  const [amc, setAmc] = useState(enteredAmc)
+  const pending = save.isPending || saveAmc.isPending
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = (patch: Partial<typeof f>) => setF((x) => ({ ...x, ...patch }))
   const plural = UNITS.find((u) => u.value === row.product.unit_of_measure)?.plural ?? row.product.unit_of_measure
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     const found: Record<string, string> = {}
+    const amcValue = amc.trim() === '' ? null : Number(amc)
+    if (amcValue !== null && (!Number.isFinite(amcValue) || amcValue < 0)) found.amc_quantity = 'A number, 0 or more — or leave it empty.'
     const level = (k: keyof typeof f) => {
       const n = Number(f[k])
       if (f[k] === '' || !Number.isInteger(n) || n < 0) found[k] = 'Whole number, 0 or more.'
@@ -159,10 +174,15 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
     setErrors(found)
     if (Object.keys(found).length) return
 
-    save.mutate(
-      { productId: row.product.id, levels: { reorder_level: eop, min_stock_level: min, max_stock_level: max } },
-      { onSuccess: onDone, onError: (err) => setErrors(fieldErrors(err)) },
-    )
+    // Saving only the AMC must not turn the catalog's levels into levels "set here".
+    const levelsChanged = eop !== row.reorder_level || min !== row.min_stock_level || max !== row.max_stock_level
+    try {
+      if (levelsChanged) await save.mutateAsync({ productId: row.product.id, levels: { reorder_level: eop, min_stock_level: min, max_stock_level: max } })
+      if (amc.trim() !== enteredAmc) await saveAmc.mutateAsync({ productId: row.product.id, amc: amcValue })
+      onDone()
+    } catch (err) {
+      setErrors(fieldErrors(err as Error))
+    }
   }
 
   function reset() {
@@ -187,6 +207,13 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
           <input type="number" min={0} step={1} value={f.max_stock_level} onChange={(e) => set({ max_stock_level: e.target.value })} />
         </Field>
       </div>
+      <Field
+        label="Starting AMC"
+        hint={`Average ${plural} issued per month, if this facility is new here. Used for reorder suggestions until there are 3 full months of records; leave empty to clear.`}
+        error={errors.amc_quantity}
+      >
+        <input type="number" min={0} step="any" value={amc} onChange={(e) => setAmc(e.target.value)} placeholder="e.g. 120" />
+      </Field>
 
       {errors.form && (
         <p className="form-error" role="alert">
@@ -196,7 +223,7 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
 
       <div className="head-actions" style={{ justifyContent: 'space-between' }}>
         {row.source === 'facility' ? (
-          <button type="button" className="btn btn-ghost" onClick={reset} disabled={save.isPending} title="Drop the levels set here">
+          <button type="button" className="btn btn-ghost" onClick={reset} disabled={pending} title="Drop the levels set here (the starting AMC stays)">
             <RotateCcw size={16} /> Use catalog defaults
           </button>
         ) : (
@@ -206,8 +233,8 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
           <button type="button" className="btn btn-ghost" onClick={onDone}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={save.isPending}>
-            <Save size={16} /> {save.isPending ? 'Saving…' : 'Save levels'}
+          <button type="submit" className="btn btn-primary" disabled={pending}>
+            <Save size={16} /> {pending ? 'Saving…' : 'Save'}
           </button>
         </span>
       </div>

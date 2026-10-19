@@ -65,7 +65,7 @@ class StockCardReport extends Report
             ->when($filters['from'] ?? null, fn ($q, $from) => $q->where('t.transaction_date', '>=', $from))
             ->when($filters['to'] ?? null, fn ($q, $to) => $q->where('t.transaction_date', '<=', $to))
             ->select([
-                't.transaction_date', 't.voucher_no', 't.counterparty', 't.transaction_type', 't.quantity', 't.running_balance', 't.comments',
+                't.transaction_date', 't.voucher_no', 't.counterparty', 't.transaction_type', 't.quantity', 't.running_balance', 't.count_difference', 't.comments',
                 'b.batch_no', 'b.expiry_date', 'p.sku', 'p.name as product_name', 'u.name as performed_by_name',
             ]);
 
@@ -88,10 +88,11 @@ class StockCardReport extends Report
             'expiry_date' => $r->expiry_date ? substr($r->expiry_date, 0, 10) : null,
             'received' => in_array($type, [TransactionType::Receipt, TransactionType::TransferIn], true) ? $q : null,
             'issued' => in_array($type, [TransactionType::Issue, TransactionType::TransferOut], true) ? $q : null,
-            // A physical count sets the balance; its effect shows in the balance column.
             'loss_adjustment' => match ($type) {
                 TransactionType::Loss, TransactionType::AdjustmentOut => -$q,
                 TransactionType::AdjustmentIn => $q,
+                // Physical inventory: the shortfall (−) or surplus (+) against what was held.
+                TransactionType::PhysicalCount => $r->count_difference !== null ? (int) $r->count_difference : null,
                 default => null,
             },
             'balance' => (int) $r->running_balance,
@@ -123,7 +124,7 @@ class StockCardReport extends Report
 
     private const LABELS = [
         'receipt' => 'Receipt', 'issue' => 'Issue', 'loss' => 'Loss', 'adjustment_in' => 'Adjustment (+)',
-        'adjustment_out' => 'Adjustment (−)', 'physical_count' => 'Physical count', 'transfer_in' => 'Transfer in',
+        'adjustment_out' => 'Adjustment (−)', 'physical_count' => 'Physical inventory', 'transfer_in' => 'Transfer in',
         'transfer_out' => 'Transfer out',
     ];
 }

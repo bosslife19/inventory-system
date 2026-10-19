@@ -6,7 +6,7 @@ export const TRANSACTION_TYPES: { value: TransactionType; label: string }[] = [
   { value: 'loss', label: 'Loss' },
   { value: 'adjustment_in', label: 'Adjustment (+)' },
   { value: 'adjustment_out', label: 'Adjustment (−)' },
-  { value: 'physical_count', label: 'Physical count' },
+  { value: 'physical_count', label: 'Physical inventory' },
   { value: 'transfer_in', label: 'Transfer in' },
   { value: 'transfer_out', label: 'Transfer out' },
 ]

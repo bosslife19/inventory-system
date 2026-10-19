@@ -463,7 +463,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every active product, plus any retired one this facility set levels for, by name */
+        /** Every active product, plus any retired one this facility set levels or an AMC for, by name */
         get: operations["productLevel.index"];
         put?: never;
         post?: never;
@@ -486,6 +486,28 @@ export interface paths {
         post?: never;
         /** Go back to the catalog's levels for this product */
         delete: operations["productLevel.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/product-amcs/{product}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enter an AMC for a product, for a facility or store without enough
+         *     history of its own (e.g. newly onboarded). Reorder suggestions use it
+         *     until the facility has a full AMC window of records
+         */
+        put: operations["productLevel.updateAmc"];
+        post?: never;
+        /** Drop the entered AMC; reorder suggestions go back to the computed one */
+        delete: operations["productLevel.destroyAmc"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1163,6 +1185,8 @@ export interface components {
             source: "facility" | "catalog";
             updated_by_name: string | null;
             updated_at: string | null;
+            /** @description AMC entered here for when history is short (null if none); reorder suggestions use it until there's a full AMC window of records. */
+            entered_amc: number | null;
         };
         /** ProductResource */
         ProductResource: {
@@ -1284,9 +1308,14 @@ export interface components {
             product: components["schemas"]["ProductResource"];
             usable_quantity: number;
             level: components["schemas"]["StockLevel"];
-            /** @description Average Monthly Consumption (issues per month); null without a complete month of history. */
+            /** @description Average Monthly Consumption (issues per month): the facility's entered AMC while its history is shorter than the AMC window, else the computed one; null with neither. */
             amc_quantity: number | null;
-            /** @description Complete months the AMC is averaged over. */
+            /**
+             * @description 'entered' = typed in by the facility, 'computed' = from its issues.
+             * @enum {string|null}
+             */
+            amc_source: "computed" | "entered" | null;
+            /** @description Complete months of the facility's own history the computed AMC is averaged over. */
             amc_months_used: number;
             /** @description Month of the AMC snapshot used (YYYY-MM-DD, first of month); null if none computed yet. */
             amc_period_month: string | null;
@@ -1298,6 +1327,14 @@ export interface components {
             basis: "amc" | "product_max";
             /** @description Max stock minus usable stock, never negative. */
             suggested_quantity: number;
+        };
+        /**
+         * SaveEnteredAmcRequest
+         * @description PUT /facilities/{facility}/product-amcs/{product}: the AMC this facility enters while its history is short.
+         */
+        SaveEnteredAmcRequest: {
+            /** @description Expected issues per month, in the product's unit. */
+            amc_quantity: number;
         };
         /**
          * SaveFacilityRequest
@@ -1383,6 +1420,8 @@ export interface components {
             transaction_type: components["schemas"]["TransactionType"];
             quantity: number;
             running_balance: number;
+            /** @description Physical inventory only: counted minus what was held before (negative = found short); null for other entries. */
+            count_difference: number | null;
             voucher_no: string | null;
             counterparty: string | null;
             comments: string | null;
@@ -2650,6 +2689,66 @@ export interface operations {
         };
     };
     "productLevel.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+                /** @description The product ID */
+                product: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "productLevel.updateAmc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+                /** @description The product ID */
+                product: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveEnteredAmcRequest"];
+            };
+        };
+        responses: {
+            /** @description `ProductLevelResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ProductLevelResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "productLevel.destroyAmc": {
         parameters: {
             query?: never;
             header?: never;

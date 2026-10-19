@@ -126,7 +126,17 @@ export function RunningBalanceHistory({ facilityId, products, filters, onFilters
                     <td className="num">
                       {col === 'adj' &&
                         `${tx.transaction_type === 'adjustment_in' ? '+' : '−'}${formatQty(tx.quantity)}`}
-                      {col === 'count' && <span title="Physical count: batch set to this quantity">= {formatQty(tx.quantity)}</span>}
+                      {col === 'count' && (
+                        <>
+                          {tx.count_difference !== null && (
+                            <div title="Counted minus what was held: negative when stock was found short">
+                              {tx.count_difference > 0 ? '+' : tx.count_difference < 0 ? '−' : ''}
+                              {formatQty(Math.abs(tx.count_difference))}
+                            </div>
+                          )}
+                          <div className="muted small">counted {formatQty(tx.quantity)}</div>
+                        </>
+                      )}
                     </td>
                     <td className="num">
                       <strong>{formatQty(tx.running_balance)}</strong>

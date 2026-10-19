@@ -127,6 +127,26 @@ export function useProductLevels(facilityId: number) {
   })
 }
 
+/** Enter (a number) or clear (null) the AMC a facility uses while its own history is short. */
+export function useSaveEnteredAmc(facilityId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ productId, amc }: { productId: number; amc: number | null }) => {
+      const params = { path: { facility: facilityId, product: productId } }
+      if (amc !== null) await unwrap(api.PUT('/facilities/{facility}/product-amcs/{product}', { params, body: { amc_quantity: amc } }))
+      else {
+        const { response, error } = await api.DELETE('/facilities/{facility}/product-amcs/{product}', { params })
+        if (!response.ok) throw new ApiError(response.status, error)
+      }
+    },
+    onSuccess: () => {
+      for (const key of [['product-levels', facilityId], ['reorder-suggestions', facilityId]]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+    },
+  })
+}
+
 /** Set (levels given) or clear (null: back to the catalog's) one product's levels at a facility. */
 export function useSaveProductLevels(facilityId: number) {
   const queryClient = useQueryClient()

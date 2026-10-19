@@ -7,6 +7,7 @@ use App\Data\ReorderSuggestion;
 use App\Enums\TransactionType;
 use App\Models\AmcSnapshot;
 use App\Models\Facility;
+use App\Models\FacilityProductAmc;
 use App\Models\StockTransaction;
 use Carbon\CarbonImmutable;
 
@@ -19,6 +20,10 @@ use Carbon\CarbonImmutable;
  * Stock Card. Only `issue` counts as consumption; losses, adjustments and
  * transfers don't. A month the product first appeared part-way through is
  * left out, so new products aren't under-estimated.
+ *
+ * A facility with less than a full window of its own history (newly
+ * onboarded, say) may enter an AMC per product (facility_product_amcs);
+ * that figure is used until the window is full, then the computed one.
  *
  * Quantity to order = max stock − usable stock (never negative), where max
  * stock = AMC × `inventory.max_months_of_stock`, or the product's fixed
@@ -97,8 +102,9 @@ class ReorderService
             ->orderBy('period_month')
             ->get()
             ->keyBy('product_id'); // latest period wins
+        $entered = $this->enteredAmcs($facility);
 
-        $suggestions = array_map(function (ProductStock $stock) use ($snapshots) {
+        $suggestions = array_map(function (ProductStock $stock) use ($snapshots, $entered) {
             $snapshot = $snapshots[$stock->product->id] ?? null;
 
             return $this->suggest(
@@ -106,6 +112,7 @@ class ReorderService
                 $snapshot?->amc_quantity,
                 $snapshot?->months_used ?? 0,
                 $snapshot?->period_month?->toDateString(),
+                $entered[$stock->product->id] ?? null,
             );
         }, $this->status->forFacility($facility));
 
@@ -116,13 +123,15 @@ class ReorderService
         return $suggestions;
     }
 
-    public function suggest(ProductStock $stock, ?float $amc, int $monthsUsed, ?string $periodMonth): ReorderSuggestion
+    public function suggest(ProductStock $stock, ?float $amc, int $monthsUsed, ?string $periodMonth, ?float $enteredAmc = null): ReorderSuggestion
     {
+        ['amc' => $amc, 'source' => $source] = self::effectiveAmc($amc, $monthsUsed, $enteredAmc);
         $plan = self::plan($amc, $stock->levels->max, $stock->usableQuantity);
 
         return new ReorderSuggestion(
             stock: $stock,
             amcQuantity: $amc,
+            amcSource: $source,
             monthsUsed: $monthsUsed,
             amcPeriodMonth: $periodMonth,
             monthsOfStock: $plan['months_of_stock'],
@@ -130,6 +139,27 @@ class ReorderService
             basis: $plan['basis'],
             suggestedQuantity: $plan['suggested'],
         );
+    }
+
+    /** @return array<int, float> entered AMC by product id */
+    public function enteredAmcs(Facility $facility): array
+    {
+        return FacilityProductAmc::where('facility_id', $facility->id)->pluck('amc_quantity', 'product_id')->map(fn ($q) => (float) $q)->all();
+    }
+
+    /**
+     * The entered AMC while the computed one covers less than the full
+     * `inventory.amc_months` window, else the computed one.
+     *
+     * @return array{amc: float|null, source: 'computed'|'entered'|null}
+     */
+    public static function effectiveAmc(?float $computed, int $monthsUsed, ?float $entered): array
+    {
+        if ($entered !== null && $monthsUsed < (int) config('inventory.amc_months')) {
+            return ['amc' => $entered, 'source' => 'entered'];
+        }
+
+        return ['amc' => $computed, 'source' => $computed === null ? null : 'computed'];
     }
 
     /**

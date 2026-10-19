@@ -382,7 +382,7 @@ function ReportTable({ columns, rows }: { columns: { key: string; label: string;
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={r.type === 'Opening balance' ? 'report-opening' : r.type === 'Physical count' ? 'row-count' : undefined}>
+            <tr key={i} className={r.type === 'Opening balance' ? 'report-opening' : r.type === 'Physical inventory' ? 'row-count' : undefined}>
               {columns.map((c) => (
                 <td key={c.key} className={c.type === 'number' ? 'num' : c.type === 'date' ? 'nowrap' : undefined}>
                   {show(c.type, r[c.key])}

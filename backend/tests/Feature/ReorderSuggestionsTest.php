@@ -103,6 +103,47 @@ it('suggests quantities from the latest AMC against live stock, falling back to 
         ]);
 });
 
+it('uses an AMC the facility entered until it has a full window of its own history', function () {
+    $this->artisan('stock:compute-amc')->assertSuccessful();
+    $sdp = $this->h['users']['sdp'];
+
+    // AL has no history; ORS has 2 of the 3 months.
+    $this->actingAs($sdp, 'sanctum')->putJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->al->id}", ['amc_quantity' => 25])
+        ->assertOk()
+        ->assertJsonPath('data.entered_amc', 25)
+        ->assertJsonPath('data.source', 'catalog');
+    $this->putJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->ors->id}", ['amc_quantity' => 50])->assertOk();
+
+    $data = collect($this->getJson("/api/v1/facilities/{$this->kawo->id}/reorder-suggestions")->assertOk()->json('data'))
+        ->keyBy('product.sku');
+    expect($data['AL'])->toMatchArray([
+        'amc_quantity' => 25, 'amc_source' => 'entered', 'basis' => 'amc',
+        'max_stock_quantity' => 75, 'suggested_quantity' => 35, // 25 x 3 - 40
+    ])->and($data['ORS'])->toMatchArray(['amc_quantity' => 50, 'amc_source' => 'entered', 'suggested_quantity' => 45]); // 150 - 105
+
+    $report = collect($this->getJson('/api/v1/reports/reorder?area=facility&id='.$this->kawo->id)->assertOk()->json('data.rows'))->keyBy('sku');
+    expect($report['AL'])->toMatchArray(['amc' => 25, 'basis' => 'Entered AMC', 'to_order' => 35]);
+
+    // A full window of history: the computed AMC takes over.
+    AmcSnapshot::where('product_id', $this->ors->id)->update(['months_used' => 3]);
+    expect(collect($this->getJson("/api/v1/facilities/{$this->kawo->id}/reorder-suggestions")->json('data'))->firstWhere('product.sku', 'ORS'))
+        ->toMatchArray(['amc_quantity' => 60, 'amc_source' => 'computed']);
+
+    // Cleared: back to the product's max level.
+    $this->deleteJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->al->id}")->assertNoContent();
+    expect(collect($this->getJson("/api/v1/facilities/{$this->kawo->id}/reorder-suggestions")->json('data'))->firstWhere('product.sku', 'AL'))
+        ->toMatchArray(['amc_quantity' => null, 'amc_source' => null, 'basis' => 'product_max']);
+});
+
+it('lets only whoever keeps the Stock Card enter an AMC', function () {
+    $this->actingAs($this->h['users']['lga'], 'sanctum')
+        ->putJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->al->id}", ['amc_quantity' => 25])
+        ->assertForbidden();
+    $this->actingAs($this->h['users']['sdp'], 'sanctum')
+        ->putJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->al->id}", ['amc_quantity' => -1])
+        ->assertUnprocessable()->assertJsonValidationErrors('amc_quantity');
+});
+
 it('keeps reorder suggestions within the caller scope', function () {
     $rimi = $this->h['facilities']['rimi'];
 

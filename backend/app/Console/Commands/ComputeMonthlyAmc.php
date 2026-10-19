@@ -14,7 +14,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Writes this month's amc_snapshots rows (the Excel Bin Card summary) for
  * every active facility: AMC over the previous complete months, plus months
- * of stock and quantity to order as they stood at computation time.
+ * of stock and quantity to order as they stood at computation time. The
+ * stored AMC is always the computed one; months of stock and quantity to
+ * order use an entered AMC where ReorderService::effectiveAmc says so.
  *
  * Like the other scheduled commands, a run stops after --max-seconds and the
  * next run resumes; once every facility is done for the month, further runs
@@ -61,11 +63,12 @@ class ComputeMonthlyAmc extends Command
 
         foreach ($facilities as $facility) {
             $amc = $reorder->amc($facility, $month);
+            $entered = $reorder->enteredAmcs($facility);
 
-            DB::transaction(function () use ($facility, $amc, $month, $reorder, $status, &$totals) {
+            DB::transaction(function () use ($facility, $amc, $entered, $month, $reorder, $status, &$totals) {
                 foreach ($status->forFacility($facility) as $stock) {
                     $row = $amc[$stock->product->id] ?? ['amc' => null, 'months' => 0];
-                    $suggestion = $reorder->suggest($stock, $row['amc'], $row['months'], $month->toDateString());
+                    $suggestion = $reorder->suggest($stock, $row['amc'], $row['months'], $month->toDateString(), $entered[$stock->product->id] ?? null);
 
                     AmcSnapshot::updateOrCreate(
                         ['facility_id' => $facility->id, 'product_id' => $stock->product->id, 'period_month' => $month->toDateString()],

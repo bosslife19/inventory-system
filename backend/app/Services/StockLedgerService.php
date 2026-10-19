@@ -120,6 +120,8 @@ class StockLedgerService
                 'delivery_note_id' => $deliveryNoteId,
                 'client_reference' => $clientReference,
                 'running_balance' => $otherBatches + $next,
+                // Counted minus held: the shortfall (−) or surplus (+) the count revealed.
+                'count_difference' => $type === TransactionType::PhysicalCount ? $next - $current : null,
             ]);
 
             $balance ??= new StockBalance([

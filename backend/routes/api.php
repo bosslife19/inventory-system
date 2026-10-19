@@ -56,6 +56,8 @@ Route::prefix('v1')->group(function () {
         Route::get('facilities/{facility}/product-levels', [ProductLevelController::class, 'index']);
         Route::put('facilities/{facility}/product-levels/{product}', [ProductLevelController::class, 'update']);
         Route::delete('facilities/{facility}/product-levels/{product}', [ProductLevelController::class, 'destroy']);
+        Route::put('facilities/{facility}/product-amcs/{product}', [ProductLevelController::class, 'updateAmc']);
+        Route::delete('facilities/{facility}/product-amcs/{product}', [ProductLevelController::class, 'destroyAmc']);
 
         Route::get('facilities/{facility}/stock-balances', [StockBalanceController::class, 'index']);
         Route::get('facilities/{facility}/stock-transactions', [StockTransactionController::class, 'index']);

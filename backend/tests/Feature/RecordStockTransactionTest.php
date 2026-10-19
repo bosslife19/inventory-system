@@ -96,6 +96,22 @@ it('applies each transaction type', function (string $type, int $quantity, int $
     'physical_count of zero' => ['physical_count', 0, 0],
 ]);
 
+it('records how far a physical inventory moved the stock, in either direction', function () {
+    Sanctum::actingAs($this->staff);
+    postTx(['quantity' => 50]);
+    postTx(['quantity' => 30, 'batch_no' => 'AL002', 'expiry_date' => '2028-01-31']);
+
+    // Batch AL001 held 50 and is counted at 46: 4 short.
+    postTx(['transaction_type' => 'physical_count', 'quantity' => 46, 'expiry_date' => null])
+        ->assertCreated()
+        ->assertJsonPath('data.running_balance', 76)
+        ->assertJsonPath('data.count_difference', -4);
+    postTx(['transaction_type' => 'physical_count', 'quantity' => 33, 'batch_no' => 'AL002', 'expiry_date' => null])
+        ->assertJsonPath('data.count_difference', 3);
+    postTx(['transaction_type' => 'issue', 'quantity' => 6, 'counterparty' => 'OPD', 'expiry_date' => null])
+        ->assertJsonPath('data.count_difference', null);
+});
+
 it('rejects outflows larger than stock on hand', function () {
     Sanctum::actingAs($this->staff);
     postTx(['quantity' => 10]);

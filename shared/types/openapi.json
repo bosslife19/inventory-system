@@ -2134,7 +2134,7 @@
         "/facilities/{facility}/product-levels": {
             "get": {
                 "operationId": "productLevel.index",
-                "summary": "Every active product, plus any retired one this facility set levels for, by name",
+                "summary": "Every active product, plus any retired one this facility set levels or an AMC for, by name",
                 "tags": [
                     "ProductLevel"
                 ],
@@ -2253,6 +2253,115 @@
             "delete": {
                 "operationId": "productLevel.destroy",
                 "summary": "Go back to the catalog's levels for this product",
+                "tags": [
+                    "ProductLevel"
+                ],
+                "parameters": [
+                    {
+                        "name": "facility",
+                        "in": "path",
+                        "required": true,
+                        "description": "The facility ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "product",
+                        "in": "path",
+                        "required": true,
+                        "description": "The product ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/facilities/{facility}/product-amcs/{product}": {
+            "put": {
+                "operationId": "productLevel.updateAmc",
+                "summary": "Enter an AMC for a product, for a facility or store without enough\nhistory of its own (e.g. newly onboarded). Reorder suggestions use it\nuntil the facility has a full AMC window of records",
+                "tags": [
+                    "ProductLevel"
+                ],
+                "parameters": [
+                    {
+                        "name": "facility",
+                        "in": "path",
+                        "required": true,
+                        "description": "The facility ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "product",
+                        "in": "path",
+                        "required": true,
+                        "description": "The product ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveEnteredAmcRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`ProductLevelResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ProductLevelResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "productLevel.destroyAmc",
+                "summary": "Drop the entered AMC; reorder suggestions go back to the computed one",
                 "tags": [
                     "ProductLevel"
                 ],
@@ -5472,6 +5581,13 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "entered_amc": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "description": "AMC entered here for when history is short (null if none); reorder suggestions use it until there's a full AMC window of records."
                     }
                 },
                 "required": [
@@ -5481,7 +5597,8 @@
                     "max_stock_level",
                     "source",
                     "updated_by_name",
-                    "updated_at"
+                    "updated_at",
+                    "entered_amc"
                 ],
                 "title": "ProductLevelResource"
             },
@@ -5928,11 +6045,23 @@
                             "number",
                             "null"
                         ],
-                        "description": "Average Monthly Consumption (issues per month); null without a complete month of history."
+                        "description": "Average Monthly Consumption (issues per month): the facility's entered AMC while its history is shorter than the AMC window, else the computed one; null with neither."
+                    },
+                    "amc_source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "'entered' = typed in by the facility, 'computed' = from its issues.",
+                        "enum": [
+                            "computed",
+                            "entered",
+                            null
+                        ]
                     },
                     "amc_months_used": {
                         "type": "integer",
-                        "description": "Complete months the AMC is averaged over."
+                        "description": "Complete months of the facility's own history the computed AMC is averaged over."
                     },
                     "amc_period_month": {
                         "type": [
@@ -5969,6 +6098,7 @@
                     "usable_quantity",
                     "level",
                     "amc_quantity",
+                    "amc_source",
                     "amc_months_used",
                     "amc_period_month",
                     "months_of_stock",
@@ -5977,6 +6107,22 @@
                     "suggested_quantity"
                 ],
                 "title": "ReorderSuggestionResource"
+            },
+            "SaveEnteredAmcRequest": {
+                "type": "object",
+                "description": "PUT /facilities/{facility}/product-amcs/{product}: the AMC this facility enters while its history is short.",
+                "properties": {
+                    "amc_quantity": {
+                        "type": "number",
+                        "description": "Expected issues per month, in the product's unit.",
+                        "minimum": 0,
+                        "maximum": 10000000
+                    }
+                },
+                "required": [
+                    "amc_quantity"
+                ],
+                "title": "SaveEnteredAmcRequest"
             },
             "SaveFacilityRequest": {
                 "type": "object",
@@ -6220,6 +6366,13 @@
                     "running_balance": {
                         "type": "integer"
                     },
+                    "count_difference": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Physical inventory only: counted minus what was held before (negative = found short); null for other entries."
+                    },
                     "voucher_no": {
                         "type": [
                             "string",
@@ -6279,6 +6432,7 @@
                     "transaction_type",
                     "quantity",
                     "running_balance",
+                    "count_difference",
                     "voucher_no",
                     "counterparty",
                     "comments",

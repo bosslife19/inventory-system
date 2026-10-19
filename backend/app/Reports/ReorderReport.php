@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * The Bin Card summary per facility and product: usable stock, Average
- * Monthly Consumption (latest amc_snapshots row), months of stock and the
+ * Monthly Consumption (latest amc_snapshots row, or the facility's entered
+ * AMC while its history is short), months of stock and the
  * quantity to order — the same arithmetic as the facility's reorder
  * suggestions (ReorderService::plan).
  */
@@ -59,10 +60,12 @@ class ReorderReport extends Report
                 ->on('a.facility_id', '=', 'fps.facility_id')
                 ->on('a.product_id', '=', 'fps.product_id')
                 ->on('a.period_month', '=', 'lat.period_month'))
+            ->leftJoin('facility_product_amcs as fpa', fn (JoinClause $j) => $j
+                ->on('fpa.facility_id', '=', 'fps.facility_id')->on('fpa.product_id', '=', 'fps.product_id'))
             ->leftJoin('facility_product_levels as fpl', fn (JoinClause $j) => $j
                 ->on('fpl.facility_id', '=', 'fps.facility_id')->on('fpl.product_id', '=', 'fps.product_id'))
             ->whereIn('fps.facility_id', $scope->facilityIds())
-            ->select(['fps.usable_quantity', 'a.amc_quantity', 'p.sku', 'p.name as product_name', 'p.unit_of_measure'])
+            ->select(['fps.usable_quantity', 'a.amc_quantity', 'a.months_used', 'fpa.amc_quantity as entered_amc', 'p.sku', 'p.name as product_name', 'p.unit_of_measure'])
             ->selectRaw('COALESCE(fpl.max_stock_level, p.max_stock_level) as max_stock_level');
         ReportScope::joinPlace($query, 'fps.facility_id');
 
@@ -71,7 +74,11 @@ class ReorderReport extends Report
 
     public function row(object $r): array
     {
-        $amc = $r->amc_quantity !== null ? (float) $r->amc_quantity : null;
+        ['amc' => $amc, 'source' => $source] = ReorderService::effectiveAmc(
+            $r->amc_quantity !== null ? (float) $r->amc_quantity : null,
+            (int) $r->months_used,
+            $r->entered_amc !== null ? (float) $r->entered_amc : null,
+        );
         $plan = ReorderService::plan($amc, (int) $r->max_stock_level, (int) $r->usable_quantity);
 
         return [
@@ -83,7 +90,11 @@ class ReorderReport extends Report
             'amc' => $amc,
             'months_of_stock' => $plan['months_of_stock'],
             'max_stock' => $plan['max'],
-            'basis' => $plan['basis'] === 'amc' ? 'Consumption (AMC)' : 'Product max level',
+            'basis' => match (true) {
+                $plan['basis'] !== 'amc' => 'Product max level',
+                $source === 'entered' => 'Entered AMC',
+                default => 'Consumption (AMC)',
+            },
             'to_order' => $plan['suggested'],
         ];
     }

@@ -202,7 +202,7 @@ function ProductForm({ product, categories, onDone }: { product?: Product; categ
         <Field label="Name" error={errors.name}>
           <input value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Amoxicillin 250mg dispersible tablets (10)" />
         </Field>
-        <Field label="Product code (SKU)" hint="Printed on delivery notes" error={errors.sku}>
+        <Field label="Product code" hint="Printed on delivery notes" error={errors.sku}>
           <input value={f.sku} onChange={(e) => set({ sku: e.target.value })} style={{ textTransform: 'uppercase' }} />
         </Field>
       </div>

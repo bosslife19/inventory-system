@@ -6,7 +6,7 @@ export const TRANSACTION_TYPES: { value: TransactionType; label: string; hint: s
   { value: 'issue', label: 'Issue', hint: 'To a ward or patient' },
   { value: 'receipt', label: 'Receipt', hint: 'Delivery received' },
   { value: 'loss', label: 'Loss', hint: 'Damaged, expired, missing' },
-  { value: 'physical_count', label: 'Count', hint: 'Set to counted quantity' },
+  { value: 'physical_count', label: 'Inventory', hint: 'Physical inventory: set to counted quantity' },
   { value: 'adjustment_in', label: 'Adjust +', hint: 'Correction up' },
   { value: 'adjustment_out', label: 'Adjust −', hint: 'Correction down' },
   { value: 'transfer_in', label: 'Transfer in', hint: 'From another facility' },

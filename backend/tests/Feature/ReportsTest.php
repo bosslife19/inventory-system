@@ -101,6 +101,21 @@ it('prints a Stock Card in card order, with the balance carried forward', functi
         ->assertUnprocessable()->assertJsonValidationErrors('area');
 });
 
+it('shows the shortfall or surplus a physical inventory finds in the losses / adjustments column', function () {
+    $r = $this->record;
+    $r($this->f['kawo'], $this->al, TransactionType::PhysicalCount, 22, '2026-09-21', 'AL1');
+    $r($this->f['kawo'], $this->ors, TransactionType::PhysicalCount, 85, '2026-09-21');
+
+    $rows = $this->actingAs($this->u['sdp'], 'sanctum')
+        ->getJson(reportUrl('stock-card', ['area' => 'facility', 'id' => $this->f['kawo']->id, 'from' => '2026-09-21']))
+        ->assertOk()->json('data.rows');
+
+    expect(array_map(fn ($r) => [$r['sku'], $r['type'], $r['loss_adjustment'], $r['balance']], $rows))->toBe([
+        ['AL', 'Physical inventory', -3, 22],
+        ['ORS', 'Physical inventory', 5, 85],
+    ]);
+});
+
 it('lists expired and soon-expiring batches, earliest first', function () {
     $this->actingAs($this->u['state'], 'sanctum');
     $state = $this->h['states']['kaduna']->id;

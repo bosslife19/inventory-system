@@ -22,6 +22,8 @@ class StockTransactionResource extends JsonResource
             'transaction_type' => $this->transaction_type,
             'quantity' => $this->quantity,
             'running_balance' => $this->running_balance,
+            /** Physical inventory only: counted minus what was held before (negative = found short); null for other entries. */
+            'count_difference' => $this->count_difference,
             'voucher_no' => $this->voucher_no,
             'counterparty' => $this->counterparty,
             'comments' => $this->comments,

@@ -10,6 +10,7 @@ final readonly class ReorderSuggestion
 {
     /**
      * @param  'amc'|'product_max'  $basis  what max_stock_quantity came from
+     * @param  'computed'|'entered'|null  $amcSource  where amcQuantity came from
      */
     public function __construct(
         public ProductStock $stock,
@@ -20,5 +21,6 @@ final readonly class ReorderSuggestion
         public int $maxStockQuantity,
         public string $basis,
         public int $suggestedQuantity,
+        public ?string $amcSource = null,
     ) {}
 }

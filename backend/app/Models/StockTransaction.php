@@ -18,7 +18,7 @@ class StockTransaction extends Model
     protected $fillable = [
         'facility_id', 'product_id', 'batch_id', 'transaction_date', 'voucher_no',
         'counterparty', 'transaction_type', 'quantity', 'comments', 'performed_by',
-        'delivery_note_id', 'running_balance', 'client_reference',
+        'delivery_note_id', 'running_balance', 'count_difference', 'client_reference',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class StockTransaction extends Model
             'transaction_type' => TransactionType::class,
             'quantity' => 'integer',
             'running_balance' => 'integer',
+            'count_difference' => 'integer',
         ];
     }
 

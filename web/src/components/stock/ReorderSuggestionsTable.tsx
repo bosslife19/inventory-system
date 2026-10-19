@@ -73,7 +73,9 @@ export function ReorderSuggestionsTable({ rows }: { rows: ReorderSuggestion[] })
                       <>
                         {formatQty(r.amc_quantity)}
                         <div className="muted small">
-                          over {r.amc_months_used} month{r.amc_months_used === 1 ? '' : 's'}
+                          {r.amc_source === 'entered'
+                            ? 'entered (starting AMC)'
+                            : `over ${r.amc_months_used} month${r.amc_months_used === 1 ? '' : 's'}`}
                         </div>
                       </>
                     )}

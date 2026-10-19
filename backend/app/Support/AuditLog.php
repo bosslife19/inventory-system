@@ -116,13 +116,13 @@ final class AuditLog
     public static function stockSummary(StockTransaction $t, string $sku, ?string $batchNo): string
     {
         $type = $t->transaction_type instanceof TransactionType ? $t->transaction_type : TransactionType::from($t->transaction_type);
-        $label = ucfirst(str_replace('_', ' ', $type->value));
+        $label = $type === TransactionType::PhysicalCount ? 'Physical inventory' : ucfirst(str_replace('_', ' ', $type->value));
         $party = $t->counterparty ? match (true) {
             $type->isInbound() => " from {$t->counterparty}",
             $type->isOutbound() => " to {$t->counterparty}",
             default => '',
         } : '';
-        $qty = $type === TransactionType::PhysicalCount ? "count of {$t->quantity}" : "{$t->quantity} ×";
+        $qty = $type === TransactionType::PhysicalCount ? "of {$t->quantity}" : "{$t->quantity} ×";
 
         return "{$label} {$qty} {$sku}".($batchNo ? " (batch {$batchNo})" : '')."{$party} — balance {$t->running_balance}";
     }

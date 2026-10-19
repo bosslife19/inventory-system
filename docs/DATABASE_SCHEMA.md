@@ -89,6 +89,8 @@ delivery_note_id          fk -> delivery_notes, nullable  -- set when created fr
 client_reference          string(64), nullable  -- idempotency key from offline clients; unique per (facility_id, client_reference)
 running_balance            integer  -- denormalized snapshot at time of insert, for fast history display.
                                     --   Scoped per facility + product (summed across batches), like the paper Stock Card.
+count_difference           integer, nullable  -- physical_count only: counted minus what the batch held before
+                                    --   (negative = found short). Shown in the Losses / Adjustment column.
 created_at, updated_at
 ```
 
@@ -159,6 +161,15 @@ unique on `(facility_id, product_id, period_month)`
 > record the position at computation time; see the reorder-suggestions
 > endpoint for the live formula.
 
+**facility_product_amcs** (a starting AMC a facility or store enters while its history is short)
+`id, facility_id (fk), product_id (fk), amc_quantity (decimal), updated_by (nullable fk users), created_at, updated_at`
+unique on `(facility_id, product_id)`
+
+> For a facility or store newly onboarded. Set by whoever keeps that Stock
+> Card (same rule as `facility_product_levels`). Used in place of the
+> computed AMC while `amc_snapshots.months_used` < `INVENTORY_AMC_MONTHS`;
+> `amc_snapshots.amc_quantity` itself always stays the computed figure.
+
 ## Alerts & notifications
 
 **alerts**
@@ -196,7 +207,7 @@ unique on `(facility_id, product_id, period_month)`
 > Written by `App\Support\AuditLog::record()` inside the same DB transaction
 > as the action. Actions: `stock.recorded`; `delivery_note.created|confirmed|rejected`;
 > `dispatch.created`; `user.created|updated|deactivated|reactivated|password_reset|password_changed`;
-> `auth.signed_in`; `product.created|updated|retired|reactivated`; `product.levels_set|levels_reset` (filed at the facility); `reorder_request.created|cancelled` (at the requester), `reorder_request.fulfilled|rejected` (at the store asked);
+> `auth.signed_in`; `product.created|updated|retired|reactivated`; `product.levels_set|levels_reset|amc_entered|amc_cleared` (filed at the facility); `reorder_request.created|cancelled` (at the requester), `reorder_request.fulfilled|rejected` (at the store asked);
 > `facility.created|updated|closed|reopened`; `alert.acknowledged|resolved`.
 > `changes` is `{ field: [before, after] }` for edits, the values set for
 > creations; passwords and tokens are never included.
@@ -234,8 +245,8 @@ unique on `(facility_id, product_id)`
 | EXPIRY DATE | `batches.expiry_date` |
 | QUANTITY RECEIVED | `stock_transactions` row with `transaction_type=receipt`, `quantity` |
 | QUANTITY ISSUED | `stock_transactions` row with `transaction_type=issue`, `quantity` |
-| LOSSES/ADJUSTMENT | `stock_transactions` row with `transaction_type=loss`, `adjustment_in` or `adjustment_out` |
+| LOSSES/ADJUSTMENT | `stock_transactions` row with `transaction_type=loss`, `adjustment_in` or `adjustment_out`; for a physical inventory (`physical_count`), its `count_difference` |
 | STOCK BALANCE | `stock_transactions.running_balance` (history) / `stock_balances.quantity_on_hand` (current) |
 | Min SL / Max SL / EOP | `facility_product_levels` for that facility, else `products.min_stock_level` / `max_stock_level` / `reorder_level` |
-| Average Monthly Consumption | `amc_snapshots.amc_quantity` |
+| Average Monthly Consumption | `amc_snapshots.amc_quantity`, or `facility_product_amcs.amc_quantity` while history is short |
 | Quantity to order | `amc_snapshots.suggested_reorder_quantity` |

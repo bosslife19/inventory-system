@@ -89,12 +89,18 @@ store and the national store. Without its own, a facility uses the catalog's. Ev
 flags, alerts and their push, reorder max, the stock-status and reorder reports) uses the levels in force there.
 
 - `GET /facilities/{id}/product-levels` — anyone who can see the facility. Every active product (plus retired ones
-  with levels set here), by name: `[{ product: <Product>, min_stock_level, reorder_level, max_stock_level,
-  source: "facility" | "catalog", updated_by_name, updated_at }]` (the last two null for `catalog`).
+  with levels or an AMC set here), by name: `[{ product: <Product>, min_stock_level, reorder_level, max_stock_level,
+  source: "facility" | "catalog", updated_by_name, updated_at, entered_amc }]` (`updated_by_name` / `updated_at`
+  null for `catalog`; `entered_amc` null unless a starting AMC was entered here).
 - `PUT /facilities/{id}/product-levels/{product_id}` — body `min_stock_level, reorder_level, max_stock_level`, same
   EOP < min ≤ max rule. Who: whoever records at the facility (own SDP, own store, admin), else 403. 200 → the entry
   above. The product's level, flags and alerts there are re-evaluated at once (a new alert is notified as usual).
 - `DELETE /facilities/{id}/product-levels/{product_id}` — back to the catalog's levels; same who. 204.
+- `PUT /facilities/{id}/product-amcs/{product_id}` — body `amc_quantity` (number ≥ 0, issues per month): a starting
+  AMC for a facility or store new to the platform. Reorder suggestions and the reorder report use it until the
+  facility has a full `INVENTORY_AMC_MONTHS` window (default 3) of its own history, then the computed AMC. Same who
+  as levels. 200 → the product-levels entry above.
+- `DELETE /facilities/{id}/product-amcs/{product_id}` — clear the entered AMC; same who. 204.
 
 ## Stock — facility level (sdp_staff and above, scoped)
 - `GET /facilities/{id}/stock-balances` — current on-hand per product/batch
@@ -118,13 +124,15 @@ flags, alerts and their push, reorder max, the stock-status and reorder reports)
   - `transaction_date`: `YYYY-MM-DD`, not in the future (Africa/Lagos), and not earlier than the latest entry for that product at the facility.
   - `batch_no`: required if the product is batch-tracked, forbidden (with `expiry_date`) if not. Trimmed and upper-cased. An unknown batch is created on `receipt` / `transfer_in` / `adjustment_in` / `physical_count` (then `expiry_date` is required); other types must reference a known batch. If given for a known batch, `expiry_date` must match. Expired batches can't be `issue`d.
   - `counterparty`: required for `receipt`, `issue`, `transfer_in`, `transfer_out`.
-  - 201 → `{ "data": { id, facility_id, product_id, batch_id, batch_no, expiry_date, transaction_date, transaction_type, quantity, running_balance, voucher_no, counterparty, comments, performed_by, delivery_note_id, created_at } }` — `running_balance` is the facility+product total after this entry.
+  - 201 → `{ "data": { id, facility_id, product_id, batch_id, batch_no, expiry_date, transaction_date, transaction_type, quantity, running_balance, count_difference, voucher_no, counterparty, comments, performed_by, delivery_note_id, created_at } }` — `running_balance` is the facility+product total after this entry. `count_difference` is set on `physical_count` (physical inventory) rows only: the counted quantity minus what the batch held before (negative = found short); it fills the Stock Card's Losses / Adjustment column.
   - 422 also for state-dependent failures, e.g. `{"errors": {"quantity": ["Insufficient stock: 10 on hand for batch AL001."]}}`.
 - `GET /facilities/{id}/reorder-suggestions` — current AMC + suggested quantity to order per product
   - `data`: one entry per product stocked at the facility, products needing an order first (then
-    lowest months of stock): `{ product, usable_quantity, level, amc_quantity, amc_months_used,
+    lowest months of stock): `{ product, usable_quantity, level, amc_quantity, amc_source, amc_months_used,
     amc_period_month, months_of_stock, max_stock_quantity, basis, suggested_quantity }`.
-  - `amc_quantity` from the latest `amc_snapshots` row (null if none, or no complete month of history).
+  - `amc_quantity` from the latest `amc_snapshots` row (null if none, or no complete month of history) —
+    except that while `amc_months_used` < `INVENTORY_AMC_MONTHS`, a starting AMC entered for the product
+    (`facility_product_amcs`) is used instead. `amc_source`: `"computed"`, `"entered"`, or null with no AMC.
   - `max_stock_quantity` = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 3) when there is an
     AMC > 0 (`basis: "amc"`), else the max level in force at the facility (`basis: "product_max"`).
   - `suggested_quantity` = max(0, `max_stock_quantity` − live `usable_quantity`);
@@ -297,7 +305,7 @@ reads, like the dashboards; nothing is written back.
 |---|---|---|
 | `stock-card` | `from?`, `to?` (inclusive dates). `area` must be `facility` (else 422 on `area`). | One per ledger entry in card order (date, voucher, received from / issued to, entry type, batch, expiry, received, issued, losses / adj. (signed), balance, by, comments). With `product_id` and `from`, the first row is the opening balance carried forward. |
 | `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level ("At / below EOP", "Below min"…), min / EOP / max in force there, last entry (`facility_product_status`). |
-| `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
+| `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row, or the entered starting AMC under the same rule as reorder suggestions), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
 | `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
 
 ## Audit log
