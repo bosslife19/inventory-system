@@ -134,7 +134,7 @@ export function RunningBalanceHistory({ facilityId, products, filters, onFilters
                               {formatQty(Math.abs(tx.count_difference))}
                             </div>
                           )}
-                          <div className="muted small">counted {formatQty(tx.quantity)}</div>
+                          <div className="muted small">physical count: {formatQty(tx.quantity)}</div>
                         </>
                       )}
                     </td>
