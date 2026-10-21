@@ -236,6 +236,8 @@ unique on `(facility_id, product_id)`
 
 ## Mapping back to the Excel template
 
+The client's template is [`E-Stock Cards template.xlsx`](E-Stock%20Cards%20template.xlsx); Sheet2 is the month/quarter-end summary behind the `stock-movement` report.
+
 | Excel column | Table.field |
 |---|---|
 | DATE | `stock_transactions.transaction_date` |
