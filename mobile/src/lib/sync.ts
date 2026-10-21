@@ -8,7 +8,8 @@ import { getOutbox, removeItem, updateItem } from './offlineQueue';
 
 /**
  * Flushes the outbox to POST /facilities/{id}/stock-transactions (and
- * /delivery-notes for reviewed delivery scans), oldest
+ * /delivery-notes for reviewed delivery scans, /reorder-requests, and
+ * PUT / DELETE /product-amcs/{product} for starting AMCs), oldest
  * first (the Stock Card is written in date order). Runs when an entry is
  * queued, when connectivity returns, when the app comes to the foreground,
  * and every 30s while anything is waiting.
@@ -47,6 +48,15 @@ export async function flushOutbox(): Promise<void> {
         const params = { path: { facility: item.facilityId } };
         if (item.kind === 'transaction') {
           await unwrap(api.POST('/facilities/{facility}/stock-transactions', { params, body: item.body }));
+        } else if (item.kind === 'amc') {
+          const path = { path: { facility: item.facilityId, product: item.productId } };
+          const { amc_quantity } = item.body;
+          if (amc_quantity === null) {
+            const { response, error } = await api.DELETE('/facilities/{facility}/product-amcs/{product}', { params: path });
+            if (!response.ok) throw new ApiError(response.status, error);
+          } else {
+            await unwrap(api.PUT('/facilities/{facility}/product-amcs/{product}', { params: path, body: { amc_quantity } }));
+          }
         } else if (item.kind === 'reorder_request') {
           await unwrap(api.POST('/facilities/{facility}/reorder-requests', { params, body: item.body }));
         } else {

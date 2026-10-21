@@ -6,6 +6,7 @@ import {
   ArrowUpFromLine,
   ClipboardList,
   Clock3,
+  Gauge,
   MapPin,
   Package,
   PackageX,
@@ -138,6 +139,16 @@ export default function Home() {
               {toOrder.length > 0
                 ? `${toOrder.length} product${toOrder.length === 1 ? '' : 's'} to order — ask your LGA store`
                 : 'Ask a store above for stock, and follow your requests'}
+            </Text>
+          </View>
+        </Card>
+
+        <Card onPress={() => router.push('/amc')} style={styles.banner}>
+          <IconChip icon={Gauge} tone="ink" size={38} />
+          <View style={{ flex: 1 }}>
+            <Text variant="label">Starting AMCs</Text>
+            <Text variant="caption" tone="muted">
+              New here? Enter each product’s monthly use so reorder suggestions work from day one
             </Text>
           </View>
         </Card>

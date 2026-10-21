@@ -6,7 +6,7 @@ import { storage } from './storage';
 import type { NewDeliveryNote, NewReorderRequest, NewStockTransaction } from './types';
 
 /**
- * The outbox: Stock Card entries, delivery notes and reorder requests made on this device
+ * The outbox: Stock Card entries, delivery notes, reorder requests and starting AMCs made on this device
  * and not yet accepted by the server (mobile/CLAUDE.md rule 1). Everything
  * is written here first, online or not, then sync.ts sends them one by one.
  *
@@ -35,12 +35,19 @@ export type OutboxItem = Base &
     | { kind: 'transaction'; body: NewStockTransaction; productName: string; unit: string }
     | { kind: 'delivery_note'; body: NewDeliveryNote }
     | { kind: 'reorder_request'; body: NewReorderRequest; supplierName: string }
+    | { kind: 'amc'; productId: number; body: EnteredAmc; productName: string; unit: string }
   );
 
 type NewItem =
   | { kind: 'transaction'; facilityId: number; body: NewStockTransaction; productName: string; unit: string }
   | { kind: 'delivery_note'; facilityId: number; body: NewDeliveryNote }
-  | { kind: 'reorder_request'; facilityId: number; body: NewReorderRequest; supplierName: string };
+  | { kind: 'reorder_request'; facilityId: number; body: NewReorderRequest; supplierName: string }
+  | { kind: 'amc'; facilityId: number; productId: number; body: EnteredAmc; productName: string; unit: string };
+
+/** A starting AMC to set, or null to clear the one entered (reorder suggestions go back to the computed AMC). */
+export interface EnteredAmc {
+  amc_quantity: number | null;
+}
 
 let items: OutboxItem[] = [];
 let loaded = false;
@@ -90,7 +97,10 @@ export function enqueue(entry: NewItem): OutboxItem {
     status: 'pending',
     attempts: 0,
   } as OutboxItem;
-  void set([...items, item]);
+  // A starting AMC is a setting, not a ledger row: a newer one for the same product replaces any still waiting.
+  const superseded = (i: OutboxItem) =>
+    entry.kind === 'amc' && i.kind === 'amc' && i.status !== 'syncing' && i.facilityId === entry.facilityId && i.productId === entry.productId;
+  void set([...items.filter((i) => !superseded(i)), item]);
   return item;
 }
 
@@ -123,7 +133,7 @@ export function useOutbox(): OutboxItem[] {
 
 /** Products an unsynced item will change on this Stock Card (a reorder request changes none until it arrives). */
 export function productIdsOf(item: OutboxItem): number[] {
-  if (item.kind === 'reorder_request') return [];
+  if (item.kind === 'reorder_request' || item.kind === 'amc') return [];
   return item.kind === 'transaction' ? [item.body.product_id] : item.body.items.map((l) => l.product_id);
 }
 
@@ -134,6 +144,13 @@ export function describe(item: OutboxItem): { title: string; detail: string; fig
       title: `${transactionLabel(item.body.transaction_type)} · ${item.productName}`,
       detail: `${formatDate(item.body.transaction_date)}${item.body.batch_no ? ` · ${item.body.batch_no}` : ''}`,
       figure: `${formatQty(item.body.quantity)} ${item.unit}`,
+    };
+  }
+  if (item.kind === 'amc') {
+    return {
+      title: `Starting AMC · ${item.productName}`,
+      detail: formatDate(item.createdAt.slice(0, 10)),
+      figure: item.body.amc_quantity === null ? 'cleared' : `${formatQty(item.body.amc_quantity)} ${item.unit}/month`,
     };
   }
   const n = item.body.items.length;
