@@ -13,7 +13,9 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
 export function ErrorState({ error }: { error: unknown }) {
   const status = error instanceof ApiError ? error.status : undefined
   const message =
-    status === 403
+    status === 402
+      ? 'This is part of the paid plan. Ask your organization’s admin about upgrading.'
+      : status === 403
       ? "You don't have access to this part of the hierarchy."
       : status === 404
         ? 'Not found.'

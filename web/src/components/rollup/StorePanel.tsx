@@ -11,6 +11,8 @@ import { ReorderRequestList } from '../reorder/ReorderRequestList'
 import { ErrorState } from '../layout/PageState'
 import { TransactionForm } from '../stock/TransactionForm'
 import { Modal } from '../ui/Modal'
+import { hasFeature } from '../../lib/plan'
+import { LockedAction } from '../plan/Paid'
 
 /**
  * The LGA / State / National store on its rollup dashboard: a glance at its
@@ -24,7 +26,8 @@ export function StorePanel({ store, user }: { store: { id: number; name: string 
   const inTransit = useDispatches(store.id, 'draft', 1, 1)
   const products = useProducts()
   // Stores above this one it may ask; none for the National Store (the API says 403).
-  const suppliers = useReorderSuppliers(store.id, canAct)
+  const supplyChain = hasFeature(user, 'supply_chain')
+  const suppliers = useReorderSuppliers(store.id, canAct && supplyChain)
   const canRequest = canAct && (suppliers.data?.length ?? 0) > 0
   const [modal, setModal] = useState<'receive' | 'issue' | 'request' | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -59,9 +62,13 @@ export function StorePanel({ store, user }: { store: { id: number; name: string 
                     <ClipboardList size={17} /> Request stock
                   </button>
                 )}
-                <button type="button" className="btn btn-primary" onClick={() => setModal('issue')}>
-                  <Send size={17} /> Issue to facility
-                </button>
+                {supplyChain ? (
+                  <button type="button" className="btn btn-primary" onClick={() => setModal('issue')}>
+                    <Send size={17} /> Issue to facility
+                  </button>
+                ) : (
+                  <LockedAction feature="supply_chain" label="Issue to facility" icon={<Send size={17} />} />
+                )}
               </>
             ) : (
               <span className="badge badge-neutral badge-plain">

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Contracts\PushSender;
+use App\Enums\Feature;
+use App\Models\Organization;
 use App\Models\User;
 use App\Models\UserNotification;
 use Carbon\CarbonImmutable;
@@ -10,7 +12,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Tells some users one thing: an in-app notification row each, and a push
- * to those with a registered device. Push is best effort — a failure is
+ * to those with a registered device whose organization's plan includes push
+ * (Feature::PushNotifications). Push is best effort — a failure is
  * reported, never thrown, so it can't undo the action being announced.
  * Tokens FCM reports as dead are forgotten.
  */
@@ -19,7 +22,7 @@ class UserNotifier
     public function __construct(private readonly PushSender $push) {}
 
     /**
-     * @param  Collection<int, User>  $users
+     * @param  Collection<int, User>  $users  with id, organization_id and fcm_token
      * @param  array<string, mixed>  $payload  stored with the notification; pushed as strings (nested values as JSON)
      */
     public function send(Collection $users, string $type, string $title, string $body, array $payload = [], ?int $alertId = null, ?CarbonImmutable $at = null): void
@@ -30,7 +33,10 @@ class UserNotifier
         }
         $at ??= CarbonImmutable::now();
 
-        $tokens = $users->pluck('fcm_token')->filter()->unique()->values()->all();
+        $pushOrgs = Organization::whereKey($users->pluck('organization_id')->filter()->unique())->get()
+            ->filter(fn (Organization $org) => $org->hasFeature(Feature::PushNotifications))->modelKeys();
+        $pushable = fn (User $u) => $u->fcm_token && in_array($u->organization_id, $pushOrgs, true);
+        $tokens = $users->filter($pushable)->pluck('fcm_token')->unique()->values()->all();
         $dead = [];
         $pushed = false;
         if ($tokens !== []) {
@@ -50,7 +56,7 @@ class UserNotifier
             'title' => $title,
             'body' => mb_strimwidth($body, 0, 1000, '…'),
             'data' => json_encode($payload),
-            'pushed_at' => $pushed && $u->fcm_token && ! in_array($u->fcm_token, $dead, true) ? $at : null,
+            'pushed_at' => $pushed && $pushable($u) && ! in_array($u->fcm_token, $dead, true) ? $at : null,
             'created_at' => $at,
             'updated_at' => $at,
         ])->all());

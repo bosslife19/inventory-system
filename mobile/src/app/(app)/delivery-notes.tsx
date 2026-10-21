@@ -20,6 +20,7 @@ import { describe, useOutbox } from '@/lib/offlineQueue';
 import { useConfirmDelivery, useDeliveryNotes, useRejectDelivery } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 import type { DeliveryNote, DeliveryNoteStatus } from '@/lib/types';
+import { usePaidAction } from '@/lib/plan';
 
 type Filter = DeliveryNoteStatus | 'all';
 
@@ -43,6 +44,7 @@ const STATUS: Record<DeliveryNoteStatus, { label: string; tone: 'warning' | 'ok'
  * stock back on the sender's card. Both need a connection.
  */
 export default function Deliveries() {
+  const scanning = usePaidAction('delivery_scanning');
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const facilityId = useFacilityId();
@@ -63,7 +65,7 @@ export default function Deliveries() {
           <View style={{ gap: Spacing.four, marginBottom: Spacing.four }}>
             <PageHeader back eyebrow="Deliveries" title="Delivery notes" subtitle="Sign for stock sent to you, or reject it if it isn’t right." />
             <View style={[styles.pad, { gap: Spacing.three }]}>
-              <Button label="Scan a delivery note" icon={ScanLine} variant="ink" block onPress={() => router.push('/deliveries/scan')} />
+              <Button label="Scan a delivery note" icon={ScanLine} variant="ink" block onPress={scanning(() => router.push('/deliveries/scan'))} />
               <Segmented options={FILTERS} value={filter} onChange={setFilter} />
               {queued.map((i) => (
                 <Card key={i.id} style={{ borderColor: c.warning }}>

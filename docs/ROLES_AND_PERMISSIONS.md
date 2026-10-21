@@ -46,3 +46,44 @@ Enforce this with Laravel Policies per model (`FacilityPolicy`,
 `StockTransactionPolicy`, ...) plus the `ScopeToHierarchy` middleware
 described in `API_CONTRACT.md` — don't rely on frontend route guards
 alone, they're a UX nicety, not the security boundary.
+
+## Organizations, the platform owner and plans
+
+Every account above belongs to one **organization** (a partner), and the
+whole table applies *within* it: "everything" for a federal officer or an
+admin means everything in their own organization. Organizations never see
+each other's facilities, stores, catalog, accounts, alerts or audit log —
+enforced server-side (`HierarchyScope` filters by organization, and the
+`BelongsToOrganization` model scope plus the `Tenant` set per request turn
+any other organization's id into a 404).
+
+The **platform owner** (role `owner`, made with `php artisan owner:create
+{email} {name}`) belongs to no organization and sees none of their data.
+From the owner console they:
+
+- set up an organization (details, logo, plan) and its first admin, on a
+  temporary password they hand over; the admins then create everyone else;
+- record payment by setting the plan and its last day (`paid_until`);
+- suspend an organization (its members are signed out and can't sign in);
+- reset an admin's password, or deactivate / reactivate an admin;
+- set the platform's own name, tagline and logo, shown on the sign-in
+  screens and beside each organization's logo.
+
+Organization admins can't create owner accounts.
+
+**Plans.** Free: Stock Cards (facility and own store), physical inventories,
+alerts and notifications in the app, reorder suggestions, stock levels and
+AMCs, reports and CSV export, the audit log, the catalog and account
+management. Paid adds:
+
+| Feature | What it unlocks |
+|---|---|
+| `rollups` | LGA / State / Federal dashboards and their weekly activity |
+| `supply_chain` | Stores dispatching down the chain; asking for and fulfilling reorder requests (cancelling or declining, and confirming a delivery already sent, stay free) |
+| `delivery_scanning` | Capturing delivery notes (the mobile scan) |
+| `push_notifications` | Pushes to phones (alerts, daily digests, reorder requests) |
+| `bulk_imports` | CSV imports |
+
+A paid plan past its last day falls back to free; nothing is deleted and
+everything unlocks again when the owner extends it. Members see a renewal
+notice from 14 days before the end.

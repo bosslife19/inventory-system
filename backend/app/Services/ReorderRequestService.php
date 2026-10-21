@@ -38,10 +38,11 @@ class ReorderRequestService
     public function suppliers(Facility $facility): Collection
     {
         $facility->loadMissing('lga.state');
+        $org = $facility->organization_id;
         $stores = match ($facility->store_level) {
-            null => [$facility->lga ? Facility::storeForLga($facility->lga) : null, $facility->lga?->state ? Facility::storeForState($facility->lga->state) : null, Facility::nationalStore()],
-            StoreLevel::Lga => [$facility->lga?->state ? Facility::storeForState($facility->lga->state) : null, Facility::nationalStore()],
-            StoreLevel::State => [Facility::nationalStore()],
+            null => [$facility->lga ? Facility::storeForLga($facility->lga, $org) : null, $facility->lga?->state ? Facility::storeForState($facility->lga->state, $org) : null, Facility::nationalStore($org)],
+            StoreLevel::Lga => [$facility->lga?->state ? Facility::storeForState($facility->lga->state, $org) : null, Facility::nationalStore($org)],
+            StoreLevel::State => [Facility::nationalStore($org)],
             StoreLevel::National => [],
         };
 
@@ -183,7 +184,7 @@ class ReorderRequestService
     private function tell(Facility $facility, ReorderRequest $request, string $title, string $body, string $direction): void
     {
         try {
-            $this->notifier->send(AlertNotifier::keepersOf($facility)->get(['id', 'fcm_token']), self::TYPE, $title, $body, [
+            $this->notifier->send(AlertNotifier::keepersOf($facility)->get(['id', 'organization_id', 'fcm_token']), self::TYPE, $title, $body, [
                 'reorder_request_id' => (string) $request->id,
                 'direction' => $direction,
                 'facility_id' => (string) $facility->id,

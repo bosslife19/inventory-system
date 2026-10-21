@@ -1,9 +1,11 @@
-import { Bell, Boxes, Building2, ChevronRight, ClipboardList, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Truck, UserCog, Warehouse } from 'lucide-react'
+import { Bell, Building2, ChevronRight, ClipboardList, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, manageableRoles, useLogout } from '../../lib/auth'
 import { useAlertCount, useDeliveryNoteCount, useReorderRequests } from '../../lib/queries'
 import { AlertBadge } from '../alerts/AlertBadge'
+import { Brand, PartnerBadge } from './Brand'
+import { RenewalBanner } from './RenewalBanner'
 import { ROLE_LABEL } from '../../lib/format'
 import type { User } from '../../lib/types'
 
@@ -62,14 +64,9 @@ export function AppShell({ user }: { user: User }) {
     <div className={`shell${navOpen ? ' nav-open' : ''}${collapsed ? ' nav-collapsed' : ''}`}>
       <aside className="sidebar">
         <Link to={home} className="brand" onClick={close}>
-          <span className="brand-mark" aria-hidden>
-            <Boxes size={18} />
-          </span>
-          <span className="nav-text">
-            Stock Card
-            <small>Health supply chain · Nigeria</small>
-          </span>
+          <Brand />
         </Link>
+        {user.organization && <PartnerBadge organization={user.organization} />}
 
         <div className="nav-label">Workspace</div>
         <nav className="nav">
@@ -193,6 +190,7 @@ export function AppShell({ user }: { user: User }) {
           <AlertBadge />
         </header>
         <main className="page">
+          {user.organization && <RenewalBanner organization={user.organization} />}
           <Outlet />
         </main>
       </div>

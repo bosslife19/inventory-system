@@ -1,8 +1,17 @@
 # API Contract (v1)
 
 Base URL: `/api/v1`. Auth: Laravel Sanctum bearer tokens. Every endpoint
-below is scoped server-side to the caller's hierarchy node — a query param
-like `?facility_id=` only *filters within* that scope, it never expands it.
+below is scoped server-side to the caller's organization and hierarchy node
+— a query param like `?facility_id=` only *filters within* that scope, it
+never expands it. Another organization's ids answer 404 (or 422 in a body).
+
+**Organizations and plans.** Everything outside "Auth", "Platform" and
+"Owner console" is an organization's own data: the platform owner gets
+**403** `{ code: "owner_account" }` there. Routes marked **[paid: feature]**
+answer **402** `{ message, code: "feature_unavailable", feature }` when the
+caller's organization's plan doesn't include that feature (see
+`organization.features` on `/auth/me`). Members of a suspended
+organization get **401** `{ code: "organization_inactive" }`.
 
 Update this file whenever a route, field, or status code changes — it is
 what web and mobile are built against, and what `shared/types/` is
@@ -20,12 +29,42 @@ human-readable contract and the rules behind it.
   - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.
   - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
   - `is_active`, `must_change_password`: see below.
+  - `organization`: `{ id, name, logo_url | null, plan: free|paid (in force today), paid_until | null, days_left | null,
+    renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|push_notifications|rollups|supply_chain] }`;
+    null for the platform owner (role `owner`), whom clients send to the owner console.
 - `POST /auth/password` — body `current_password, password, password_confirmation`. Changes your own password
   (≥ 8 characters, different from the current one), clears `must_change_password`, and signs out your other
   devices; this token stays valid. 200 → `<User>`.
 - **Temporary passwords.** While `must_change_password` is true every other endpoint answers
   **403** `{ "message": "…", "code": "password_change_required" }` — clients send the user to change it.
 - **Deactivated accounts.** Their tokens are revoked; any request still made with one gets 401.
+- Sign-in is refused (422 on `email`) for members of a suspended organization.
+
+## Platform (public)
+- `GET /platform` → `{ data: { name, tagline, logo_url | null } }` — the owner's own branding, for the sign-in
+  screens and beside each organization's logo. Defaults: "Stock Card", "Health supply chain · Nigeria".
+- `GET /platform/logo/{file}`, `GET /organizations/{id}/logo/{file}` — the images behind `logo_url`; cacheable
+  forever (each upload gets a new file name). 404 for any other file name.
+
+## Owner console (`/owner/*`, role `owner` only — 403 for anyone else)
+The owner sees organizations, never their Stock Cards. Payment is arranged outside the system.
+- `PUT /owner/platform` — `name, tagline?`; `POST /owner/platform/logo` (multipart `logo`); `DELETE /owner/platform/logo`.
+  Each → `{ data: <Platform> }`.
+- `GET /owner/organizations` → `{ data: [<Organization>] }`, newest first.
+  `<Organization>` = `{ id, name, logo_url, contact_name, contact_email, contact_phone, address, plan, paid_until,
+  effective_plan, days_left, features, is_active, notes, admin_count, user_count, facility_count (SDPs), created_at }`.
+- `POST /owner/organizations` — `name, plan (free|paid), paid_until? (Y-m-d; empty = no end date), contact_name?,
+  contact_email?, contact_phone?, address?, notes?, admin?: { name, email }` → 201
+  `{ data: <Organization>, admin: <User> | null, temporary_password: string | null }`. Creates the organization's
+  stores; the admin (role `admin`) signs in with the temporary password and must change it.
+- `GET|PUT /owner/organizations/{id}` — same fields, all optional, plus `is_active` (false suspends: members are
+  signed out everywhere and can't sign in; nothing is deleted).
+- `POST /owner/organizations/{id}/logo` (multipart `logo`: PNG / JPG / WebP, ≤ 1 MB, ≤ 2000 px; SVG refused) and
+  `DELETE /owner/organizations/{id}/logo` → `{ data: <Organization> }`.
+- `GET /owner/organizations/{id}/admins` → `{ data: [<User>] }`; `POST` the same — `name, email` → 201
+  `{ data: <User>, temporary_password }`; `PUT /owner/organizations/{id}/admins/{user}` — `is_active`;
+  `POST /owner/organizations/{id}/admins/{user}/reset-password` → `{ data: <User>, temporary_password }`.
+  404 for an account that isn't an admin of that organization. Admins then manage everyone else (Users below).
 
 ## Hierarchy (admin-managed, read-only for everyone else)
 Lists return only what the caller can see — own node and below, never above or sideways. Not paginated.
@@ -66,7 +105,7 @@ to that LGA and above, a state store to that state and federal, the national sto
 staff never see stores. Rollups and their activity charts count SDPs only.
 
 ## Products
-- `GET /products` (filter: category, is_active — `true`/`false`/`1`/`0`). The catalog is not hierarchy-scoped.
+- `GET /products` (filter: category, is_active — `true`/`false`/`1`/`0`). Each organization has its own catalog; it is not hierarchy-scoped within it. `sku` is unique per organization.
 - `<Product>` = `{ id, name, sku, category, unit_of_measure, pack_size, requires_batch_tracking, requires_cold_chain,
   min_stock_level, max_stock_level, reorder_level, is_active, created_by }` — levels are the catalog defaults.
 - `POST /products` (anyone signed in — every level may add products to the shared catalog) — body `name, sku,
@@ -155,7 +194,7 @@ sent. There is no server-side scan endpoint.
 
 - `GET /facilities/{id}/delivery-notes` (query: `status?`, `per_page?` ≤ 100) — newest first, paginated.
 - `GET /delivery-notes/{id}`
-- `POST /facilities/{id}/delivery-notes` — create a draft, or `confirm: true` to create and confirm in
+- **[paid: delivery_scanning]** `POST /facilities/{id}/delivery-notes` — create a draft, or `confirm: true` to create and confirm in
   one step (what the phone sends after staff review a scan).
   - body: `delivery_note_no?, source, received_date, capture_method? ("manual" | "ocr"), comments?,
     confirm?, client_reference?, items: [{ product_id, batch_no?, expiry_date?, quantity }]` (1–100 items).
@@ -182,10 +221,10 @@ A store issuing stock down the chain. The sender's side is immediate — an `iss
 Card; the receiver gets a draft delivery note (`source_facility` set) and confirms or rejects it like any
 delivery, so stock only lands in their balance once someone there has signed for it.
 
-- `GET /facilities/{id}/dispatch-destinations` — where this store may dispatch, active, by name:
+- **[paid: supply_chain]** `GET /facilities/{id}/dispatch-destinations` — where this store may dispatch, active, by name:
   national → state stores; state store → LGA stores and SDPs in the state; LGA store → SDPs in the LGA.
   `data`: `[<Facility>]`. 403 for SDPs and for callers who can't record at the store.
-- `POST /facilities/{id}/dispatches` — body `destination_facility_id, dispatched_date, voucher_no?,
+- **[paid: supply_chain]** `POST /facilities/{id}/dispatches` — body `destination_facility_id, dispatched_date, voucher_no?,
   comments?, client_reference?, items: [{ product_id, batch_no?, quantity }]` (1–100 items).
   - who: as for recording at the store; the facility must be a store (SDPs record an `issue`).
   - `destination_facility_id` must be one of the destinations, else 422 on that field.
@@ -211,10 +250,10 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
   responded_by_name, responded_at, response_note, delivery_note: { id, delivery_note_no, status } | null,
   items: [{ id, product: { id, name, sku, unit_of_measure, pack_size, requires_batch_tracking }, quantity_requested,
   quantity_supplied }] }`.
-- `GET /facilities/{id}/reorder-suppliers` — the stores this facility may ask, nearest first: SDP → its LGA store,
+- **[paid: supply_chain]** `GET /facilities/{id}/reorder-suppliers` — the stores this facility may ask, nearest first: SDP → its LGA store,
   state store, national store; LGA store → state, national; state store → national. `[<Facility>]`. 403 for the
   national store and for callers who can't record at the facility.
-- `POST /facilities/{id}/reorder-requests` — body `supplier_facility_id, comments?, client_reference?,
+- **[paid: supply_chain]** `POST /facilities/{id}/reorder-requests` — body `supplier_facility_id, comments?, client_reference?,
   items: [{ product_id, quantity }]` (1–100, distinct active products). Who: whoever records at the facility (own
   SDP, own store, admin); facility active. A supplier not in the list above → 422 on `supplier_facility_id`.
   201 → `<ReorderRequest>`; a repeated `client_reference` returns the existing one with 200.
@@ -222,7 +261,7 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
   this facility, required), `status?`, `per_page?` ≤ 100, `page?`) — anyone who can see the facility. Pending first,
   then newest; paginated `{ data, meta: { pagination } }`. Dashboards badge with `status=pending&per_page=1`.
 - `GET /reorder-requests/{id}` — anyone who can see either facility.
-- `POST /reorder-requests/{id}/fulfil` — body as a dispatch without the destination: `dispatched_date, voucher_no?,
+- **[paid: supply_chain]** `POST /reorder-requests/{id}/fulfil` — body as a dispatch without the destination: `dispatched_date, voucher_no?,
   comments?, items: [{ product_id, batch_no?, quantity }]` (what is actually sent — may differ from what was
   asked). Who: whoever records at the store asked (403 otherwise). Same ledger rules and 422s as
   `POST /facilities/{id}/dispatches`; nothing changes on failure. Sets `quantity_supplied`, `delivery_note`, status
@@ -231,9 +270,9 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
 - `POST /reorder-requests/{id}/cancel` — the requester's side. Pending only.
 
 ## Rollups (LGA / State / Federal — read only, SDPs only)
-- `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
-- `GET /states/{id}/stock-summary` — aggregated across LGAs
-- `GET /federal/stock-summary` — aggregated across states
+- **[paid: rollups]** `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
+- **[paid: rollups]** `GET /states/{id}/stock-summary` — aggregated across LGAs
+- **[paid: rollups]** `GET /federal/stock-summary` — aggregated across states
 - Each rollup response includes: total on-hand per product, count of
   facilities in `low_stock` / `expiring_soon` / `expired` / `stock_out`
   state, and a drill-down list of the child nodes sorted worst-first.
@@ -278,7 +317,7 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
 
 ## Recording activity
 - `GET /facilities/{id}/stock-activity`, `GET /lgas/{id}/stock-activity`, `GET /states/{id}/stock-activity`,
-  `GET /federal/stock-activity`
+  `GET /federal/stock-activity` (the LGA / state / federal ones are **[paid: rollups]**)
   (query: `weeks`, 4–52, default 12, ending with the current week) —
   Stock Card entries per week, for dashboard charts. Counts entries, not
   quantities (units differ across products):
@@ -321,6 +360,7 @@ reads, like the dashboards; nothing is written back.
 ## Bulk imports (CSV)
 Many rows at once, each through the same validation, authorization and service as the matching
 single-item endpoint, so a row is accepted exactly when that endpoint would accept it.
+**[paid: bulk_imports]** for every `POST` below; `GET /imports/{kind}` (the columns) stays free.
 
 | `kind` | Endpoint | Who | Each row is like |
 |---|---|---|---|
@@ -384,7 +424,8 @@ single-item endpoint, so a row is accepted exactly when that endpoint would acce
 Push is sent through FCM (Firebase Admin SDK, credentials in `FIREBASE_CREDENTIALS`, default
 `storage/app/firebase-credentials.json`, never committed). Android only for now (iOS needs APNs
 configured); notification `{ title, body }` on Android channel `stock-alerts`. Tokens FCM reports as
-invalid are cleared. Every notice is also stored as an in-app notification, pushed or not.
+invalid are cleared. Every notice is also stored as an in-app notification, pushed or not. **[paid:
+push_notifications]** — on the free plan nothing is pushed; the in-app notifications still are.
 
 - **Per alert** — when `AlertEngine` raises a **new** alert, to the active people keeping that facility's
   Stock Card: its `sdp_staff` for an SDP; the LGA / State / Federal officers of the node for its store.

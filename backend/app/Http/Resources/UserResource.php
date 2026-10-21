@@ -13,7 +13,7 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $this->loadMissing(['facility.lga.state', 'lga.state', 'state']);
+        $this->loadMissing(['facility.lga.state', 'lga.state', 'state', 'organization']);
 
         return [
             'id' => $this->id,
@@ -39,6 +39,8 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             /** Still on a temporary password: clients send the user to change it before anything else. */
             'must_change_password' => $this->must_change_password,
+            /** Their organization, its logo and what its plan unlocks; null for the platform owner. */
+            'organization' => $this->organization ? MembershipResource::make($this->organization) : null,
         ];
     }
 

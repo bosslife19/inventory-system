@@ -5,6 +5,34 @@ commit as any migration change. Types are illustrative (Laravel migration
 shorthand), adjust as needed but keep names stable — web/mobile/shared
 types depend on them.
 
+## Organizations (tenants)
+
+Each partner organization is a separate tenant: its own facilities and
+stores, product catalog, accounts and audit log, never visible to another.
+States and LGAs are shared reference data. The platform owner (role
+`owner`) sets organizations up and belongs to none of them.
+
+**organizations**
+`id, name, logo_path (nullable), contact_name, contact_email, contact_phone, address (all nullable), plan (enum: free|paid, default free), paid_until (nullable date), is_active (bool, default true), notes (nullable text), created_at, updated_at`
+
+> `paid_until` is the last day of the paid plan in business time
+> (Africa/Lagos); null = no end date. A paid plan past that day is treated
+> as free (nothing is deleted). Payment happens outside the system; the
+> owner records it by setting `plan` / `paid_until`. `is_active = false`
+> suspends the organization: its members can't sign in and their tokens
+> stop working. `notes` are the owner's own and never shown to the
+> organization. `logo_path` is on the local disk under `logos/`, a new
+> random file name per upload.
+
+**platform_settings** (the owner's own branding, shown beside each organization's)
+`key (string, primary), value (nullable text)` — keys `name`, `tagline`, `logo_path`.
+
+`organization_id (fk organizations)` is on **facilities**, **products**,
+**users** (null only for the owner) and **audit_events** (null for the
+owner's own actions). Every other table hangs off one of those. The
+migration that added organizations put all existing rows in the first
+organization, on the paid plan with no end date.
+
 ## Hierarchy
 
 **states**
@@ -15,25 +43,29 @@ types depend on them.
 unique on `(state_id, name)`
 
 **facilities** (the SDPs, and one store per LGA / state / the nation)
-`id, lga_id (nullable fk), state_id (nullable fk), name, type (enum: health_center|hospital|pharmacy|warehouse|other), store_level (nullable enum: lga|state|national), store_key (nullable string, unique), address, latitude, longitude, phone, is_active, created_at, updated_at`
+`id, lga_id (nullable fk), state_id (nullable fk), name, type (enum: health_center|hospital|pharmacy|warehouse|other), store_level (nullable enum: lga|state|national), store_key (nullable string), address, latitude, longitude, phone, is_active, created_at, updated_at`
 
 > `store_level` null = an SDP, which always has `lga_id`. Otherwise the row is
 > the store of a hierarchy node, keeping its own Stock Card on the same
 > ledger: an LGA store has `lga_id`; a state store has `state_id` (and no
 > `lga_id`); the national store has neither. `store_key` (`lga:12`,
-> `state:3`, `national`) enforces one store per node; it is null for SDPs.
-> Stores are created with their node (model events, and
-> `Facility::ensureStores()` after the bulk hierarchy seed), named
+> `state:3`, `national`) enforces one store per node in each organization
+> (unique on `(organization_id, store_key)`); it is null for SDPs.
+> Stores are created with their node for every organization (model events),
+> and for a new organization or after the bulk hierarchy seed by
+> `Facility::ensureStores($organizationId)`, named
 > "<LGA> LGA Store", "<State> State Store", "National Store", type `warehouse`.
 > Rollups (LGA/State/Federal summaries and activity) count SDPs only.
 
 ## Identity & access
 
 **users**
-`id, name, email, password, role (enum: sdp_staff|lga_officer|state_officer|federal_officer|admin), facility_id (nullable fk), lga_id (nullable fk), state_id (nullable fk), is_active (bool, default true), must_change_password (bool, default false), created_by (nullable fk users), fcm_token (nullable, for push), created_at, updated_at`
+`id, name, email, password, organization_id (nullable fk), role (enum: sdp_staff|lga_officer|state_officer|federal_officer|admin|owner), facility_id (nullable fk), lga_id (nullable fk), state_id (nullable fk), is_active (bool, default true), must_change_password (bool, default false), created_by (nullable fk users), fcm_token (nullable, for push), created_at, updated_at`
 
 > Exactly one of `facility_id` / `lga_id` / `state_id` is set, matching
-> `role`. `federal_officer` and `admin` have all three null.
+> `role`. `federal_officer`, `admin` and `owner` have all three null.
+> `organization_id` is null exactly for `owner`. Email is unique across
+> every organization (it is the sign-in).
 >
 > Accounts are never deleted (the ledger's `performed_by` points at them):
 > `is_active = false` blocks sign-in and revokes every token.
@@ -45,7 +77,7 @@ unique on `(state_id, name)`
 ## Product catalog
 
 **products**
-`id, name, sku, category, unit_of_measure (enum: piece|tablet|capsule|sachet|ampoule|vial|bottle|tube|pair|roll|pack|box|carton|bag|kit), pack_size (nullable — pieces in each unit; required for pack|box|carton|bag|kit), requires_batch_tracking (bool), requires_cold_chain (bool), min_stock_level, max_stock_level, reorder_level (the Excel "EOP"), is_active, created_by (nullable fk users), created_at, updated_at`
+`id, organization_id (fk), name, sku, category, unit_of_measure (enum: piece|tablet|capsule|sachet|ampoule|vial|bottle|tube|pair|roll|pack|box|carton|bag|kit), pack_size (nullable — pieces in each unit; required for pack|box|carton|bag|kit), requires_batch_tracking (bool), requires_cold_chain (bool), min_stock_level, max_stock_level, reorder_level (the Excel "EOP"), is_active, created_by (nullable fk users), created_at, updated_at`
 
 > Every Stock Card quantity for a product counts `unit_of_measure`s. Any level may add a
 > product (`created_by`); admins and the creator may edit it. Levels read

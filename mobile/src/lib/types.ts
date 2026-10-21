@@ -42,3 +42,8 @@ export type ActivityWeek = { week_start: string; received: number; issued: numbe
 export type StockActivity = Omit<ActivityResponse, 'weeks'> & { weeks: ActivityWeek[] };
 
 export type { paths };
+
+// Organizations and plans (docs/API_CONTRACT.md: Platform)
+export type Membership = Schemas['MembershipResource'];
+export type Feature = Membership['features'][number];
+export type Platform = NonNullable<paths['/platform']['get']['responses'][200]['content']['application/json']>['data'];

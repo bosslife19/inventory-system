@@ -251,3 +251,12 @@ export function useConfirmDelivery() {
     onSuccess: () => queryClient.invalidateQueries(),
   });
 }
+
+/** The platform owner's name, tagline and logo (public): on sign-in and beside the organization's logo. */
+export function usePlatform() {
+  return useQuery({
+    queryKey: ['platform'],
+    queryFn: async () => (await unwrap(api.GET('/platform'))).data,
+    staleTime: 60 * 60_000,
+  });
+}

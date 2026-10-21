@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\AuditEvent;
 use App\Models\Facility;
 use App\Models\Lga;
+use App\Models\Organization;
 use App\Models\State;
 use App\Models\StockTransaction;
 use App\Models\User;
@@ -45,6 +46,7 @@ final class AuditLog
         $actor ??= Auth::user();
 
         return AuditEvent::create([
+            'organization_id' => self::organizationOf($place, $subject, $actor),
             'occurred_at' => $at ?? CarbonImmutable::now(),
             'actor_id' => $actor?->id,
             'action' => $action,
@@ -55,6 +57,15 @@ final class AuditLog
             'changes' => $changes ?: null,
             'ip' => app()->runningInConsole() ? null : request()->ip(),
         ]);
+    }
+
+    /** Whose log the entry goes in: the place's organization, else the subject's or the actor's. The owner's changes to an organization stay out of its log (they carry private notes). */
+    private static function organizationOf(Facility|Lga|State|null $place, ?Model $subject, ?User $actor): ?int
+    {
+        return ($place instanceof Facility ? $place->organization_id : null)
+            ?? ($subject instanceof Organization ? null : $subject?->getAttribute('organization_id'))
+            ?? $actor?->organization_id
+            ?? Tenant::id();
     }
 
     /** @return array{facility_id: int|null, lga_id: int|null, state_id: int|null} */

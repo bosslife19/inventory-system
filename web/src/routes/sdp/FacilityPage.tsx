@@ -32,6 +32,8 @@ import {
   useStockBalances,
 } from '../../lib/queries'
 import type { Facility, ProductStock, StockLevel, User } from '../../lib/types'
+import { hasFeature } from '../../lib/plan'
+import { LockedAction } from '../../components/plan/Paid'
 
 const LEVELS: StockLevel[] = ['stock_out', 'low_stock', 'reorder', 'ok']
 
@@ -100,6 +102,7 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
   const back = backLink(f, user)
   // Everyone but the National Store has a store above to ask.
   const canRequest = canRecord && f.store_level !== 'national'
+  const supplyChain = hasFeature(user, 'supply_chain')
   const place = [f.lga?.name, f.state?.name ?? 'Nigeria'].filter(Boolean).join(', ')
   const deliveriesHref = user.role === 'sdp_staff' ? '/delivery-notes' : `/facilities/${facilityId}/delivery-notes`
   const count = (pred: (s: ProductStock) => boolean) => rows.filter(pred).length
@@ -145,16 +148,23 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
           <Link to={deliveriesHref} className="btn btn-ghost">
             <Truck size={18} /> Delivery notes
           </Link>
-          {canRequest && (
-            <button type="button" className="btn btn-ghost" onClick={() => setRequesting(true)}>
-              <ClipboardList size={18} /> Request reorder
-            </button>
-          )}
-          {canRecord && isStore && (
-            <button type="button" className="btn btn-ghost" onClick={() => setDispatching(true)}>
-              <Send size={18} /> Issue to facility
-            </button>
-          )}
+          {canRequest &&
+            (supplyChain ? (
+              <button type="button" className="btn btn-ghost" onClick={() => setRequesting(true)}>
+                <ClipboardList size={18} /> Request reorder
+              </button>
+            ) : (
+              <LockedAction feature="supply_chain" label="Request reorder" icon={<ClipboardList size={18} />} />
+            ))}
+          {canRecord &&
+            isStore &&
+            (supplyChain ? (
+              <button type="button" className="btn btn-ghost" onClick={() => setDispatching(true)}>
+                <Send size={18} /> Issue to facility
+              </button>
+            ) : (
+              <LockedAction feature="supply_chain" label="Issue to facility" icon={<Send size={18} />} />
+            ))}
           {canRecord && (
             <BulkImportButton
               kind="stock-entries"

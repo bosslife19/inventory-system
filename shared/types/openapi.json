@@ -2178,10 +2178,1011 @@
                 }
             }
         },
+        "/organizations/{organization}/logo/{file}": {
+            "get": {
+                "operationId": "organization.logo",
+                "summary": "An organization's logo image. Public, so it can sit in an img tag; the\nfile name changes with every upload",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Transfer-Encoding": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chunked"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/owner/organizations": {
+            "get": {
+                "operationId": "organization.index",
+                "summary": "Every organization, newest first",
+                "tags": [
+                    "Organization"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `OrganizationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/OrganizationResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "organization.store",
+                "summary": "Set up an organization: its stores are created, and its first admin when given (temporary password returned once)",
+                "tags": [
+                    "Organization"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrganizationResource"
+                                        },
+                                        "admin": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "additionalProperties": {}
+                                        },
+                                        "temporary_password": {
+                                            "type": [
+                                                "string",
+                                                "null"
+                                            ],
+                                            "description": "Give this to the admin with their email; they must change it at first sign-in. Not retrievable later."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "admin",
+                                        "temporary_password"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/owner/organizations/{organization}": {
+            "get": {
+                "operationId": "organization.show",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`OrganizationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrganizationResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "organization.update",
+                "summary": "Change details or plan (e.g. paid until a new date after a renewal), or suspend with is_active=false",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`OrganizationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrganizationResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/owner/organizations/{organization}/logo": {
+            "post": {
+                "operationId": "organization.uploadLogo",
+                "summary": "Upload or replace the logo (PNG, JPG or WebP, up to 1 MB), shown beside the platform's own",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "logo": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "contentMediaType": "application/octet-stream",
+                                        "description": "Maximum file size: 1024 kilobytes."
+                                    }
+                                },
+                                "required": [
+                                    "logo"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`OrganizationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrganizationResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "organization.deleteLogo",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`OrganizationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/OrganizationResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/owner/organizations/{organization}/admins": {
+            "get": {
+                "operationId": "organizationAdmin.index",
+                "tags": [
+                    "OrganizationAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `UserResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/UserResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "organizationAdmin.store",
+                "summary": "Add an admin on a temporary password, returned once",
+                "tags": [
+                    "OrganizationAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "email"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "temporary_password": {
+                                            "type": "string",
+                                            "description": "Give this to the admin with their email; they must change it at first sign-in."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "temporary_password"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/owner/organizations/{organization}/admins/{user}": {
+            "put": {
+                "operationId": "organizationAdmin.update",
+                "summary": "Deactivate or reactivate an admin (deactivating signs them out everywhere)",
+                "tags": [
+                    "OrganizationAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "description": "The user ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": [
+                                    "is_active"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`UserResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/owner/organizations/{organization}/admins/{user}/reset-password": {
+            "post": {
+                "operationId": "organizationAdmin.resetPassword",
+                "summary": "New temporary password for an admin who lost theirs; signs them out everywhere",
+                "tags": [
+                    "OrganizationAdmin"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "description": "The user ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        },
+                                        "temporary_password": {
+                                            "type": "string",
+                                            "description": "Give this to the admin; they must change it at their next sign-in."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "temporary_password"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/platform": {
+            "get": {
+                "operationId": "platform.show",
+                "summary": "The platform's name, tagline and logo. Public: the sign-in screens show it",
+                "tags": [
+                    "Platform"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Stock Card"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "tagline": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Health supply chain \u00b7 Nigeria"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "logo_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "tagline",
+                                                "logo_url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/platform/logo/{file}": {
+            "get": {
+                "operationId": "platform.logo",
+                "summary": "The platform logo image",
+                "tags": [
+                    "Platform"
+                ],
+                "parameters": [
+                    {
+                        "name": "file",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Transfer-Encoding": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chunked"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/owner/platform": {
+            "put": {
+                "operationId": "platform.update",
+                "tags": [
+                    "Platform"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 80
+                                    },
+                                    "tagline": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 120
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Stock Card"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "tagline": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Health supply chain \u00b7 Nigeria"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "logo_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "tagline",
+                                                "logo_url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/owner/platform/logo": {
+            "post": {
+                "operationId": "platform.uploadLogo",
+                "summary": "Upload or replace the platform logo (PNG, JPG or WebP, up to 1 MB)",
+                "tags": [
+                    "Platform"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "logo": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "contentMediaType": "application/octet-stream",
+                                        "description": "Maximum file size: 1024 kilobytes."
+                                    }
+                                },
+                                "required": [
+                                    "logo"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Stock Card"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "tagline": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Health supply chain \u00b7 Nigeria"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "logo_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "tagline",
+                                                "logo_url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "platform.deleteLogo",
+                "tags": [
+                    "Platform"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Stock Card"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "tagline": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Health supply chain \u00b7 Nigeria"
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                "logo_url": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "name",
+                                                "tagline",
+                                                "logo_url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/products": {
             "get": {
                 "operationId": "product.index",
-                "summary": "The product catalog. Not hierarchy-scoped: every role sees the same catalog",
+                "summary": "The organization's product catalog. Not hierarchy-scoped: every role in it sees the same catalog",
                 "tags": [
                     "Product"
                 ],
@@ -2239,7 +3240,7 @@
             },
             "post": {
                 "operationId": "product.store",
-                "summary": "Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels",
+                "summary": "Add a product to the catalog. Any level may: the organization's catalog is shared, and each facility then sets its own levels",
                 "tags": [
                     "Product"
                 ],
@@ -5792,6 +6793,70 @@
                 ],
                 "title": "LgaResource"
             },
+            "MembershipResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "logo_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "plan": {
+                        "description": "The plan in force today.",
+                        "$ref": "#/components/schemas/Plan"
+                    },
+                    "paid_until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Last day of the paid plan (Y-m-d); null = no end date, or on the free plan."
+                    },
+                    "days_left": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Days left on the paid plan, today included; null when it has no end date or isn't paid."
+                    },
+                    "renewal_due": {
+                        "type": "string",
+                        "description": "True from RENEWAL_WARNING_DAYS out: clients show a \"renew\" notice."
+                    },
+                    "features": {
+                        "type": "array",
+                        "description": "What the plan unlocks; anything absent answers 402 feature_unavailable.",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "bulk_imports",
+                                "delivery_scanning",
+                                "push_notifications",
+                                "rollups",
+                                "supply_chain"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "logo_url",
+                    "plan",
+                    "paid_until",
+                    "days_left",
+                    "renewal_due",
+                    "features"
+                ],
+                "title": "MembershipResource"
+            },
             "NotificationCollection": {
                 "type": "array",
                 "items": {
@@ -5868,6 +6933,137 @@
                     "read_at"
                 ],
                 "title": "NotificationResource"
+            },
+            "OrganizationResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "logo_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contact_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contact_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contact_phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "plan": {
+                        "description": "The plan as set; see effective_plan for what applies today.",
+                        "$ref": "#/components/schemas/Plan"
+                    },
+                    "paid_until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Last day of the paid plan (Y-m-d); null = no end date."
+                    },
+                    "effective_plan": {
+                        "description": "\"free\" once a paid plan has passed its last day.",
+                        "$ref": "#/components/schemas/Plan"
+                    },
+                    "days_left": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Days left on a paid plan with an end date, today included; null otherwise."
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "admin_count": {
+                        "type": "integer"
+                    },
+                    "user_count": {
+                        "type": "integer"
+                    },
+                    "facility_count": {
+                        "description": "Service delivery points (stores not counted). @var int",
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "integer",
+                                "minimum": 0
+                            }
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "logo_url",
+                    "contact_name",
+                    "contact_email",
+                    "contact_phone",
+                    "address",
+                    "plan",
+                    "paid_until",
+                    "effective_plan",
+                    "days_left",
+                    "features",
+                    "is_active",
+                    "notes",
+                    "admin_count",
+                    "user_count",
+                    "facility_count",
+                    "created_at"
+                ],
+                "title": "OrganizationResource"
+            },
+            "Plan": {
+                "type": "string",
+                "enum": [
+                    "free",
+                    "paid"
+                ],
+                "title": "Plan"
             },
             "ProductLevelResource": {
                 "type": "object",
@@ -6547,6 +7743,88 @@
                 ],
                 "title": "SaveFacilityRequest"
             },
+            "SaveOrganizationRequest": {
+                "type": "object",
+                "description": "POST /owner/organizations and PUT /owner/organizations/{organization}\n(the platform owner only \u2014 EnsureOwner). On update every field is\noptional. Creating may also make the organization's first admin account.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "contact_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "contact_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contact_phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 30
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "plan": {
+                        "$ref": "#/components/schemas/Plan"
+                    },
+                    "paid_until": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date",
+                        "description": "Last day of the paid plan (Y-m-d); leave empty for no end date."
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "description": "Suspending signs every member out and stops them signing in. Nothing is deleted."
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Your own notes (what they paid, invoice numbers); never shown to the organization.",
+                        "maxLength": 5000
+                    },
+                    "admin": {
+                        "type": "object",
+                        "description": "Create only: the organization's first admin, on a temporary password returned once.",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "maxLength": 255
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 255
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "plan"
+                ],
+                "title": "SaveOrganizationRequest"
+            },
             "SaveProductLevelsRequest": {
                 "type": "object",
                 "description": "PUT /facilities/{facility}/product-levels/{product}: this facility's own min / EOP / max, EOP < min \u2264 max.",
@@ -6585,7 +7863,7 @@
                     },
                     "sku": {
                         "type": "string",
-                        "description": "Short product code, unique; upper-cased. Printed on delivery notes, so scanning matches on it.",
+                        "description": "Short product code, unique in the organization's catalog; upper-cased. Printed on delivery notes, so scanning matches on it.",
                         "maxLength": 50
                     },
                     "category": {
@@ -7343,6 +8621,17 @@
                     "must_change_password": {
                         "type": "boolean",
                         "description": "Still on a temporary password: clients send the user to change it before anything else."
+                    },
+                    "organization": {
+                        "anyOf": [
+                            {
+                                "description": "Their organization, its logo and what its plan unlocks; null for the platform owner.",
+                                "$ref": "#/components/schemas/MembershipResource"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "required": [
@@ -7356,18 +8645,21 @@
                     "node",
                     "store",
                     "is_active",
-                    "must_change_password"
+                    "must_change_password",
+                    "organization"
                 ],
                 "title": "UserResource"
             },
             "UserRole": {
                 "type": "string",
+                "description": "| |\n|---|\n| `sdp_staff` <br/>  |\n| `lga_officer` <br/>  |\n| `state_officer` <br/>  |\n| `federal_officer` <br/>  |\n| `admin` <br/>  |\n| `owner` <br/> Runs the platform: manages organizations and their plans. Belongs to no organization and sees none of their data. |",
                 "enum": [
                     "sdp_staff",
                     "lga_officer",
                     "state_officer",
                     "federal_officer",
-                    "admin"
+                    "admin",
+                    "owner"
                 ],
                 "title": "UserRole"
             }
@@ -7403,6 +8695,25 @@
                     }
                 }
             },
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
             "AuthenticationException": {
                 "description": "Unauthenticated",
                 "content": {
@@ -7424,25 +8735,6 @@
             },
             "AuthorizationException": {
                 "description": "Authorization error",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
-            "ModelNotFoundException": {
-                "description": "Not found",
                 "content": {
                     "application/json": {
                         "schema": {

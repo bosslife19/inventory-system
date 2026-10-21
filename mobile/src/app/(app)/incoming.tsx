@@ -19,6 +19,7 @@ import { describe, useOutbox, type OutboxItem } from '@/lib/offlineQueue';
 import { useDeclineReorderRequest, useIncomingRequests, useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 import type { ProductStock, ReorderRequest, ReorderRequestStatus } from '@/lib/types';
+import { usePaidAction } from '@/lib/plan';
 
 const STATUS: Record<ReorderRequestStatus, { label: string; tone: 'warning' | 'ok' | 'critical' | 'neutral' }> = {
   pending: { label: 'To answer', tone: 'warning' },
@@ -102,6 +103,7 @@ interface CardProps {
 }
 
 function IncomingCard({ r, stock, highlight, queued, onDecline, declining, declineError }: CardProps) {
+  const supplyChain = usePaidAction('supply_chain');
   const c = useTheme();
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -167,7 +169,7 @@ function IncomingCard({ r, stock, highlight, queued, onDecline, declining, decli
         ) : (
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Button label="Issue stock" icon={Truck} size="sm" block onPress={() => router.push({ pathname: '/fulfil', params: { id: String(r.id) } })} />
+              <Button label="Issue stock" icon={Truck} size="sm" block onPress={supplyChain(() => router.push({ pathname: '/fulfil', params: { id: String(r.id) } }))} />
             </View>
             <Button label="Decline" variant="ghost" size="sm" onPress={() => setDeclineOpen(true)} />
           </View>

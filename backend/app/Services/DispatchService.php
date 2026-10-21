@@ -39,7 +39,7 @@ class DispatchService
      */
     public function destinations(Facility $from): Builder
     {
-        $query = Facility::query()->where('is_active', true)->whereKeyNot($from->id);
+        $query = Facility::query()->where('organization_id', $from->organization_id)->where('is_active', true)->whereKeyNot($from->id);
 
         return match ($from->store_level) {
             StoreLevel::National => $query->where('store_level', StoreLevel::State),

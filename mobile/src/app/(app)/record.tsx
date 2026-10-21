@@ -44,6 +44,7 @@ import { useProducts, useStockBalances } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 import { requestSync, useSyncState } from '@/lib/sync';
 import type { BatchStock, TransactionType } from '@/lib/types';
+import { usePaidAction } from '@/lib/plan';
 
 const TYPE_ICON: Record<TransactionType, LucideIcon> = {
   issue: ArrowUpFromLine,
@@ -77,6 +78,7 @@ const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new
  * the real gate and anything it refuses shows up on the Account tab.
  */
 export default function Record() {
+  const scanning = usePaidAction('delivery_scanning');
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const toast = useToast();
@@ -230,7 +232,7 @@ export default function Record() {
 
         {type === 'receipt' && (
           <Pressable
-            onPress={() => router.replace('/deliveries/scan')}
+            onPress={scanning(() => router.replace('/deliveries/scan'))}
             accessibilityRole="button"
             style={({ pressed }) => [styles.scanLink, { backgroundColor: c.primarySoft, opacity: pressed ? 0.8 : 1 }]}>
             <ScanLine size={20} color={c.primary} />

@@ -17,6 +17,7 @@ import { describe, useOutbox } from '@/lib/offlineQueue';
 import { useCancelReorderRequest, useConfirmDelivery, useMyReorderRequests } from '@/lib/queries';
 import { useFacilityId } from '@/lib/session';
 import type { ReorderRequest, ReorderRequestStatus } from '@/lib/types';
+import { usePaidAction } from '@/lib/plan';
 
 const STATUS: Record<ReorderRequestStatus, { label: string; tone: 'warning' | 'ok' | 'critical' | 'neutral' }> = {
   pending: { label: 'Waiting', tone: 'warning' },
@@ -31,6 +32,7 @@ const STATUS: Record<ReorderRequestStatus, { label: string; tone: 'warning' | 'o
  * delivery to confirm, like any other.
  */
 export default function Requests() {
+  const supplyChain = usePaidAction('supply_chain');
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const facilityId = useFacilityId();
@@ -53,7 +55,7 @@ export default function Requests() {
           <View style={{ gap: Spacing.four, marginBottom: Spacing.four }}>
             <PageHeader back eyebrow="Reorder" title="Reorder requests" subtitle="Ask a store above for stock. You’re notified when it’s sent or declined." />
             <View style={[styles.pad, { gap: Spacing.three }]}>
-              <Button label="New request" icon={Plus} block onPress={() => router.push('/reorder')} />
+              <Button label="New request" icon={Plus} block onPress={supplyChain(() => router.push('/reorder'))} />
               {queued.map((i) => (
                 <Card key={i.id} style={{ borderColor: c.warning }}>
                   <Text variant="label">{describe(i).title}</Text>

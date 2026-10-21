@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\UserRole;
 use App\Models\Facility;
+use App\Support\Tenant;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -39,7 +40,7 @@ class SaveFacilityRequest extends FormRequest
             /** Create only: the LGA it sits in. */
             'lga_id' => $facility ? ['prohibited'] : ['required', 'integer', Rule::exists('lgas', 'id')],
             'name' => [$required, 'string', 'max:255',
-                Rule::unique('facilities', 'name')->where('lga_id', $lgaId)->ignore($facility)],
+                Rule::unique('facilities', 'name')->where('organization_id', Tenant::id())->where('lga_id', $lgaId)->ignore($facility)],
             'type' => [$required, Rule::in(self::TYPES)],
             'address' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],

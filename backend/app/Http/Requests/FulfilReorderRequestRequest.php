@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Product;
 use App\Services\DeliveryNoteService;
+use App\Support\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
@@ -49,7 +50,7 @@ class FulfilReorderRequestRequest extends FormRequest
             'voucher_no' => ['nullable', 'string', 'max:100'],
             'comments' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('is_active', true)],
+            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('organization_id', Tenant::id())->where('is_active', true)],
             /** Required for batch-tracked products; a batch the store holds. */
             'items.*.batch_no' => ['nullable', 'string', 'max:100'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000000'],

@@ -61,6 +61,7 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   state_officer: 'State officer',
   federal_officer: 'Federal officer',
   admin: 'Administrator',
+  owner: 'Platform owner',
 };
 
 /** Today in Nigeria, YYYY-MM-DD — the backend's business timezone. */

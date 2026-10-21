@@ -1,7 +1,8 @@
-import { AlertCircle, Boxes, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
+import { Brand } from '../../components/layout/Brand'
 import { ApiError } from '../../lib/api-client'
 import { homePath, useLogin, useMe } from '../../lib/auth'
 
@@ -27,10 +28,7 @@ export function LoginPage() {
     <div className="login">
       <aside className="login-hero">
         <div className="brand">
-          <span className="brand-mark" aria-hidden>
-            <Boxes size={18} />
-          </span>
-          Stock Card
+          <Brand />
         </div>
         <div>
           <h2>Health commodity visibility, from facility to federal.</h2>

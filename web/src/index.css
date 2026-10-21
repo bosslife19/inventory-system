@@ -2166,3 +2166,208 @@ a.cell-title:hover {
 .activity-changes dd {
   margin: 0;
 }
+
+/* ---------------------------------------------------------------- organizations & plans */
+
+.brand-logo {
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: none;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+/* The member's organization beside the platform brand, on a light tile: partner logos are made for white. */
+.partner-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: -0.4rem 0 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--sidebar-2);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.partner-badge small {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--sidebar-muted);
+}
+.partner-logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  color: #0a0f1c;
+  font-weight: 700;
+}
+.partner-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+}
+@media (min-width: 961px) {
+  .nav-collapsed .partner-badge {
+    justify-content: center;
+    padding: 0.35rem 0;
+    border: 0;
+  }
+  .nav-collapsed .partner-badge .nav-text {
+    display: none;
+  }
+}
+
+.renewal-banner {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.9rem;
+}
+.renewal-banner svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.btn-locked {
+  opacity: 0.8;
+}
+.btn-locked svg:last-child {
+  color: var(--muted);
+}
+.upgrade-note p {
+  margin: 0 0 0.6rem;
+}
+
+.locked-card {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  border-style: dashed;
+}
+.locked-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+.locked-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.link-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.link-list li + li {
+  border-top: 1px solid var(--border);
+}
+.link-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.link-list a:hover {
+  background: var(--surface-2);
+  color: var(--primary);
+}
+
+.org-cell {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.org-cell .partner-logo {
+  border: 1px solid var(--border);
+}
+
+.logo-upload {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.logo-preview {
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 5rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.feature-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.feature-list li {
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.feature-list li::before {
+  content: '–';
+  position: absolute;
+  left: 0.3rem;
+}
+.feature-list li.is-on {
+  color: var(--text);
+  text-decoration: none;
+}
+.feature-list li.is-on::before {
+  content: '✓';
+  color: var(--ok);
+}
+
+.owner-notes {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.fieldset legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}

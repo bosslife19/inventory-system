@@ -1,6 +1,9 @@
 import type { QueryKey } from '@tanstack/react-query'
 import { AlertCircle, CheckCircle2, Download, FileUp, KeyRound, Upload } from 'lucide-react'
 import { useState } from 'react'
+import { hasFeature } from '../../lib/plan'
+import { useUser } from '../../lib/user-context'
+import { LockedAction } from '../plan/Paid'
 import { fieldErrors } from '../../lib/api-client'
 import { downloadCsv, useImportGuide, useRunImport, type ImportKind, type ImportResult } from '../../lib/import-queries'
 import { ErrorState, Loading } from '../layout/PageState'
@@ -23,6 +26,9 @@ interface Props {
 /** A ghost "Import CSV" button that opens the import dialog. */
 export function BulkImportButton(props: Props) {
   const [open, setOpen] = useState(false)
+  const user = useUser()
+  if (!hasFeature(user, 'bulk_imports')) return <LockedAction feature="bulk_imports" label={props.label ?? 'Import CSV'} icon={<Upload size={18} />} />
+
   return (
     <>
       <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)} title={`Add many ${props.noun} at once from a CSV file`}>

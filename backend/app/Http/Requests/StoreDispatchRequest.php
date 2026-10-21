@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\Product;
 use App\Services\DeliveryNoteService;
 use App\Services\DispatchService;
+use App\Support\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
@@ -46,7 +47,7 @@ class StoreDispatchRequest extends FormRequest
     {
         return [
             /** A facility one level down the chain (GET /facilities/{facility}/dispatch-destinations). */
-            'destination_facility_id' => ['required', 'integer', Rule::exists('facilities', 'id')],
+            'destination_facility_id' => ['required', 'integer', Rule::exists('facilities', 'id')->where('organization_id', Tenant::id())],
             /** Issue voucher / waybill number; DSP-000123 is generated when omitted. */
             'voucher_no' => ['nullable', 'string', 'max:100'],
             'dispatched_date' => [
@@ -57,7 +58,7 @@ class StoreDispatchRequest extends FormRequest
             /** Idempotency key: re-sending it returns the dispatch already made. */
             'client_reference' => ['nullable', 'string', 'max:64'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('is_active', true)],
+            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('organization_id', Tenant::id())->where('is_active', true)],
             /** Required for batch-tracked products; must be a batch the store holds. */
             'items.*.batch_no' => ['nullable', 'string', 'max:100'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000000'],

@@ -49,6 +49,8 @@ import {
 import { useFacilityId, useIsStoreOfficer, useUser } from '@/lib/session';
 import { requestSync } from '@/lib/sync';
 import type { StockLevel } from '@/lib/types';
+import { BrandStrip } from '@/components/brand';
+import { usePaidAction } from '@/lib/plan';
 
 export default function Home() {
   const c = useTheme();
@@ -67,6 +69,9 @@ export default function Home() {
   const unread = useNotifications().data?.meta.unread_count ?? 0;
   const outbox = useOutbox();
   const [refreshing, setRefreshing] = useState(false);
+  const scanning = usePaidAction('delivery_scanning');
+  const supplyChain = usePaidAction('supply_chain');
+  const plan = user.organization;
 
   const rows = stock.data ?? [];
   const count = (level: StockLevel) => rows.filter((r) => r.level === level).length;
@@ -90,6 +95,7 @@ export default function Home() {
       contentContainerStyle={{ paddingBottom: TabBarInset + Spacing.four }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#ffffff" />}>
       <Hero extraBottom={48}>
+        <BrandStrip organization={user.organization} />
         <View style={styles.heroTop}>
           <View style={{ flex: 1 }}>
             <Text variant="small" style={{ color: '#b8c3d8' }}>
@@ -131,7 +137,7 @@ export default function Home() {
         </View>
 
         <View style={styles.actions}>
-          <Card onPress={() => router.push('/deliveries/scan')} style={styles.action}>
+          <Card onPress={scanning(() => router.push('/deliveries/scan'))} style={styles.action}>
             <IconChip icon={ScanLine} tone="ink" size={42} />
             <View style={{ flex: 1 }}>
               <Text variant="label">Scan delivery</Text>
@@ -162,7 +168,7 @@ export default function Home() {
                 </Text>
               </View>
             </Card>
-            <Card onPress={() => router.push('/dispatch')} style={styles.banner}>
+            <Card onPress={supplyChain(() => router.push('/dispatch'))} style={styles.banner}>
               <IconChip icon={Truck} tone="ink" size={38} />
               <View style={{ flex: 1 }}>
                 <Text variant="label">Dispatch stock</Text>
@@ -172,6 +178,18 @@ export default function Home() {
               </View>
             </Card>
           </>
+        )}
+
+        {plan?.renewal_due && plan.days_left !== null && (
+          <Card style={[styles.banner, { backgroundColor: c.warningSoft, borderColor: c.warningSoft }]}>
+            <IconChip icon={Clock3} tone="warning" size={38} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">Paid plan ends {plan.days_left === 1 ? 'today' : `in ${plan.days_left} days`}</Text>
+              <Text variant="caption" tone="muted">
+                Scanning, dispatches, reorder requests and push pause after that — your Stock Card keeps working.
+              </Text>
+            </View>
+          </Card>
         )}
 
         <Card onPress={() => router.push('/delivery-notes')} style={[styles.banner, toConfirm > 0 && { borderColor: c.warning }]}>

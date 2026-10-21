@@ -9,10 +9,10 @@ class State extends Model
 {
     protected $fillable = ['name', 'geopolitical_zone'];
 
-    /** Every state has one store (Facility::storeForState). Bulk loads call Facility::ensureStores(). */
+    /** Every state has one store in each organization (Facility::storeForState). Bulk loads call Facility::ensureStores(). */
     protected static function booted(): void
     {
-        static::created(fn (State $state) => Facility::storeForState($state));
+        static::created(fn (State $state) => Organization::query()->pluck('id')->each(fn (int $org) => Facility::storeForState($state, $org)));
     }
 
     public function lgas(): HasMany

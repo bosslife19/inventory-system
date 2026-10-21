@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PushSender;
 use App\Enums\AlertType;
+use App\Enums\Feature;
 use App\Enums\UserRole;
 use App\Models\Alert;
 use App\Models\Facility;
@@ -37,7 +38,7 @@ class AlertDigest
         User::query()
             ->where('is_active', true)
             ->whereIn('role', self::ROLES)
-            ->with(['lga', 'state'])
+            ->with(['lga', 'state', 'organization'])
             ->orderBy('id')
             ->chunkById(200, function ($users) use ($now, &$sent) {
                 foreach ($users as $user) {
@@ -94,7 +95,8 @@ class AlertDigest
             'since' => $since->toIso8601String(),
         ];
 
-        $dead = $user->fcm_token
+        $push = $user->fcm_token && $user->organization?->hasFeature(Feature::PushNotifications);
+        $dead = $push
             ? $this->push->send([$user->fcm_token], $title, $body, ['type' => UserNotification::TYPE_DIGEST, 'url' => $data['url']])
             : [];
         if ($dead !== []) {
@@ -107,7 +109,7 @@ class AlertDigest
             'title' => $title,
             'body' => $body,
             'data' => $data,
-            'pushed_at' => $user->fcm_token && $dead === [] ? $now : null,
+            'pushed_at' => $push && $dead === [] ? $now : null,
             'created_at' => $now,
             'updated_at' => $now,
         ]);

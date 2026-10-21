@@ -7,6 +7,9 @@ import { DispatchForm } from '../dispatches/DispatchForm'
 import { Field } from '../form/Field'
 import { Loading } from '../layout/PageState'
 import { Modal } from '../ui/Modal'
+import { hasFeature } from '../../lib/plan'
+import { useUser } from '../../lib/user-context'
+import { LockedAction } from '../plan/Paid'
 
 const STATUS: Record<ReorderRequestStatus, { label: string; tone: string }> = {
   pending: { label: 'Waiting', tone: 'notice' },
@@ -38,6 +41,7 @@ export function ReorderRequestList({ facilityId, direction, canAct, hideWhenEmpt
   const [fulfilling, setFulfilling] = useState<ReorderRequest | null>(null)
   const [answering, setAnswering] = useState<{ request: ReorderRequest; action: 'reject' | 'cancel' } | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const paid = hasFeature(useUser(), 'supply_chain')
 
   const rows = requests.data?.data ?? []
   const pagination = requests.data?.meta.pagination
@@ -122,9 +126,13 @@ export function ReorderRequestList({ facilityId, direction, canAct, hideWhenEmpt
                     <td className="actions">
                       {canAct && r.status === 'pending' && incoming && (
                         <>
-                          <button type="button" className="btn btn-primary btn-sm" onClick={() => setFulfilling(r)}>
-                            <Send size={14} /> Send stock
-                          </button>{' '}
+                          {paid ? (
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => setFulfilling(r)}>
+                              <Send size={14} /> Send stock
+                            </button>
+                          ) : (
+                            <LockedAction feature="supply_chain" label="Send stock" icon={<Send size={14} />} className="btn btn-ghost btn-sm" />
+                          )}{' '}
                           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAnswering({ request: r, action: 'reject' })}>
                             Decline
                           </button>

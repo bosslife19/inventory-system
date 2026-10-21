@@ -3,21 +3,27 @@
 namespace App\Models;
 
 use App\Enums\StoreLevel;
+use App\Models\Concerns\BelongsToOrganization;
+use App\Support\Tenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * A place that keeps a Stock Card: an SDP (store_level null, always in an
  * LGA), or the one store of an LGA, a state or the nation (store_level set).
  * State stores carry state_id instead of lga_id; the national store neither.
+ * Each organization has its own stores, one per LGA, state and the nation.
  */
 class Facility extends Model
 {
+    use BelongsToOrganization;
+
     protected $fillable = [
-        'lga_id', 'state_id', 'name', 'type', 'store_level', 'store_key', 'address', 'latitude', 'longitude', 'phone', 'is_active',
+        'organization_id', 'lga_id', 'state_id', 'name', 'type', 'store_level', 'store_key', 'address', 'latitude', 'longitude', 'phone', 'is_active',
     ];
 
     protected function casts(): array
@@ -79,48 +85,60 @@ class Facility extends Model
             ->orWhereExists(fn ($e) => $e->from('stock_transactions')->whereColumn('stock_transactions.facility_id', 'facilities.id')));
     }
 
-    public static function nationalStore(): self
+    /** The stores below belong to $organizationId, else to the current Tenant. */
+    public static function nationalStore(?int $organizationId = null): self
     {
-        return self::firstOrCreate(['store_key' => 'national'], [
+        return self::store($organizationId, 'national', [
             'name' => 'National Store', 'type' => 'warehouse', 'store_level' => StoreLevel::National,
         ]);
     }
 
-    public static function storeForState(State $state): self
+    public static function storeForState(State $state, ?int $organizationId = null): self
     {
-        return self::firstOrCreate(['store_key' => "state:{$state->id}"], [
+        return self::store($organizationId, "state:{$state->id}", [
             'state_id' => $state->id, 'name' => "{$state->name} State Store", 'type' => 'warehouse', 'store_level' => StoreLevel::State,
         ]);
     }
 
-    public static function storeForLga(Lga $lga): self
+    public static function storeForLga(Lga $lga, ?int $organizationId = null): self
     {
-        return self::firstOrCreate(['store_key' => "lga:{$lga->id}"], [
+        return self::store($organizationId, "lga:{$lga->id}", [
             'lga_id' => $lga->id, 'name' => "{$lga->name} LGA Store", 'type' => 'warehouse', 'store_level' => StoreLevel::Lga,
         ]);
     }
 
-    /** Create any missing stores in bulk (seeding, a newly loaded hierarchy). Idempotent. */
-    public static function ensureStores(): void
+    /** @param  array<string, mixed>  $attributes */
+    private static function store(?int $organizationId, string $key, array $attributes): self
     {
-        self::nationalStore();
+        $organizationId ??= Tenant::id() ?? throw new LogicException('Say which organization the store belongs to.');
+
+        return self::withoutGlobalScope(self::ORGANIZATION_SCOPE)
+            ->firstOrCreate(['organization_id' => $organizationId, 'store_key' => $key], $attributes);
+    }
+
+    /** Create any missing stores of an organization in bulk (a new organization, a newly loaded hierarchy). Idempotent. */
+    public static function ensureStores(int $organizationId): void
+    {
+        self::nationalStore($organizationId);
         $now = now();
+        $stores = fn (StoreLevel $level) => self::withoutGlobalScope(self::ORGANIZATION_SCOPE)
+            ->where('organization_id', $organizationId)->where('store_level', $level);
 
         DB::table('facilities')->insertOrIgnore(DB::table('states')
-            ->whereNotIn('id', self::query()->where('store_level', StoreLevel::State)->select('state_id'))
+            ->whereNotIn('id', $stores(StoreLevel::State)->select('state_id'))
             ->get(['id', 'name'])
             ->map(fn ($state) => [
-                'state_id' => $state->id, 'name' => "{$state->name} State Store", 'type' => 'warehouse',
+                'organization_id' => $organizationId, 'state_id' => $state->id, 'name' => "{$state->name} State Store", 'type' => 'warehouse',
                 'store_level' => StoreLevel::State->value, 'store_key' => "state:{$state->id}",
                 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
             ])->all());
 
         DB::table('lgas')
-            ->whereNotIn('id', self::query()->where('store_level', StoreLevel::Lga)->select('lga_id'))
+            ->whereNotIn('id', $stores(StoreLevel::Lga)->select('lga_id'))
             ->get(['id', 'name'])
             ->chunk(500)
             ->each(fn ($chunk) => DB::table('facilities')->insertOrIgnore($chunk->map(fn ($lga) => [
-                'lga_id' => $lga->id, 'name' => "{$lga->name} LGA Store", 'type' => 'warehouse',
+                'organization_id' => $organizationId, 'lga_id' => $lga->id, 'name' => "{$lga->name} LGA Store", 'type' => 'warehouse',
                 'store_level' => StoreLevel::Lga->value, 'store_key' => "lga:{$lga->id}",
                 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
             ])->all()));

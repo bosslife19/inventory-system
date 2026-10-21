@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Facility;
+use App\Models\Organization;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -55,7 +56,7 @@ class NigeriaStatesLgasSeeder extends Seeder
         });
 
         // Bulk upserts skip model events, so create the per-node stores here.
-        Facility::ensureStores();
+        Organization::query()->pluck('id')->each(fn (int $org) => Facility::ensureStores($org));
 
         $this->command?->info(sprintf(
             'Seeded %d states, %d LGAs, %d stores.',

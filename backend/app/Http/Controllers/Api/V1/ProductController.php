@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    /** The product catalog. Not hierarchy-scoped: every role sees the same catalog. */
+    /** The organization's product catalog. Not hierarchy-scoped: every role in it sees the same catalog. */
     public function index(Request $request): AnonymousResourceCollection
     {
         // Query strings carry booleans as "true"/"false", which Laravel's boolean rule rejects.
@@ -36,7 +36,7 @@ class ProductController extends Controller
         );
     }
 
-    /** Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels. */
+    /** Add a product to the catalog. Any level may: the organization's catalog is shared, and each facility then sets its own levels. */
     public function store(SaveProductRequest $request, CatalogService $catalog): ProductResource
     {
         return ProductResource::make($catalog->addProduct([...$request->validated(), 'is_active' => $request->boolean('is_active', true)], $request->user()));

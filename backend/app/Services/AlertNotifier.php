@@ -37,7 +37,7 @@ class AlertNotifier
 
         $keepers = [];
         foreach ($alerts->pluck('facility')->unique('id') as $facility) {
-            $keepers[$facility->id] = self::keepersOf($facility)->get(['id', 'fcm_token']);
+            $keepers[$facility->id] = self::keepersOf($facility)->get(['id', 'organization_id', 'fcm_token']);
         }
 
         foreach ($alerts as $alert) {
@@ -59,7 +59,7 @@ class AlertNotifier
      */
     public static function keepersOf(Facility $facility): Builder
     {
-        $query = User::query()->where('is_active', true);
+        $query = User::query()->where('organization_id', $facility->organization_id)->where('is_active', true);
 
         return match ($facility->store_level) {
             null => $query->where('role', UserRole::SdpStaff)->where('facility_id', $facility->id),

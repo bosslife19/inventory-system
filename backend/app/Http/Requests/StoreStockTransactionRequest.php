@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Enums\TransactionType;
 use App\Models\Product;
 use App\Models\StockTransaction;
+use App\Support\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
@@ -41,7 +42,7 @@ class StoreStockTransactionRequest extends FormRequest
         $type = TransactionType::tryFrom((string) $this->input('transaction_type'));
 
         return [
-            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('is_active', true)],
+            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('organization_id', Tenant::id())->where('is_active', true)],
             'transaction_type' => ['required', Rule::enum(TransactionType::class)],
             'quantity' => [
                 'required', 'integer', 'max:10000000',

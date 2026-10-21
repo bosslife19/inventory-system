@@ -7,6 +7,7 @@ use App\Enums\UnitOfMeasure;
 use App\Enums\UserRole;
 use App\Models\Product;
 use App\Models\StockTransaction;
+use App\Support\Tenant;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -49,8 +50,8 @@ class SaveProductRequest extends FormRequest
 
         return [
             'name' => [$required, 'string', 'max:255'],
-            /** Short product code, unique; upper-cased. Printed on delivery notes, so scanning matches on it. */
-            'sku' => [$required, 'string', 'max:50', Rule::unique('products', 'sku')->ignore($this->product())],
+            /** Short product code, unique in the organization's catalog; upper-cased. Printed on delivery notes, so scanning matches on it. */
+            'sku' => [$required, 'string', 'max:50', Rule::unique('products', 'sku')->where('organization_id', Tenant::id())->ignore($this->product())],
             'category' => [$required, 'string', 'max:100'],
             /** What one counts as on the Stock Card. */
             'unit_of_measure' => [$required, Rule::enum(UnitOfMeasure::class)],

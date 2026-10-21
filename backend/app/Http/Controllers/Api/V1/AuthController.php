@@ -29,7 +29,8 @@ class AuthController extends Controller
             'device_name' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $user = User::where('email', $credentials['email'])->first();
+        // Before any Tenant is set: whoever it is, in whichever organization.
+        $user = User::withoutGlobalScope(User::ORGANIZATION_SCOPE)->where('email', $credentials['email'])->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => 'The provided credentials are incorrect.']);
@@ -37,6 +38,10 @@ class AuthController extends Controller
 
         if (! $user->is_active) {
             throw ValidationException::withMessages(['email' => 'This account has been deactivated. Ask whoever manages your account.']);
+        }
+
+        if ($user->organization && ! $user->organization->is_active) {
+            throw ValidationException::withMessages(['email' => 'Your organization’s access has been suspended. Contact the platform owner.']);
         }
 
         $device = $credentials['device_name'] ?? 'web';

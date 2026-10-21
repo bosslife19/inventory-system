@@ -53,6 +53,8 @@ export function homePath(user: User): string {
       return '/lga'
     case 'state_officer':
       return '/state'
+    case 'owner':
+      return '/owner'
     default:
       return '/federal'
   }

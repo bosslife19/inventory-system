@@ -10,10 +10,10 @@ class Lga extends Model
 {
     protected $fillable = ['state_id', 'name'];
 
-    /** Every LGA has one store (Facility::storeForLga). Bulk loads call Facility::ensureStores(). */
+    /** Every LGA has one store in each organization (Facility::storeForLga). Bulk loads call Facility::ensureStores(). */
     protected static function booted(): void
     {
-        static::created(fn (Lga $lga) => Facility::storeForLga($lga));
+        static::created(fn (Lga $lga) => Organization::query()->pluck('id')->each(fn (int $org) => Facility::storeForLga($lga, $org)));
     }
 
     public function state(): BelongsTo

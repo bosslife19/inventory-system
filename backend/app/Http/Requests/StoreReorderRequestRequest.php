@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Facility;
 use App\Models\ReorderRequest;
 use App\Services\ReorderRequestService;
+use App\Support\Tenant;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -23,12 +24,12 @@ class StoreReorderRequestRequest extends FormRequest
     {
         return [
             /** A store above this facility (GET /facilities/{facility}/reorder-suppliers). */
-            'supplier_facility_id' => ['required', 'integer', Rule::exists('facilities', 'id')],
+            'supplier_facility_id' => ['required', 'integer', Rule::exists('facilities', 'id')->where('organization_id', Tenant::id())],
             'comments' => ['nullable', 'string', 'max:2000'],
             /** Idempotency key: re-sending it returns the request already made. */
             'client_reference' => ['nullable', 'string', 'max:64'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('is_active', true)],
+            'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')->where('organization_id', Tenant::id())->where('is_active', true)],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000000'],
         ];
     }

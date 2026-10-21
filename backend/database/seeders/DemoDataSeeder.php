@@ -2,12 +2,16 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Plan;
 use App\Enums\TransactionType;
+use App\Enums\UserRole;
 use App\Models\Facility;
+use App\Models\Organization;
 use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\User;
 use App\Services\StockLedgerService;
+use App\Support\Tenant;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -30,7 +34,9 @@ use RuntimeException;
  * an explicit batch are split FEFO across unexpired batches, and outflows
  * are capped at what's on hand (which is how the stock-out scenario arises).
  *
- * All users have password "password". Requires NigeriaStatesLgasSeeder.
+ * All users have password "password", the platform owner (owner@demo.test)
+ * and a free-plan partner admin (admin@partner.test) included. Requires
+ * NigeriaStatesLgasSeeder.
  */
 class DemoDataSeeder extends Seeder
 {
@@ -58,6 +64,9 @@ class DemoDataSeeder extends Seeder
     /** @var array<string, int> */
     private array $productIds = [];
 
+    /** The organization the migrations create; the demo data is all its own. */
+    private int $organizationId;
+
     /** @var array<string, array{id:int, expiry:Carbon}> keyed "sku|batch_no" */
     private array $batches = [];
 
@@ -69,7 +78,11 @@ class DemoDataSeeder extends Seeder
             return;
         }
 
-        DB::transaction(function () {
+        $this->organizationId = Organization::query()->orderBy('id')->value('id')
+            ?? throw new RuntimeException('Run the migrations first.');
+        Organization::whereKey($this->organizationId)->update(['name' => 'Kaduna Demo Health Partners', 'plan' => 'paid', 'paid_until' => null]);
+
+        DB::transaction(fn () => Tenant::run($this->organizationId, function () {
             $state = DB::table('states')->where('name', 'Kaduna')->first()
                 ?? throw new RuntimeException('Run NigeriaStatesLgasSeeder first.');
             $kadunaNorth = $this->lgaId($state->id, 'Kaduna North');
@@ -89,6 +102,7 @@ class DemoDataSeeder extends Seeder
 
             foreach ($facilities as $i => [$name, $lgaId, $type, $lat, $lng, $rate, $overrides, $extras]) {
                 $facilityId = DB::table('facilities')->insertGetId([
+                    'organization_id' => $this->organizationId,
                     'lga_id' => $lgaId,
                     'name' => $name,
                     'type' => $type,
@@ -102,6 +116,7 @@ class DemoDataSeeder extends Seeder
                 ]);
 
                 $staffId = DB::table('users')->insertGetId([
+                    'organization_id' => $this->organizationId,
                     'name' => 'SDP Staff '.($i + 1),
                     'email' => sprintf('sdp%d@demo.test', $i + 1),
                     'password' => Hash::make('password'),
@@ -114,7 +129,9 @@ class DemoDataSeeder extends Seeder
                 $events = array_merge($this->standardEvents($rate, $overrides), $extras);
                 $this->replayLedger(Facility::findOrFail($facilityId), User::findOrFail($staffId), $events);
             }
-        });
+        }));
+
+        $this->seedPlatform();
 
         $this->command?->info(sprintf(
             'Demo data: %d facilities, %d products, %d batches, %d users, %d transactions, %d balances.',
@@ -137,6 +154,7 @@ class DemoDataSeeder extends Seeder
     {
         foreach (self::PRODUCTS as $sku => [$name, $category, $unit, $packSize, $batched, $cold, $min, $max, $reorder]) {
             $this->productIds[$sku] = DB::table('products')->insertGetId([
+                'organization_id' => $this->organizationId,
                 'name' => $name,
                 'sku' => $sku,
                 'category' => $category,
@@ -171,6 +189,23 @@ class DemoDataSeeder extends Seeder
         }
     }
 
+    /**
+     * The platform owner (owner@demo.test), and a second organization on the
+     * free plan with just an admin (admin@partner.test), to see the paywall.
+     */
+    private function seedPlatform(): void
+    {
+        User::create([
+            'name' => 'Platform Owner', 'email' => 'owner@demo.test', 'password' => 'password', 'role' => UserRole::Owner,
+        ]);
+
+        $partner = Organization::create(['name' => 'Demo Partner (free plan)', 'plan' => Plan::Free, 'contact_email' => 'admin@partner.test']);
+        Facility::ensureStores($partner->id);
+        User::create([
+            'organization_id' => $partner->id, 'name' => 'Partner Admin', 'email' => 'admin@partner.test', 'password' => 'password', 'role' => UserRole::Admin,
+        ]);
+    }
+
     private function seedUsers(int $stateId, int $lgaId): void
     {
         $users = [
@@ -182,6 +217,7 @@ class DemoDataSeeder extends Seeder
 
         foreach ($users as [$name, $email, $role, $scope]) {
             DB::table('users')->insert([
+                'organization_id' => $this->organizationId,
                 'name' => $name,
                 'email' => $email,
                 'password' => Hash::make('password'),

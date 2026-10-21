@@ -11,6 +11,8 @@ import { canRecordAt } from '../../lib/auth'
 import { formatDate, formatQty } from '../../lib/format'
 import { useDeliveryNoteCount, useDeliveryNotes, useFacility, useProducts, useStockBalances } from '../../lib/queries'
 import type { DeliveryNote, DeliveryNoteStatus, User } from '../../lib/types'
+import { hasFeature } from '../../lib/plan'
+import { LockedAction } from '../../components/plan/Paid'
 
 const TABS: { value: DeliveryNoteStatus | undefined; label: string }[] = [
   { value: undefined, label: 'All' },
@@ -63,9 +65,13 @@ export function DeliveryNotesPage({ facilityId, user }: { facilityId: number; us
         </div>
         {canAct && (
           <div className="head-actions">
-            <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
-              <Plus size={18} /> New delivery note
-            </button>
+            {hasFeature(user, 'delivery_scanning') ? (
+              <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
+                <Plus size={18} /> New delivery note
+              </button>
+            ) : (
+              <LockedAction feature="delivery_scanning" label="New delivery note" icon={<Plus size={18} />} />
+            )}
           </div>
         )}
       </header>

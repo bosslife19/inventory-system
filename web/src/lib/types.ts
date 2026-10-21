@@ -66,3 +66,11 @@ type ActivityResponse = NonNullable<
 >['data']
 export type ActivityWeek = { week_start: string; received: number; issued: number; other: number }
 export type StockActivity = Omit<ActivityResponse, 'weeks'> & { weeks: ActivityWeek[] }
+
+// Organizations and plans (docs/API_CONTRACT.md: Platform, Owner console)
+export type Membership = Schemas['MembershipResource']
+export type Feature = Membership['features'][number]
+export type Plan = Schemas['Plan']
+export type Organization = Schemas['OrganizationResource']
+export type NewOrganization = Schemas['SaveOrganizationRequest']
+export type Platform = Json<'/platform'>['data']

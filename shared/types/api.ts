@@ -456,6 +456,196 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizations/{organization}/logo/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An organization's logo image. Public, so it can sit in an img tag; the
+         *     file name changes with every upload
+         */
+        get: operations["organization.logo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every organization, newest first */
+        get: operations["organization.index"];
+        put?: never;
+        /** Set up an organization: its stores are created, and its first admin when given (temporary password returned once) */
+        post: operations["organization.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations/{organization}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["organization.show"];
+        /** Change details or plan (e.g. paid until a new date after a renewal), or suspend with is_active=false */
+        put: operations["organization.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations/{organization}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload or replace the logo (PNG, JPG or WebP, up to 1 MB), shown beside the platform's own */
+        post: operations["organization.uploadLogo"];
+        delete: operations["organization.deleteLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations/{organization}/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["organizationAdmin.index"];
+        put?: never;
+        /** Add an admin on a temporary password, returned once */
+        post: operations["organizationAdmin.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations/{organization}/admins/{user}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Deactivate or reactivate an admin (deactivating signs them out everywhere) */
+        put: operations["organizationAdmin.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/organizations/{organization}/admins/{user}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New temporary password for an admin who lost theirs; signs them out everywhere */
+        post: operations["organizationAdmin.resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The platform's name, tagline and logo. Public: the sign-in screens show it */
+        get: operations["platform.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform/logo/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The platform logo image */
+        get: operations["platform.logo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/platform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["platform.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/platform/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload or replace the platform logo (PNG, JPG or WebP, up to 1 MB) */
+        post: operations["platform.uploadLogo"];
+        delete: operations["platform.deleteLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/products": {
         parameters: {
             query?: never;
@@ -463,10 +653,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The product catalog. Not hierarchy-scoped: every role sees the same catalog */
+        /** The organization's product catalog. Not hierarchy-scoped: every role in it sees the same catalog */
         get: operations["product.index"];
         put?: never;
-        /** Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels */
+        /** Add a product to the catalog. Any level may: the organization's catalog is shared, and each facility then sets its own levels */
         post: operations["product.store"];
         delete?: never;
         options?: never;
@@ -1214,6 +1404,22 @@ export interface components {
             state_id: number;
             name: string;
         };
+        /** MembershipResource */
+        MembershipResource: {
+            id: number;
+            name: string;
+            logo_url: string | null;
+            /** @description The plan in force today. */
+            plan: components["schemas"]["Plan"];
+            /** @description Last day of the paid plan (Y-m-d); null = no end date, or on the free plan. */
+            paid_until: string | null;
+            /** @description Days left on the paid plan, today included; null when it has no end date or isn't paid. */
+            days_left: number | null;
+            /** @description True from RENEWAL_WARNING_DAYS out: clients show a "renew" notice. */
+            renewal_due: string;
+            /** @description What the plan unlocks; anything absent answers 402 feature_unavailable. */
+            features: ("bulk_imports" | "delivery_scanning" | "push_notifications" | "rollups" | "supply_chain")[];
+        };
         /** NotificationCollection */
         NotificationCollection: components["schemas"]["NotificationResource"][];
         /** NotificationResource */
@@ -1243,6 +1449,37 @@ export interface components {
             /** Format: date-time */
             read_at: string | null;
         };
+        /** OrganizationResource */
+        OrganizationResource: {
+            id: number;
+            name: string;
+            logo_url: string | null;
+            contact_name: string | null;
+            contact_email: string | null;
+            contact_phone: string | null;
+            address: string | null;
+            /** @description The plan as set; see effective_plan for what applies today. */
+            plan: components["schemas"]["Plan"];
+            /** @description Last day of the paid plan (Y-m-d); null = no end date. */
+            paid_until: string | null;
+            /** @description "free" once a paid plan has passed its last day. */
+            effective_plan: components["schemas"]["Plan"];
+            /** @description Days left on a paid plan with an end date, today included; null otherwise. */
+            days_left: number | null;
+            features: string[];
+            is_active: boolean;
+            notes: string | null;
+            admin_count: number;
+            user_count: number;
+            /** @description Service delivery points (stores not counted). @var int */
+            facility_count: number;
+            created_at: string | null;
+        };
+        /**
+         * Plan
+         * @enum {string}
+         */
+        Plan: "free" | "paid";
         /** ProductLevelResource */
         ProductLevelResource: {
             product: components["schemas"]["ProductResource"];
@@ -1441,6 +1678,36 @@ export interface components {
             is_active?: boolean;
         };
         /**
+         * SaveOrganizationRequest
+         * @description POST /owner/organizations and PUT /owner/organizations/{organization}
+         *     (the platform owner only — EnsureOwner). On update every field is
+         *     optional. Creating may also make the organization's first admin account.
+         */
+        SaveOrganizationRequest: {
+            name: string;
+            contact_name?: string | null;
+            /** Format: email */
+            contact_email?: string | null;
+            contact_phone?: string | null;
+            address?: string | null;
+            plan: components["schemas"]["Plan"];
+            /**
+             * Format: date
+             * @description Last day of the paid plan (Y-m-d); leave empty for no end date.
+             */
+            paid_until?: string | null;
+            /** @description Suspending signs every member out and stops them signing in. Nothing is deleted. */
+            is_active?: boolean;
+            /** @description Your own notes (what they paid, invoice numbers); never shown to the organization. */
+            notes?: string | null;
+            /** @description Create only: the organization's first admin, on a temporary password returned once. */
+            admin?: {
+                name?: string;
+                /** Format: email */
+                email?: string;
+            };
+        };
+        /**
          * SaveProductLevelsRequest
          * @description PUT /facilities/{facility}/product-levels/{product}: this facility's own min / EOP / max, EOP < min ≤ max.
          */
@@ -1462,7 +1729,7 @@ export interface components {
          */
         SaveProductRequest: {
             name: string;
-            /** @description Short product code, unique; upper-cased. Printed on delivery notes, so scanning matches on it. */
+            /** @description Short product code, unique in the organization's catalog; upper-cased. Printed on delivery notes, so scanning matches on it. */
             sku: string;
             category: string;
             /** @description What one counts as on the Stock Card. */
@@ -1686,12 +1953,21 @@ export interface components {
             is_active: boolean;
             /** @description Still on a temporary password: clients send the user to change it before anything else. */
             must_change_password: boolean;
+            organization: components["schemas"]["MembershipResource"] | null;
         };
         /**
          * UserRole
+         * @description | |
+         *     |---|
+         *     | `sdp_staff` <br/>  |
+         *     | `lga_officer` <br/>  |
+         *     | `state_officer` <br/>  |
+         *     | `federal_officer` <br/>  |
+         *     | `admin` <br/>  |
+         *     | `owner` <br/> Runs the platform: manages organizations and their plans. Belongs to no organization and sees none of their data. |
          * @enum {string}
          */
-        UserRole: "sdp_staff" | "lga_officer" | "state_officer" | "federal_officer" | "admin";
+        UserRole: "sdp_staff" | "lga_officer" | "state_officer" | "federal_officer" | "admin" | "owner";
     };
     responses: {
         /** @description Validation error */
@@ -1710,6 +1986,18 @@ export interface components {
                 };
             };
         };
+        /** @description Not found */
+        ModelNotFoundException: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @description Error overview. */
+                    message: string;
+                };
+            };
+        };
         /** @description Unauthenticated */
         AuthenticationException: {
             headers: {
@@ -1724,18 +2012,6 @@ export interface components {
         };
         /** @description Authorization error */
         AuthorizationException: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": {
-                    /** @description Error overview. */
-                    message: string;
-                };
-            };
-        };
-        /** @description Not found */
-        ModelNotFoundException: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2720,6 +2996,484 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "organization.logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Transfer-Encoding": "chunked";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "organization.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `OrganizationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "organization.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveOrganizationRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"];
+                        admin: {
+                            [key: string]: unknown;
+                        } | null;
+                        /** @description Give this to the admin with their email; they must change it at first sign-in. Not retrievable later. */
+                        temporary_password: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "organization.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `OrganizationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "organization.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description `OrganizationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "organization.uploadLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Maximum file size: 1024 kilobytes.
+                     */
+                    logo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description `OrganizationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "organization.deleteLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `OrganizationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrganizationResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "organizationAdmin.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "organizationAdmin.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                        /** @description Give this to the admin with their email; they must change it at first sign-in. */
+                        temporary_password: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "organizationAdmin.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+                /** @description The user ID */
+                user: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description `UserResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "organizationAdmin.resetPassword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+                /** @description The user ID */
+                user: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["UserResource"];
+                        /** @description Give this to the admin; they must change it at their next sign-in. */
+                        temporary_password: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "platform.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            name: string | "Stock Card";
+                            tagline: string | "Health supply chain · Nigeria";
+                            logo_url: string | null;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    "platform.logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Transfer-Encoding": "chunked";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    "platform.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    tagline?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            name: string | "Stock Card";
+                            tagline: string | "Health supply chain · Nigeria";
+                            logo_url: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "platform.uploadLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Maximum file size: 1024 kilobytes.
+                     */
+                    logo: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            name: string | "Stock Card";
+                            tagline: string | "Health supply chain · Nigeria";
+                            logo_url: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "platform.deleteLogo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            name: string | "Stock Card";
+                            tagline: string | "Health supply chain · Nigeria";
+                            logo_url: string | null;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "product.index": {

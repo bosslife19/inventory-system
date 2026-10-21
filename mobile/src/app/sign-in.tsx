@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AlertCircle, Boxes, CheckCircle2, Lock, Mail } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -10,12 +11,14 @@ import { TextField } from '@/components/ui/text-field';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
+import { usePlatform } from '@/lib/queries';
 import { useSession } from '@/lib/session';
 
 const POINTS = ['Record receipts, issues and counts', 'Works offline — syncs when you’re back', 'Stock-out and expiry alerts'];
 
 export default function SignIn() {
   const c = useTheme();
+  const platform = usePlatform().data;
   const insets = useSafeAreaInsets();
   const { session, signIn } = useSession();
   const [email, setEmail] = useState('');
@@ -62,15 +65,19 @@ export default function SignIn() {
         keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
           <View style={styles.brand}>
-            <View style={[styles.mark, { backgroundColor: c.primary }]}>
-              <Boxes size={22} color="#fff" />
-            </View>
+            {platform?.logo_url ? (
+              <Image source={{ uri: platform.logo_url }} style={styles.mark} contentFit="contain" />
+            ) : (
+              <View style={[styles.mark, { backgroundColor: c.primary }]}>
+                <Boxes size={22} color="#fff" />
+              </View>
+            )}
             <View>
               <Text variant="heading" tone="inverse">
-                Stock Card
+                {platform?.name ?? 'Stock Card'}
               </Text>
               <Text variant="caption" style={{ color: '#9fb0cc' }}>
-                Health supply chain · Nigeria
+                {platform?.tagline ?? 'Health supply chain · Nigeria'}
               </Text>
             </View>
           </View>

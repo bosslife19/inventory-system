@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { RequireAuth } from './components/auth/RequireAuth'
 import { AppShell } from './components/layout/AppShell'
+import { OwnerShell } from './components/layout/OwnerShell'
 import { homePath, manageableRoles } from './lib/auth'
 import { useUser } from './lib/user-context'
 import { AccountPage } from './routes/account/AccountPage'
@@ -13,6 +14,9 @@ import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
+import { OrganizationPage } from './routes/owner/OrganizationPage'
+import { OrganizationsPage } from './routes/owner/OrganizationsPage'
+import { PlatformPage } from './routes/owner/PlatformPage'
 import { ReportsPage } from './routes/reports/ReportsPage'
 import { FacilityPage } from './routes/sdp/FacilityPage'
 import { StatePage } from './routes/state/StatePage'
@@ -100,8 +104,25 @@ function Account() {
   return <AccountPage user={useUser()} />
 }
 
+/** The owner's console: organizations and the platform's branding, for the platform owner only. */
+function Owner({ page }: { page: 'organizations' | 'organization' | 'platform' }) {
+  const user = useUser()
+  const id = Number(useParams().id)
+  if (user.role !== 'owner') return <Navigate to={homePath(user)} replace />
+
+  switch (page) {
+    case 'organizations':
+      return <OrganizationsPage />
+    case 'organization':
+      return <OrganizationPage key={id} id={id} />
+    case 'platform':
+      return <PlatformPage />
+  }
+}
+
 function Shell() {
-  return <AppShell user={useUser()} />
+  const user = useUser()
+  return user.role === 'owner' ? <OwnerShell user={user} /> : <AppShell user={user} />
 }
 
 export default function App() {
@@ -135,6 +156,9 @@ export default function App() {
         <Route path="/facilities/:id" element={<ById page="facility" />} />
         <Route path="/lgas/:id" element={<ById page="lga" />} />
         <Route path="/states/:id" element={<ById page="state" />} />
+        <Route path="/owner" element={<Owner page="organizations" />} />
+        <Route path="/owner/organizations/:id" element={<Owner page="organization" />} />
+        <Route path="/owner/platform" element={<Owner page="platform" />} />
         <Route path="*" element={<div className="page-state">Page not found.</div>} />
       </Route>
     </Routes>
