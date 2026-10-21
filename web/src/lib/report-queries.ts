@@ -8,7 +8,7 @@ export type ReportResult = NonNullable<
   paths['/reports/{report}']['get']['responses'][200]['content']['application/json']
 >['data']
 
-export type ReportName = 'stock-card' | 'stock-status' | 'reorder' | 'expiry'
+export type ReportName = 'stock-card' | 'stock-status' | 'reorder' | 'expiry' | 'stock-movement'
 export type ReportArea = 'facility' | 'lga' | 'state' | 'national'
 
 export interface ReportParams {
@@ -25,6 +25,8 @@ export interface ReportParams {
   needs_order?: boolean
   // expiry
   within_days?: number
+  // stock-movement: YYYY-MM or YYYY-Q1…Q4
+  period?: string
 }
 
 /** Drop unset filters so the URL (and the query key) only carries what was chosen. */

@@ -62,7 +62,7 @@ it('writes a monthly snapshot, overwriting on re-run, and skips once the month i
         ->and($ors->amc_quantity)->toBe(60.0)
         ->and($ors->months_used)->toBe(2)
         ->and($ors->months_of_stock)->toBe(1.8) // 105 / 60
-        ->and($ors->suggested_reorder_quantity)->toBe(75); // 60 x 3 - 105
+        ->and($ors->suggested_reorder_quantity)->toBe(195); // 60 x 5 - 105
 
     $this->artisan('stock:compute-amc')->expectsOutputToContain('already computed for 2026-09')->assertSuccessful();
     $this->artisan('stock:compute-amc --force')->assertSuccessful();
@@ -89,9 +89,9 @@ it('suggests quantities from the latest AMC against live stock, falling back to 
             'amc_months_used' => 2,
             'amc_period_month' => '2026-09-01',
             'months_of_stock' => 1.5,
-            'max_stock_quantity' => 180,
+            'max_stock_quantity' => 300, // 60 x 5 months
             'basis' => 'amc',
-            'suggested_quantity' => 90,
+            'suggested_quantity' => 210,
         ])
         ->and($data[1])->toMatchArray([
             'usable_quantity' => 40,
@@ -118,11 +118,11 @@ it('uses an AMC the facility entered until it has a full window of its own histo
         ->keyBy('product.sku');
     expect($data['AL'])->toMatchArray([
         'amc_quantity' => 25, 'amc_source' => 'entered', 'basis' => 'amc',
-        'max_stock_quantity' => 75, 'suggested_quantity' => 35, // 25 x 3 - 40
-    ])->and($data['ORS'])->toMatchArray(['amc_quantity' => 50, 'amc_source' => 'entered', 'suggested_quantity' => 45]); // 150 - 105
+        'max_stock_quantity' => 125, 'suggested_quantity' => 85, // 25 x 5 - 40
+    ])->and($data['ORS'])->toMatchArray(['amc_quantity' => 50, 'amc_source' => 'entered', 'suggested_quantity' => 145]); // 250 - 105
 
     $report = collect($this->getJson('/api/v1/reports/reorder?area=facility&id='.$this->kawo->id)->assertOk()->json('data.rows'))->keyBy('sku');
-    expect($report['AL'])->toMatchArray(['amc' => 25, 'basis' => 'Entered AMC', 'to_order' => 35]);
+    expect($report['AL'])->toMatchArray(['amc' => 25, 'basis' => 'Entered AMC', 'to_order' => 85]);
 
     // A full window of history: the computed AMC takes over.
     AmcSnapshot::where('product_id', $this->ors->id)->update(['months_used' => 3]);

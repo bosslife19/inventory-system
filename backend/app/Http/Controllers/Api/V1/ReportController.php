@@ -8,6 +8,7 @@ use App\Reports\ReorderReport;
 use App\Reports\Report;
 use App\Reports\ReportScope;
 use App\Reports\StockCardReport;
+use App\Reports\StockMovementReport;
 use App\Reports\StockStatusReport;
 use App\Support\HierarchyScope;
 use Carbon\CarbonImmutable;
@@ -31,12 +32,13 @@ class ReportController extends Controller
         'stock-status' => StockStatusReport::class,
         'reorder' => ReorderReport::class,
         'expiry' => ExpiryReport::class,
+        'stock-movement' => StockMovementReport::class,
     ];
 
     /**
      * Run a report.
      *
-     * @param  'stock-card'|'stock-status'|'reorder'|'expiry'  $report
+     * @param  'stock-card'|'stock-status'|'reorder'|'expiry'|'stock-movement'  $report
      */
     public function show(Request $request, string $report, HierarchyScope $hierarchy): JsonResponse|StreamedResponse
     {

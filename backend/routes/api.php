@@ -84,7 +84,7 @@ Route::prefix('v1')->group(function () {
         Route::post('reorder-requests/{reorderRequest}/cancel', [ReorderRequestController::class, 'cancel']);
 
         Route::get('reports/{report}', [ReportController::class, 'show'])
-            ->whereIn('report', ['stock-card', 'stock-status', 'reorder', 'expiry']);
+            ->whereIn('report', ['stock-card', 'stock-status', 'reorder', 'expiry', 'stock-movement']);
 
         Route::get('audit-events', [AuditEventController::class, 'index']);
 

@@ -133,7 +133,7 @@ flags, alerts and their push, reorder max, the stock-status and reorder reports)
   - `amc_quantity` from the latest `amc_snapshots` row (null if none, or no complete month of history) —
     except that while `amc_months_used` < `INVENTORY_AMC_MONTHS`, a starting AMC entered for the product
     (`facility_product_amcs`) is used instead. `amc_source`: `"computed"`, `"entered"`, or null with no AMC.
-  - `max_stock_quantity` = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 3) when there is an
+  - `max_stock_quantity` = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 5: 3 months to the next quarterly resupply + 2 months buffer stock) when there is an
     AMC > 0 (`basis: "amc"`), else the max level in force at the facility (`basis: "product_max"`).
   - `suggested_quantity` = max(0, `max_stock_quantity` − live `usable_quantity`);
     `months_of_stock` = `usable_quantity` / AMC, one decimal (null without an AMC).
@@ -287,7 +287,8 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
   `GET /facilities/{store id}/stock-activity`.
 
 ## Reports
-`GET /reports/{report}` with `report` = `stock-card` | `stock-status` | `reorder` | `expiry`. Display-only
+`GET /reports/{report}` with `report` = `stock-card` | `stock-status` | `reorder` | `expiry` | `stock-movement`. Display-only
+| `stock-movement` | `period` (required: `YYYY-MM` or `YYYY-Q1`…`Q4`) | Sheet2 of the client's E-Stock Cards template, one per facility + product with entries up to the period end: opening stock (balance at the period start; "Opening from" says whether that was the physical inventory taken at the end of the last period or the uncounted system balance), received (receipts + transfers in), used (issues + transfers out), losses / adj. (signed, + adds stock; physical-inventory differences excluded), closing = opening + received − used ± losses / adj., physical inventory (the balance after the period's last entry when that is a physical inventory, else null), difference = physical − closing, AMC (as at the period end, same rule as reorder suggestions), quantity to order = max stock (AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, or the max level without AMC), quantity required = max − (physical inventory, else closing), comments. |
 reads, like the dashboards; nothing is written back.
 
 - Common query: `area` (`facility` | `lga` | `state` | `national`), `id` (the facility / LGA / state id; omit

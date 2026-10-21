@@ -1,4 +1,4 @@
-import { AlertCircle, CalendarClock, ClipboardList, Download, FileText, PackageSearch, Printer, ShoppingCart } from 'lucide-react'
+import { AlertCircle, ArrowLeftRight, CalendarClock, ClipboardList, Download, FileText, PackageSearch, Printer, ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { useLgaFacilities, useLgas } from '../../lib/admin-queries'
@@ -11,6 +11,12 @@ const REPORTS: { name: ReportName; label: string; blurb: string; icon: typeof Fi
   { name: 'stock-status', label: 'Stock status', blurb: 'On hand, usable and expired stock against each product’s levels', icon: PackageSearch },
   { name: 'reorder', label: 'Reorder', blurb: 'Consumption (AMC), months of stock and quantity to order', icon: ShoppingCart },
   { name: 'expiry', label: 'Expiry', blurb: 'Batches expired or expiring soon, earliest first', icon: CalendarClock },
+  {
+    name: 'stock-movement',
+    label: 'Stock movement',
+    blurb: 'Month or quarter end: opening, received, used, losses, closing, physical inventory and quantity required',
+    icon: ArrowLeftRight,
+  },
   { name: 'stock-card', label: 'Stock Card', blurb: 'One facility’s entries for a period, as on the paper card', icon: ClipboardList, facilityOnly: true },
 ]
 
@@ -40,6 +46,36 @@ function areaLevels(user: User): ReportArea[] {
 
 const firstOfMonth = () => `${todayInLagos().slice(0, 8)}01`
 
+/** YYYY-MM of the month before this one: the last month that has ended. */
+function lastMonth(): string {
+  const [y, m] = todayInLagos().split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+
+/** The last 8 quarters, newest first, the last ended one first: YYYY-Qn. */
+function recentQuarters(): string[] {
+  const [y, m] = todayInLagos().split('-').map(Number)
+  let year = y
+  let q = Math.floor((m - 1) / 3) // the current quarter is 1 + this; start with the one before
+  const list: string[] = []
+  for (let i = 0; i < 8; i++) {
+    if (q === 0) {
+      year -= 1
+      q = 4
+    }
+    list.push(`${year}-Q${q}`)
+    q -= 1
+  }
+  return list
+}
+
+const QUARTER_MONTHS = ['Jan – Mar', 'Apr – Jun', 'Jul – Sep', 'Oct – Dec']
+const periodLabel = (period: string) => {
+  const q = /^(\d{4})-Q([1-4])$/.exec(period)
+  if (q) return `Q${q[2]} ${q[1]} (${QUARTER_MONTHS[Number(q[2]) - 1]})`
+  return new Date(`${period}-01T00:00:00`).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' })
+}
+
 /**
  * Reports (docs/API_CONTRACT.md, "Reports"): pick a report and an area within
  * your own, see it here, print it (the print layout drops the app around it),
@@ -59,6 +95,9 @@ export function ReportsPage({ user }: { user: User }) {
   const [level, setLevel] = useState<(typeof LEVELS)[number]['value']>('')
   const [needsOrder, setNeedsOrder] = useState(false)
   const [withinDays, setWithinDays] = useState(90)
+  const [periodKind, setPeriodKind] = useState<'month' | 'quarter'>('month')
+  const [month, setMonth] = useState(lastMonth())
+  const [quarter, setQuarter] = useState(recentQuarters()[0])
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
@@ -94,6 +133,7 @@ export function ReportsPage({ user }: { user: User }) {
         ...(report === 'stock-status' && level ? { level } : {}),
         ...(report === 'reorder' && needsOrder ? { needs_order: true } : {}),
         ...(report === 'expiry' ? { within_days: withinDays } : {}),
+        ...(report === 'stock-movement' ? { period: periodKind === 'month' ? month : quarter } : {}),
       }
     : null
   const result = useReport(report, params)
@@ -278,6 +318,34 @@ export function ReportsPage({ user }: { user: User }) {
               <span>Only what needs ordering</span>
             </label>
           )}
+          {report === 'stock-movement' && (
+            <>
+              <label>
+                <span>Period</span>
+                <select value={periodKind} onChange={(e) => setPeriodKind(e.target.value as 'month' | 'quarter')}>
+                  <option value="month">Month</option>
+                  <option value="quarter">Quarter</option>
+                </select>
+              </label>
+              {periodKind === 'month' ? (
+                <label>
+                  <span>Month</span>
+                  <input type="month" value={month} max={todayInLagos().slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} />
+                </label>
+              ) : (
+                <label>
+                  <span>Quarter</span>
+                  <select value={quarter} onChange={(e) => setQuarter(e.target.value)}>
+                    {recentQuarters().map((q) => (
+                      <option key={q} value={q}>
+                        {periodLabel(q)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          )}
           {report === 'expiry' && (
             <label>
               <span>Expiring within</span>
@@ -355,6 +423,7 @@ function describe(report: ReportName, p: ReportParams, products?: { id: number; 
   if (report === 'stock-status' && p.level) parts.push(LEVELS.find((l) => l.value === p.level)?.label ?? p.level)
   if (report === 'reorder' && p.needs_order) parts.push('needing an order')
   if (report === 'expiry') parts.push(`expired or expiring within ${p.within_days} days`)
+  if (report === 'stock-movement' && p.period) parts.push(periodLabel(p.period))
   return parts.join(' · ')
 }
 
@@ -382,7 +451,19 @@ function ReportTable({ columns, rows }: { columns: { key: string; label: string;
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={r.type === 'Opening balance' ? 'report-opening' : r.type === 'Physical inventory' ? 'row-count' : undefined}>
+            <tr
+              key={i}
+              className={
+                r.type === 'Opening balance'
+                  ? 'report-opening'
+                  : r.type === 'Physical inventory'
+                    ? 'row-count'
+                    : // Stock movement: the count disagrees with the closing stock.
+                      typeof r.difference === 'number' && r.difference !== 0
+                      ? 'row-critical'
+                      : undefined
+              }
+            >
               {columns.map((c) => (
                 <td key={c.key} className={c.type === 'number' ? 'num' : c.type === 'date' ? 'nowrap' : undefined}>
                   {show(c.type, r[c.key])}

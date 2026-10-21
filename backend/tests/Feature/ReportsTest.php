@@ -143,8 +143,8 @@ it('works out quantities to order from the latest AMC', function () {
     $this->actingAs($this->u['lga'], 'sanctum');
     $rows = collect($this->getJson(reportUrl('reorder', ['area' => 'lga', 'id' => $this->h['lgas']['kadunaNorth']->id]))->assertOk()->json('data.rows'));
     $al = $rows->firstWhere('sku', 'AL');
-    // max = ceil(20 × 3 months) = 60; usable 25 → order 35; 25 / 20 = 1.3 months.
-    expect($al)->toMatchArray(['amc' => 20, 'months_of_stock' => 1.3, 'max_stock' => 60, 'to_order' => 35, 'basis' => 'Consumption (AMC)'])
+    // max = ceil(20 × 5 months) = 100; usable 25 → order 75; 25 / 20 = 1.3 months.
+    expect($al)->toMatchArray(['amc' => 20, 'months_of_stock' => 1.3, 'max_stock' => 100, 'to_order' => 75, 'basis' => 'Consumption (AMC)'])
         ->and($rows->firstWhere('facility', 'Rimi PHC'))->toMatchArray(['amc' => null, 'max_stock' => 100, 'to_order' => 95]);
 
     $needing = $this->getJson(reportUrl('reorder', ['area' => 'lga', 'id' => $this->h['lgas']['kadunaNorth']->id, 'needs_order' => 'true']))->json('data.rows');

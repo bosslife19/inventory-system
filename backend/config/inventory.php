@@ -18,10 +18,11 @@ return [
 
     /*
     | Quantity to order tops usable stock up to AMC x this many months (the
-    | Excel "Max SL" in months). Products with no consumption history yet
+    | Excel "Max SL" in months): 3 months to the next quarterly resupply plus
+    | 2 months of buffer stock. Products with no consumption history yet
     | fall back to their fixed max_stock_level.
     */
 
-    'max_months_of_stock' => (float) env('INVENTORY_MAX_MONTHS_OF_STOCK', 3),
+    'max_months_of_stock' => (float) env('INVENTORY_MAX_MONTHS_OF_STOCK', 5),
 
 ];
