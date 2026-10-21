@@ -331,6 +331,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/imports/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The columns of an import, for the template and its guide */
+        get: operations["import.columns"];
+        put?: never;
+        /** Import products, facilities (admin) or accounts */
+        post: operations["import.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/facilities/{facility}/imports/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import stock levels / starting AMCs, or Stock Card entries, for this facility or store */
+        post: operations["import.storeForFacility"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/states/{state}/lgas": {
         parameters: {
             query?: never;
@@ -1134,6 +1169,43 @@ export interface components {
                 /** @description Required for batch-tracked products; a batch the store holds. */
                 batch_no?: string | null;
                 quantity: number;
+            }[];
+        };
+        /**
+         * ImportCsvRequest
+         * @description POST /imports/{kind} and POST /facilities/{facility}/imports/{kind}: a CSV file, checked or imported.
+         */
+        ImportCsvRequest: {
+            /**
+             * Format: binary
+             * @description The CSV, header row first (GET /imports/{kind} lists the columns). Up to 1000 rows, 2 MB.
+             */
+            file: string;
+            /** @description true: check every row and report, writing nothing. Default false: import, all or nothing. */
+            dry_run?: boolean;
+        };
+        /** ImportResultResource */
+        ImportResultResource: {
+            /** @enum {string} */
+            kind: "products" | "facilities" | "users" | "product-levels" | "stock-entries";
+            dry_run: boolean;
+            /** @description true when the rows were written; false after a check, or when any row was refused (then nothing was written). */
+            committed: boolean;
+            total_rows: number;
+            failed_rows: number;
+            /**
+             * @description One per data row, in file order. `row` is the line number in the file (the header is line 1).
+             *     `temporary_password` only on an accounts import that committed: shown once, never again.
+             */
+            rows: {
+                row: number;
+                ok: boolean;
+                label: string | null;
+                errors: {
+                    column: string | null;
+                    message: string;
+                }[];
+                temporary_password?: string;
             }[];
         };
         /** LgaResource */
@@ -2352,6 +2424,107 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "import.columns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            /** @enum {string} */
+                            kind: "products" | "facilities" | "users" | "product-levels" | "stock-entries";
+                            /** @description Imported through POST /facilities/{facility}/imports/{kind} rather than POST /imports/{kind}. */
+                            for_facility: boolean;
+                            /** @constant */
+                            max_rows: 1000;
+                            /** @description In template order. `name` is the header to use; "Product code" also matches product_code. */
+                            columns: {
+                                name: string;
+                                required: boolean;
+                                description: string;
+                                example: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "import.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportCsvRequest"];
+            };
+        };
+        responses: {
+            /** @description `ImportResultResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ImportResultResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "import.storeForFacility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The facility ID */
+                facility: number;
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportCsvRequest"];
+            };
+        };
+        responses: {
+            /** @description `ImportResultResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ImportResultResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
             422: components["responses"]["ValidationException"];
         };
     };

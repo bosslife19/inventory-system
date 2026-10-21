@@ -308,6 +308,37 @@ reads, like the dashboards; nothing is written back.
 | `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row, or the entered starting AMC under the same rule as reorder suggestions), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
 | `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
 
+## Bulk imports (CSV)
+Many rows at once, each through the same validation, authorization and service as the matching
+single-item endpoint, so a row is accepted exactly when that endpoint would accept it.
+
+| `kind` | Endpoint | Who | Each row is like |
+|---|---|---|---|
+| `products` | `POST /imports/products` | anyone signed in | `POST /products` |
+| `facilities` | `POST /imports/facilities` | admin | `POST /facilities` (state + LGA by name) |
+| `users` | `POST /imports/users` | admin; officers the level below in their area | `POST /users` (state / LGA / facility by name) |
+| `product-levels` | `POST /facilities/{id}/imports/product-levels` | whoever keeps that facility's / store's card | `PUT …/product-levels/{product}` and/or `PUT …/product-amcs/{product}` |
+| `stock-entries` | `POST /facilities/{id}/imports/stock-entries` | same | `POST /facilities/{id}/stock-transactions`, top to bottom |
+
+- `GET /imports/{kind}` → `{ data: { kind, for_facility, max_rows, columns: [{ name, required,
+  description, example }] } }` — the template's header row (in order) and its guide.
+- `POST` multipart: `file` (CSV, ≤ 2 MB, ≤ 1000 data rows), `dry_run?` (default false).
+  - The file: header row first. Headers match case-insensitively with spaces or underscores
+    ("Product code" = `product_code`); unknown or missing required columns → 422 on `file`. `,` or `;`
+    separated, UTF-8 (BOM fine) or Windows-1252; blank lines skipped; empty cells are null. yes/no
+    columns take yes/no/true/false/1/0; dates YYYY-MM-DD or DD/MM/YYYY; numbers may carry thousands
+    separators. Products are found by code, places by name (`state`, `lga`, `facility`).
+  - **All or nothing**: every row runs in one DB transaction; if any row is refused, or `dry_run`, it all
+    rolls back. A check therefore catches within-file clashes too (a code twice, an issue before the
+    receipt that covers it). Alerts / status refresh only after a commit, so a check never pushes.
+  - 200 → `{ data: { kind, dry_run, committed, total_rows, failed_rows, rows: [{ row, ok, label, errors:
+    [{ column, message }], temporary_password? }] } }`. `row` = line number in the file (header = 1);
+    `column` = the CSV column at fault, or null. `temporary_password` only for `users` once committed —
+    shown this once, as with `POST /users`.
+  - 403 when the caller may not run the import at all (e.g. a non-admin importing facilities); refusals
+    of single rows (wrong area, unknown LGA…) are row errors instead.
+- Each written row records its own audit event, as the single-item endpoint does.
+
 ## Audit log
 - `GET /audit-events` (query: `category?` (`stock` | `deliveries` | `accounts` | `catalog` | `facilities` |
   `alerts`), `action?`, `actor_id?`, `facility_id?`, `lga_id?`, `state_id?`, `from?`, `to?` (inclusive dates,

@@ -8,6 +8,7 @@ import { DispatchList } from '../../components/dispatches/DispatchList'
 import { ActivityChart } from '../../components/charts/ActivityChart'
 import { StockPositionChart } from '../../components/charts/StockPositionChart'
 import { StatusDonut } from '../../components/charts/StatusDonut'
+import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { ReorderRequestForm } from '../../components/reorder/ReorderRequestForm'
 import { ReorderRequestList } from '../../components/reorder/ReorderRequestList'
@@ -153,6 +154,26 @@ export function FacilityPage({ facilityId, user }: { facilityId: number; user: U
             <button type="button" className="btn btn-ghost" onClick={() => setDispatching(true)}>
               <Send size={18} /> Issue to facility
             </button>
+          )}
+          {canRecord && (
+            <BulkImportButton
+              kind="stock-entries"
+              facilityId={facilityId}
+              noun="entries"
+              label="Import entries"
+              title={`Import Stock Card entries at ${f.name}`}
+              intro="Record many Stock Card entries at once — for example the opening physical inventory when a facility starts on the system, or rows copied from the paper card. Rows are recorded top to bottom, under the same rules as the form."
+              invalidates={[
+                ['stock-balances', facilityId],
+                ['stock-transactions', facilityId],
+                ['lga-summary'],
+                ['state-summary'],
+                ['federal-summary'],
+                ['stock-activity'],
+                ['alerts'],
+                ['reorder-suggestions', facilityId],
+              ]}
+            />
           )}
           {canRecord ? (
             <button type="button" className="btn btn-primary" onClick={() => setRecording(0)}>

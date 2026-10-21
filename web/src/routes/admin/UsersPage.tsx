@@ -2,6 +2,7 @@ import { AlertCircle, KeyRound, Pencil, Power, Search, UserPlus, Users } from 'l
 import { useState } from 'react'
 import { TemporaryPassword } from '../../components/admin/TemporaryPassword'
 import { UserForm } from '../../components/admin/UserForm'
+import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { type UserFilters, useResetPassword, useUpdateUser, useUsers } from '../../lib/admin-queries'
@@ -75,6 +76,13 @@ export function UsersPage({ me }: { me: User }) {
           <p className="muted">{scopeLine(me)}</p>
         </div>
         <div className="head-actions">
+          <BulkImportButton
+            kind="users"
+            noun="accounts"
+            title="Import accounts"
+            intro="Create many accounts at once, on temporary passwords shown once at the end. You can only create the roles, and places, you manage."
+            invalidates={[['users']]}
+          />
           <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'create' })}>
             <UserPlus size={18} /> New account
           </button>

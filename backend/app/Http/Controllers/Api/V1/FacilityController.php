@@ -7,6 +7,7 @@ use App\Http\Requests\SaveFacilityRequest;
 use App\Http\Resources\FacilityResource;
 use App\Models\Facility;
 use App\Models\Lga;
+use App\Services\CatalogService;
 use App\Support\AuditLog;
 use App\Support\HierarchyScope;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -33,17 +34,9 @@ class FacilityController extends Controller
     }
 
     /** Add a facility (SDP) to an LGA (admin). */
-    public function store(SaveFacilityRequest $request): FacilityResource
+    public function store(SaveFacilityRequest $request, CatalogService $catalog): FacilityResource
     {
-        $facility = DB::transaction(function () use ($request) {
-            $facility = Facility::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]);
-            AuditLog::record('facility.created', "Facility {$facility->name} added to {$facility->lga->name} LGA", $facility, $facility,
-                AuditLog::snapshot($facility, ['name', 'type', 'address', 'phone', 'latitude', 'longitude']));
-
-            return $facility;
-        });
-
-        return FacilityResource::make($facility);
+        return FacilityResource::make($catalog->addFacility([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]));
     }
 
     /** Change a facility's details, or close it with is_active=false (admin). Never deleted. */

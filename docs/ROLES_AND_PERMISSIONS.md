@@ -26,6 +26,10 @@
 | Audit log (who did what) | ✅ (own facility) | ✅ (own LGA) | ✅ (own state) | ✅ (everything) | ✅ |
 | Reports & CSV export | ✅ (own facility) | ✅ (own LGA, its store, its SDPs) | ✅ (own state and below) | ✅ (national and below) | ✅ |
 
+Bulk CSV imports (products, facilities, accounts, own min / EOP / max and starting AMCs, Stock Card
+entries) follow the matching row above exactly: each imported row is authorized and validated as the
+single-item form would be, so an import never grants more than the form does.
+
 Each LGA, state and the nation has one **store** (a facility with
 `store_level` set) — the officers of that node keep its Stock Card, just as
 SDP staff keep theirs. Everything else officers see stays read-only.

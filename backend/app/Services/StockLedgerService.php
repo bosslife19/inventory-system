@@ -58,6 +58,7 @@ class StockLedgerService
         ?string $comments = null,
         ?int $deliveryNoteId = null,
         ?string $clientReference = null,
+        bool $deferDerived = false,
     ): StockTransaction {
         if ($quantity < 0 || ($quantity === 0 && $type !== TransactionType::PhysicalCount)) {
             $this->fail('quantity', 'Quantity must be greater than zero.');
@@ -139,13 +140,23 @@ class StockLedgerService
             return $transaction->setRelation('batch', $batch);
         });
 
-        if (! $transaction->wasRecentlyCreated) {
-            return $transaction;
+        if ($transaction->wasRecentlyCreated && ! $deferDerived) {
+            $this->refreshDerived($facility, $product->id);
         }
 
+        return $transaction;
+    }
+
+    /**
+     * The product's alerts and rollup status row, after a write. A caller that
+     * passed $deferDerived (a bulk import, inside its own transaction that may
+     * yet roll back) calls this once it commits, so nothing is pushed early.
+     */
+    public function refreshDerived(Facility $facility, int $productId): void
+    {
         foreach ([
-            fn () => $this->alerts->evaluate($facility, $product->id),
-            fn () => $this->snapshot->refresh($facility, $product->id),
+            fn () => $this->alerts->evaluate($facility, $productId),
+            fn () => $this->snapshot->refresh($facility, $productId),
         ] as $derived) {
             try {
                 $derived();
@@ -153,8 +164,6 @@ class StockLedgerService
                 report($e);
             }
         }
-
-        return $transaction;
     }
 
     private function resolveBatch(

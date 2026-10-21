@@ -1525,6 +1525,221 @@
                 }
             }
         },
+        "/imports/{kind}": {
+            "get": {
+                "operationId": "import.columns",
+                "summary": "The columns of an import, for the template and its guide",
+                "tags": [
+                    "Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "products",
+                                                        "facilities",
+                                                        "users",
+                                                        "product-levels",
+                                                        "stock-entries"
+                                                    ]
+                                                },
+                                                "for_facility": {
+                                                    "type": "boolean",
+                                                    "description": "Imported through POST /facilities/{facility}/imports/{kind} rather than POST /imports/{kind}."
+                                                },
+                                                "max_rows": {
+                                                    "type": "integer",
+                                                    "const": 1000
+                                                },
+                                                "columns": {
+                                                    "type": "array",
+                                                    "description": "In template order. `name` is the header to use; \"Product code\" also matches product_code.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "required": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "description": {
+                                                                "type": "string"
+                                                            },
+                                                            "example": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "required",
+                                                            "description",
+                                                            "example"
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "required": [
+                                                "kind",
+                                                "for_facility",
+                                                "max_rows",
+                                                "columns"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "import.store",
+                "summary": "Import products, facilities (admin) or accounts",
+                "tags": [
+                    "Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportCsvRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`ImportResultResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ImportResultResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/facilities/{facility}/imports/{kind}": {
+            "post": {
+                "operationId": "import.storeForFacility",
+                "summary": "Import stock levels / starting AMCs, or Stock Card entries, for this facility or store",
+                "tags": [
+                    "Import"
+                ],
+                "parameters": [
+                    {
+                        "name": "facility",
+                        "in": "path",
+                        "required": true,
+                        "description": "The facility ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "kind",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportCsvRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`ImportResultResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ImportResultResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/states/{state}/lgas": {
             "get": {
                 "operationId": "lga.index",
@@ -5448,6 +5663,114 @@
                     "items"
                 ],
                 "title": "FulfilReorderRequestRequest"
+            },
+            "ImportCsvRequest": {
+                "type": "object",
+                "description": "POST /imports/{kind} and POST /facilities/{facility}/imports/{kind}: a CSV file, checked or imported.",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "The CSV, header row first (GET /imports/{kind} lists the columns). Up to 1000 rows, 2 MB."
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "true: check every row and report, writing nothing. Default false: import, all or nothing."
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "ImportCsvRequest"
+            },
+            "ImportResultResource": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "products",
+                            "facilities",
+                            "users",
+                            "product-levels",
+                            "stock-entries"
+                        ]
+                    },
+                    "dry_run": {
+                        "type": "boolean"
+                    },
+                    "committed": {
+                        "type": "boolean",
+                        "description": "true when the rows were written; false after a check, or when any row was refused (then nothing was written)."
+                    },
+                    "total_rows": {
+                        "type": "integer"
+                    },
+                    "failed_rows": {
+                        "type": "integer"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "description": "One per data row, in file order. `row` is the line number in the file (the header is line 1).\n`temporary_password` only on an accounts import that committed: shown once, never again.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "row": {
+                                    "type": "integer"
+                                },
+                                "ok": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                },
+                                "errors": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "column": {
+                                                "type": [
+                                                    "string",
+                                                    "null"
+                                                ]
+                                            },
+                                            "message": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "column",
+                                            "message"
+                                        ]
+                                    }
+                                },
+                                "temporary_password": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "row",
+                                "ok",
+                                "label",
+                                "errors"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "kind",
+                    "dry_run",
+                    "committed",
+                    "total_rows",
+                    "failed_rows",
+                    "rows"
+                ],
+                "title": "ImportResultResource"
             },
             "LgaResource": {
                 "type": "object",

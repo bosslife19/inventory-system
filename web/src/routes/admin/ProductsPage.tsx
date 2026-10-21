@@ -1,6 +1,7 @@
 import { AlertCircle, Package, Pencil, Plus, Save, Search, Snowflake } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Field } from '../../components/form/Field'
+import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { useCatalog, useSaveProduct } from '../../lib/admin-queries'
@@ -44,6 +45,13 @@ export function ProductsPage({ me }: { me: User }) {
           <p className="muted">The catalog every facility records against, with default min / EOP / max levels</p>
         </div>
         <div className="head-actions">
+          <BulkImportButton
+            kind="products"
+            noun="products"
+            title="Import products"
+            intro="Add many products to the shared catalog at once. Codes already in the catalog are refused, so existing products aren’t changed."
+            invalidates={[['products']]}
+          />
           <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
             <Plus size={18} /> New product
           </button>

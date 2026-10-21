@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\DeliveryNoteController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\DispatchController;
 use App\Http\Controllers\Api\V1\FacilityController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -91,6 +92,13 @@ Route::prefix('v1')->group(function () {
         Route::post('users', [UserController::class, 'store']);
         Route::put('users/{user}', [UserController::class, 'update']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+
+        Route::get('imports/{kind}', [ImportController::class, 'columns'])
+            ->whereIn('kind', ['products', 'facilities', 'users', 'product-levels', 'stock-entries']);
+        Route::post('imports/{kind}', [ImportController::class, 'store'])
+            ->whereIn('kind', ['products', 'facilities', 'users']);
+        Route::post('facilities/{facility}/imports/{kind}', [ImportController::class, 'storeForFacility'])
+            ->whereIn('kind', ['product-levels', 'stock-entries']);
 
         Route::get('alerts', [AlertController::class, 'index']);
         Route::post('alerts/{alert}/acknowledge', [AlertController::class, 'acknowledge']);

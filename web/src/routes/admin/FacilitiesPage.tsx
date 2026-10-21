@@ -2,6 +2,7 @@ import { AlertCircle, Building2, Pencil, Plus, Save } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
+import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { useLgaFacilities, useLgas, useSaveFacility } from '../../lib/admin-queries'
@@ -41,6 +42,13 @@ export function FacilitiesPage() {
           <p className="muted">Service delivery points in each LGA. Stores are created with their LGA, state or the nation.</p>
         </div>
         <div className="head-actions">
+          <BulkImportButton
+            kind="facilities"
+            noun="facilities"
+            title="Import facilities"
+            intro="Add many facilities (SDPs) at once, in any states and LGAs. Each row names its state and LGA as they appear here."
+            invalidates={[['lga-facilities']]}
+          />
           <button type="button" className="btn btn-primary" disabled={!lgaId} onClick={() => setEditing('new')} title={lgaId ? undefined : 'Choose an LGA first'}>
             <Plus size={18} /> New facility
           </button>

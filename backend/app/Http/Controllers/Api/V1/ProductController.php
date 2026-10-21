@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Services\CatalogService;
 use App\Support\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -36,19 +37,9 @@ class ProductController extends Controller
     }
 
     /** Add a product to the catalog. Any level may: the catalog is shared, and each facility then sets its own levels. */
-    public function store(SaveProductRequest $request): ProductResource
+    public function store(SaveProductRequest $request, CatalogService $catalog): ProductResource
     {
-        $product = DB::transaction(function () use ($request) {
-            $user = $request->user();
-            $product = Product::create([...$request->validated(), 'is_active' => $request->boolean('is_active', true), 'created_by' => $user->id]);
-            AuditLog::record('product.created', "Product {$product->sku} — {$product->name} added to the catalog", $product,
-                place: AuditLog::placeOfUser($user),
-                changes: AuditLog::snapshot($product, ['sku', 'name', 'category', 'unit_of_measure', 'pack_size', 'requires_batch_tracking', 'requires_cold_chain', 'min_stock_level', 'reorder_level', 'max_stock_level']));
-
-            return $product;
-        });
-
-        return ProductResource::make($product);
+        return ProductResource::make($catalog->addProduct([...$request->validated(), 'is_active' => $request->boolean('is_active', true)], $request->user()));
     }
 
     /** Change a product, or retire it with is_active=false (admin, or whoever added it). Never deleted: the ledger references it. */

@@ -2,6 +2,7 @@ import { AlertCircle, ArrowLeft, Gauge, Lock, Pencil, RotateCcw, Save, Search } 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
+import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { useProductLevels, useSaveEnteredAmc, useSaveProductLevels } from '../../lib/admin-queries'
@@ -56,6 +57,16 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
           </p>
         </div>
         <div className="head-actions">
+          {canEdit && (
+            <BulkImportButton
+              kind="product-levels"
+              facilityId={facilityId}
+              noun="products"
+              title={`Import stock levels for ${f.name}`}
+              intro="Set this facility’s own min / EOP / max, its starting AMCs, or both, for many products at once."
+              invalidates={[['product-levels', facilityId], ['stock-balances', facilityId], ['reorder-suggestions', facilityId], ['alerts']]}
+            />
+          )}
           {!canEdit && (
             <span className="badge badge-neutral badge-plain">
               <Lock size={12} /> Read-only

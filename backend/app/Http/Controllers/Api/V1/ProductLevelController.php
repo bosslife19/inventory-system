@@ -10,8 +10,7 @@ use App\Models\Facility;
 use App\Models\FacilityProductAmc;
 use App\Models\FacilityProductLevel;
 use App\Models\Product;
-use App\Services\AlertEngine;
-use App\Services\StockStatusSnapshot;
+use App\Services\ProductLevelService;
 use App\Support\AuditLog;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -25,10 +24,7 @@ use Illuminate\Support\Facades\Gate;
  */
 class ProductLevelController extends Controller
 {
-    public function __construct(
-        private readonly AlertEngine $alerts,
-        private readonly StockStatusSnapshot $snapshot,
-    ) {}
+    public function __construct(private readonly ProductLevelService $levels) {}
 
     /** Every active product, plus any retired one this facility set levels or an AMC for, by name. */
     public function index(Facility $facility): AnonymousResourceCollection
@@ -52,16 +48,7 @@ class ProductLevelController extends Controller
      */
     public function updateAmc(SaveEnteredAmcRequest $request, Facility $facility, Product $product): ProductLevelResource
     {
-        $amc = DB::transaction(function () use ($request, $facility, $product) {
-            $amc = FacilityProductAmc::firstOrNew(['facility_id' => $facility->id, 'product_id' => $product->id]);
-            $before = $amc->exists ? $amc->amc_quantity : null;
-            $amc->fill(['amc_quantity' => (float) $request->validated('amc_quantity'), 'updated_by' => $request->user()->id])->save();
-
-            AuditLog::record('product.amc_entered', "Entered AMC for {$product->sku} at {$facility->name}: {$amc->amc_quantity} a month",
-                $product, $facility, changes: $before === $amc->amc_quantity ? [] : ['amc_quantity' => [$before, $amc->amc_quantity]]);
-
-            return $amc;
-        });
+        $amc = $this->levels->setAmc($facility, $product, (float) $request->validated('amc_quantity'), $request->user());
 
         return $this->levelsRow($facility, $product, $amc);
     }
@@ -92,24 +79,7 @@ class ProductLevelController extends Controller
     /** Set this facility's levels for a product. Its level, flags and alerts follow at once. */
     public function update(SaveProductLevelsRequest $request, Facility $facility, Product $product): ProductLevelResource
     {
-        DB::transaction(function () use ($request, $facility, $product) {
-            $own = FacilityProductLevel::firstOrNew(['facility_id' => $facility->id, 'product_id' => $product->id]);
-            $before = $own->exists ? $own : $product;
-            $before = [$before->min_stock_level, $before->reorder_level, $before->max_stock_level];
-            $own->fill([...$request->validated(), 'updated_by' => $request->user()->id])->save();
-
-            $changes = [];
-            foreach (['min_stock_level', 'reorder_level', 'max_stock_level'] as $i => $field) {
-                if ($before[$i] !== $own->{$field}) {
-                    $changes[$field] = [$before[$i], $own->{$field}];
-                }
-            }
-            AuditLog::record('product.levels_set',
-                "Stock levels for {$product->sku} at {$facility->name}: min {$own->min_stock_level}, EOP {$own->reorder_level}, max {$own->max_stock_level}",
-                $product, $facility, changes: $changes);
-        });
-
-        $this->refreshDerived($facility, $product);
+        $this->levels->setLevels($facility, $product, $request->validated(), $request->user());
 
         return $this->levelsRow($facility, $product);
     }
@@ -126,23 +96,8 @@ class ProductLevelController extends Controller
             }
         });
 
-        $this->refreshDerived($facility, $product);
+        $this->levels->refreshDerived($facility, $product->id);
 
         return response()->noContent();
-    }
-
-    /** Thresholds moved, so the product's status and alerts may have too. Derived state: best effort, as after a ledger write. */
-    private function refreshDerived(Facility $facility, Product $product): void
-    {
-        foreach ([
-            fn () => $this->alerts->evaluate($facility, $product->id),
-            fn () => $this->snapshot->refresh($facility, $product->id),
-        ] as $derived) {
-            try {
-                $derived();
-            } catch (\Throwable $e) {
-                report($e);
-            }
-        }
     }
 }
