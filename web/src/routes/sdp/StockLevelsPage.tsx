@@ -13,15 +13,15 @@ import { useFacility } from '../../lib/queries'
 import type { ProductLevel, User } from '../../lib/types'
 
 /**
- * One facility's (or store's) min / EOP / max per product. The right levels
- * differ between an SDP, an LGA store, a state store and the national store,
- * so whoever keeps the Stock Card sets them; until they do, the catalog's
- * defaults apply. Alerts and push notifications go out when usable stock
- * reaches the EOP in force here.
+ * One facility's (or store's) min / EOP / max per product. Once a product
+ * has an AMC here, they are months of it (EOP 1, min 2, max 5 — the API's
+ * `amc_levels`); until then, the fixed levels whoever keeps the Stock Card
+ * sets here, else the catalog's defaults. Alerts and push notifications go
+ * out when usable stock reaches the EOP in force here.
  *
  * A facility or store new to the platform can also enter a starting AMC per
- * product; reorder suggestions use it until there are 3 full months of
- * records here to compute one.
+ * product; levels and reorder suggestions use it until there are 3 full
+ * months of records here to compute one.
  */
 export function StockLevelsPage({ facilityId, user }: { facilityId: number; user: User }) {
   const facility = useFacility(facilityId)
@@ -40,6 +40,7 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
     (r) => !q || r.product.name.toLowerCase().includes(q) || r.product.sku.toLowerCase().includes(q) || r.product.category.toLowerCase().includes(q),
   )
   const ownCount = levels.data.filter((r) => r.source === 'facility').length
+  const amcCount = levels.data.filter((r) => r.amc_levels !== null).length
 
   return (
     <div className="stack">
@@ -52,8 +53,10 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
           <h1>Min / EOP / max at {f.name}</h1>
           <p className="muted">
             The EOP (emergency order point) is lower than the minimum. When usable stock reaches it, alerts and push
-            notifications go out. Below the minimum, it's time to order. New here? Enter a starting AMC (average monthly
-            consumption) for each product: reorder suggestions use it until there are 3 full months of records to work it out.
+            notifications go out. Below the minimum, it's time to order. Once a product has an AMC (average monthly
+            consumption), its levels follow it: EOP = 1 month, min = 2 months (the buffer stock), max = 5 months. Until
+            then the fixed levels below apply. New here? Enter a starting AMC for each product: it's used until there are 3
+            full months of records to work it out.
           </p>
         </div>
         <div className="head-actions">
@@ -78,7 +81,8 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
       <section className="card card-flush">
         <div className="card-head">
           <p className="muted small" style={{ margin: 0 }}>
-            {ownCount === 0 ? 'Using the catalog defaults for every product.' : `Own levels set for ${ownCount} of ${levels.data.length} products.`}
+            {amcCount > 0 && `Levels from AMC for ${amcCount} of ${levels.data.length} products. `}
+            {ownCount === 0 ? (amcCount > 0 ? 'Catalog defaults for the rest.' : 'Using the catalog defaults for every product.') : `Own fixed levels set for ${ownCount}.`}
           </p>
           <label className="search">
             <Search size={16} />
@@ -109,7 +113,9 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const inForce = r.amc_levels ?? r
+                  return (
                   <tr key={r.product.id}>
                     <td>
                       <div className="cell-title">{r.product.name}</div>
@@ -117,12 +123,16 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
                     </td>
                     <td className="hide-sm">{unitDescription(r.product)}</td>
                     <td className="num">
-                      <strong>{formatQty(r.reorder_level)}</strong>
+                      <strong>{formatQty(inForce.reorder_level)}</strong>
                     </td>
-                    <td className="num">{formatQty(r.min_stock_level)}</td>
-                    <td className="num">{formatQty(r.max_stock_level)}</td>
+                    <td className="num">{formatQty(inForce.min_stock_level)}</td>
+                    <td className="num">{formatQty(inForce.max_stock_level)}</td>
                     <td>
-                      {r.source === 'facility' ? (
+                      {r.amc_levels ? (
+                        <span className="badge badge-notice" title={`EOP 1, min 2 and max 5 months of ${formatQty(r.amc_levels.amc)} a month`}>
+                          From AMC {formatQty(r.amc_levels.amc)}
+                        </span>
+                      ) : r.source === 'facility' ? (
                         <span className="badge badge-ok" title={r.updated_by_name ? `By ${r.updated_by_name}, ${formatDate(r.updated_at?.slice(0, 10))}` : undefined}>
                           Set here
                         </span>
@@ -139,7 +149,8 @@ export function StockLevelsPage({ facilityId, user }: { facilityId: number; user
                       </td>
                     )}
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -207,6 +218,13 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
         {row.product.pack_size ? ` (${formatQty(row.product.pack_size)} pieces each)` : ''}. Catalog defaults: EOP {formatQty(row.product.reorder_level)}, min{' '}
         {formatQty(row.product.min_stock_level)}, max {formatQty(row.product.max_stock_level)}.
       </p>
+      {row.amc_levels && (
+        <p className="callout" style={{ margin: 0 }}>
+          This product has an AMC of {formatQty(row.amc_levels.amc)} a month here, so its levels follow it: EOP{' '}
+          {formatQty(row.amc_levels.reorder_level)}, min {formatQty(row.amc_levels.min_stock_level)}, max{' '}
+          {formatQty(row.amc_levels.max_stock_level)}. The fixed levels below only apply when there is no AMC.
+        </p>
+      )}
       <div className="field-row">
         <Field label="EOP" hint="Alerts at or below this" error={errors.reorder_level}>
           <input type="number" min={0} step={1} value={f.reorder_level} onChange={(e) => set({ reorder_level: e.target.value })} autoFocus />
@@ -220,7 +238,7 @@ function LevelsForm({ facilityId, row, onDone }: { facilityId: number; row: Prod
       </div>
       <Field
         label="Starting AMC"
-        hint={`Average ${plural} issued per month, if this facility is new here. Used for reorder suggestions until there are 3 full months of records; leave empty to clear.`}
+        hint={`Average ${plural} issued per month, if this facility is new here. Sets the levels and reorder suggestions until there are 3 full months of records; leave empty to clear.`}
         error={errors.amc_quantity}
       >
         <input type="number" min={0} step="any" value={amc} onChange={(e) => setAmc(e.target.value)} placeholder="e.g. 120" />

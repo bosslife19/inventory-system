@@ -5876,11 +5876,11 @@
                         "$ref": "#/components/schemas/ProductResource"
                     },
                     "min_stock_level": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "The fixed levels: used while the product has no AMC here (see `amc_levels`)."
                     },
                     "reorder_level": {
-                        "type": "integer",
-                        "description": "The EOP in force here."
+                        "type": "integer"
                     },
                     "max_stock_level": {
                         "type": "integer"
@@ -5911,6 +5911,33 @@
                             "null"
                         ],
                         "description": "AMC entered here for when history is short (null if none); reorder suggestions use it until there's a full AMC window of records."
+                    },
+                    "amc_levels": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The levels in force when the product has an AMC here (computed, or the entered one while\nhistory is short): min / EOP / max = AMC \u00d7 `INVENTORY_{MIN,EOP,MAX}_MONTHS_OF_STOCK`. Null without an AMC.",
+                        "properties": {
+                            "amc": {
+                                "type": "number"
+                            },
+                            "min_stock_level": {
+                                "type": "integer"
+                            },
+                            "reorder_level": {
+                                "type": "integer"
+                            },
+                            "max_stock_level": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "amc",
+                            "min_stock_level",
+                            "reorder_level",
+                            "max_stock_level"
+                        ]
                     }
                 },
                 "required": [
@@ -5921,7 +5948,8 @@
                     "source",
                     "updated_by_name",
                     "updated_at",
-                    "entered_amc"
+                    "entered_amc",
+                    "amc_levels"
                 ],
                 "title": "ProductLevelResource"
             },
@@ -6055,7 +6083,7 @@
                     },
                     "levels": {
                         "type": "object",
-                        "description": "The min / EOP / max judged against here: this facility's own when set (`source: \"facility\"`),\nelse the catalog's (`source: \"catalog\"`). EOP < min \u2264 max.",
+                        "description": "The min / EOP / max judged against here: months of AMC when the product has one\n(`source: \"amc\"`, with the `amc` used), else this facility's own fixed levels\n(`source: \"facility\"`), else the catalog's (`source: \"catalog\"`). EOP < min \u2264 max.",
                         "properties": {
                             "min_stock_level": {
                                 "type": "integer"
@@ -6069,8 +6097,15 @@
                             "source": {
                                 "type": "string",
                                 "enum": [
+                                    "amc",
                                     "facility",
                                     "catalog"
+                                ]
+                            },
+                            "amc": {
+                                "type": [
+                                    "number",
+                                    "null"
                                 ]
                             }
                         },
@@ -6078,7 +6113,8 @@
                             "min_stock_level",
                             "reorder_level",
                             "max_stock_level",
-                            "source"
+                            "source",
+                            "amc"
                         ]
                     },
                     "quantity_on_hand": {

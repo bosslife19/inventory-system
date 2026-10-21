@@ -88,10 +88,19 @@ Each SDP and store sets its own levels per product — the right EOP differs bet
 store and the national store. Without its own, a facility uses the catalog's. Everything that judges stock (level,
 flags, alerts and their push, reorder max, the stock-status and reorder reports) uses the levels in force there.
 
+**Once a product has an AMC at a facility, its levels are months of that AMC instead** (buffer-stock rule):
+min = ceil(AMC × `INVENTORY_MIN_MONTHS_OF_STOCK`, default 2 — the buffer stock), EOP = ceil(AMC ×
+`INVENTORY_EOP_MONTHS_OF_STOCK`, default 1), max = ceil(AMC × `INVENTORY_MAX_MONTHS_OF_STOCK`, default 5 — 3 months
+of resupply + the 2 months of buffer). The AMC is the same one reorder suggestions use: the latest `amc_snapshots`
+row, or the entered starting AMC while that covers less than `INVENTORY_AMC_MONTHS`. The fixed levels below apply
+only while a product has no AMC (or an AMC of 0) there.
+
 - `GET /facilities/{id}/product-levels` — anyone who can see the facility. Every active product (plus retired ones
   with levels or an AMC set here), by name: `[{ product: <Product>, min_stock_level, reorder_level, max_stock_level,
-  source: "facility" | "catalog", updated_by_name, updated_at, entered_amc }]` (`updated_by_name` / `updated_at`
-  null for `catalog`; `entered_amc` null unless a starting AMC was entered here).
+  source: "facility" | "catalog", updated_by_name, updated_at, entered_amc, amc_levels }]` — the min / EOP / max here
+  are the fixed levels (`updated_by_name` / `updated_at` null for `catalog`; `entered_amc` null unless a starting AMC
+  was entered here). `amc_levels`: `{ amc, min_stock_level, reorder_level, max_stock_level }`, the AMC-based levels
+  in force instead, or null when the product has no AMC here.
 - `PUT /facilities/{id}/product-levels/{product_id}` — body `min_stock_level, reorder_level, max_stock_level`, same
   EOP < min ≤ max rule. Who: whoever records at the facility (own SDP, own store, admin), else 403. 200 → the entry
   above. The product's level, flags and alerts there are re-evaluated at once (a new alert is notified as usual).
@@ -104,7 +113,7 @@ flags, alerts and their push, reorder max, the stock-status and reorder reports)
 
 ## Stock — facility level (sdp_staff and above, scoped)
 - `GET /facilities/{id}/stock-balances` — current on-hand per product/batch
-  - `data`: one entry per product stocked at the facility: `{ product, levels: { min_stock_level, reorder_level, max_stock_level, source: "facility" | "catalog" }, quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level, flags, batches: [{ batch_id, batch_no, expiry_date, expiry_status, quantity_on_hand, last_transaction_id }] }`. Batches are listed earliest expiry first and include zero-quantity rows.
+  - `data`: one entry per product stocked at the facility: `{ product, levels: { min_stock_level, reorder_level, max_stock_level, source: "amc" | "facility" | "catalog", amc }, quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level, flags, batches: [{ batch_id, batch_no, expiry_date, expiry_status, quantity_on_hand, last_transaction_id }] }`. Batches are listed earliest expiry first and include zero-quantity rows.
   - `levels`: the min / EOP / max in force at this facility (see "Stock levels per facility") — use these, not `product.*_level`.
   - `usable_quantity` = on hand minus expired batches. Thresholds are judged on usable stock.
   - `level`: `stock_out` (usable 0) | `low_stock` (≤ EOP — raises the alert and push) | `reorder` (< min — time to order) | `ok`.
@@ -305,7 +314,7 @@ reads, like the dashboards; nothing is written back.
 | Report | Extra query | Rows (from) |
 |---|---|---|
 | `stock-card` | `from?`, `to?` (inclusive dates). `area` must be `facility` (else 422 on `area`). | One per ledger entry in card order (date, voucher, received from / issued to, entry type, batch, expiry, received, issued, losses / adj. (signed), balance, by, comments). With `product_id` and `from`, the first row is the opening balance carried forward. |
-| `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level ("At / below EOP", "Below min"…), min / EOP / max in force there, last entry (`facility_product_status`). |
+| `stock-status` | `level?` (`stock_out` / `low_stock` / `reorder` / `ok`) | One per facility + product: on hand, usable, expired, expiring soon, level ("At / below EOP", "Below min"…), the min / EOP / max it was judged against (AMC-based or fixed), last entry (`facility_product_status`). |
 | `reorder` | `needs_order?` (only rows with a quantity to order) | One per facility + product: usable, AMC (latest `amc_snapshots` row, or the entered starting AMC under the same rule as reorder suggestions), months of stock, max stock, basis, quantity to order — the reorder-suggestions arithmetic. |
 | `expiry` | `within_days?` (0–730, default `INVENTORY_EXPIRING_SOON_DAYS`) | One per batch on hand that has expired or expires within the window, earliest first: batch, expiry, days left, status, quantity (`stock_balances`). |
 

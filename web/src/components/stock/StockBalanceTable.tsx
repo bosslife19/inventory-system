@@ -79,9 +79,16 @@ export function StockBalanceTable({ stock, onShowHistory, onRecord }: Props) {
                   </td>
                   <td
                     className="num muted hide-sm"
-                    title={row.levels.source === 'facility' ? 'Levels set for this facility' : 'Catalog levels'}
+                    title={
+                      row.levels.source === 'amc'
+                        ? `2 / 1 / 5 months of AMC (${formatQty(row.levels.amc ?? 0)} a month)`
+                        : row.levels.source === 'facility'
+                          ? 'Levels set for this facility'
+                          : 'Catalog levels'
+                    }
                   >
                     {row.levels.min_stock_level} / {row.levels.reorder_level} / {max}
+                    {row.levels.source === 'amc' && <div className="small">from AMC</div>}
                     {row.levels.source === 'facility' && <div className="small">set here</div>}
                   </td>
                   <td className="actions">

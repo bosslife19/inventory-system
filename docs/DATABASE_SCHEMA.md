@@ -54,7 +54,7 @@ unique on `(state_id, name)`
 > the product as due for an order. These are the catalog defaults — each facility may set
 > its own (`facility_product_levels`).
 
-**facility_product_levels** (a facility's or store's own levels, overriding the catalog's)
+**facility_product_levels** (a facility's or store's own fixed levels, overriding the catalog's; both give way to AMC-based levels once the product has an AMC there)
 `id, facility_id (fk), product_id (fk), min_stock_level, reorder_level (its EOP), max_stock_level, updated_by (nullable fk users), created_at, updated_at`
 unique on `(facility_id, product_id)`
 
@@ -186,7 +186,8 @@ unique on `(facility_id, product_id)`
 > holds suppresses it until the condition clears and recurs.
 > Severity: stock_out/expired = critical, low_stock = warning,
 > expiring_soon = info. `low_stock` means usable stock is at or below the EOP in force at
-> that facility (its own levels, else the catalog's).
+> that facility: AMC × `INVENTORY_EOP_MONTHS_OF_STOCK` when the product has an AMC there,
+> else its own fixed levels, else the catalog's.
 
 **notifications** (what each user was told — written by the backend only)
 `id, user_id (fk), type (alert|digest|reorder_request), alert_id (nullable fk alerts, cascade), title, body, data (json, nullable), pushed_at (nullable), read_at (nullable), created_at, updated_at`
@@ -221,7 +222,7 @@ unique on `(facility_id, product_id)`
 ## Rollup tables
 
 **facility_product_status** (derived — materialized stock status per facility + product)
-`id, facility_id (fk), product_id (fk), quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level (enum: stock_out|low_stock (≤ EOP)|reorder (< min)|ok), flag_stock_out, flag_expired, flag_low_stock, flag_expiring_soon (bools), last_transaction_date (nullable), refreshed_at`
+`id, facility_id (fk), product_id (fk), quantity_on_hand, usable_quantity, expired_quantity, expiring_soon_quantity, level (enum: stock_out|low_stock (≤ EOP)|reorder (< min)|ok), min_stock_level, reorder_level, max_stock_level (nullable: the levels it was judged against), levels_source (nullable enum: amc|facility|catalog), flag_stock_out, flag_expired, flag_low_stock, flag_expiring_soon (bools), last_transaction_date (nullable), refreshed_at`
 unique on `(facility_id, product_id)`
 
 > The same interpretation StockStatusService gives `stock_balances`

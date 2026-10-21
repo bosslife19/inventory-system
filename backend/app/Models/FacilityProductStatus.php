@@ -16,7 +16,7 @@ class FacilityProductStatus extends Model
 
     protected $fillable = [
         'facility_id', 'product_id', 'quantity_on_hand', 'usable_quantity', 'expired_quantity',
-        'expiring_soon_quantity', 'level', 'flag_stock_out', 'flag_expired', 'flag_low_stock',
+        'expiring_soon_quantity', 'level', 'min_stock_level', 'reorder_level', 'max_stock_level', 'levels_source', 'flag_stock_out', 'flag_expired', 'flag_low_stock',
         'flag_expiring_soon', 'last_transaction_date', 'refreshed_at',
     ];
 
@@ -24,6 +24,9 @@ class FacilityProductStatus extends Model
     {
         return [
             'level' => StockLevel::class,
+            'min_stock_level' => 'integer',
+            'reorder_level' => 'integer',
+            'max_stock_level' => 'integer',
             'flag_stock_out' => 'boolean',
             'flag_expired' => 'boolean',
             'flag_low_stock' => 'boolean',

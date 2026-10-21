@@ -17,12 +17,20 @@ return [
     'amc_months' => (int) env('INVENTORY_AMC_MONTHS', 3),
 
     /*
-    | Quantity to order tops usable stock up to AMC x this many months (the
-    | Excel "Max SL" in months): 3 months to the next quarterly resupply plus
-    | 2 months of buffer stock. Products with no consumption history yet
-    | fall back to their fixed max_stock_level.
+    | Stock levels in months of AMC, used wherever a product has an AMC (the
+    | computed one, or the facility's entered starting AMC):
+    |   max = 3 months to the next quarterly resupply + 2 months of buffer;
+    |   min = the 2 months of buffer stock (below it: time to order);
+    |   EOP = 1 month (at or below it: the low-stock alert, emergency order).
+    | Quantity to order tops usable stock up to the max. Products with no
+    | AMC yet fall back to their fixed levels (the facility's own, else the
+    | catalog's).
     */
 
     'max_months_of_stock' => (float) env('INVENTORY_MAX_MONTHS_OF_STOCK', 5),
+
+    'min_months_of_stock' => (float) env('INVENTORY_MIN_MONTHS_OF_STOCK', 2),
+
+    'eop_months_of_stock' => (float) env('INVENTORY_EOP_MONTHS_OF_STOCK', 1),
 
 ];

@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Current stock per facility and product: on hand, usable, expired, level
- * against the thresholds. From facility_product_status, the same snapshot
+ * against the thresholds it was judged by. From facility_product_status, the same snapshot
  * the dashboards use (refreshed on every ledger write and daily for expiry).
  */
 class StockStatusReport extends Report
@@ -59,10 +59,11 @@ class StockStatusReport extends Report
                 'fps.level', 'fps.last_transaction_date',
                 'p.sku', 'p.name as product_name', 'p.unit_of_measure',
             ])
-            // The facility's own levels where it set them.
-            ->selectRaw('COALESCE(fpl.min_stock_level, p.min_stock_level) as min_stock_level')
-            ->selectRaw('COALESCE(fpl.reorder_level, p.reorder_level) as reorder_level')
-            ->selectRaw('COALESCE(fpl.max_stock_level, p.max_stock_level) as max_stock_level');
+            // The levels the row was judged against (AMC-based or fixed); for a row not
+            // refreshed since they were stored, the facility's own fixed levels, else the catalog's.
+            ->selectRaw('COALESCE(fps.min_stock_level, fpl.min_stock_level, p.min_stock_level) as min_stock_level')
+            ->selectRaw('COALESCE(fps.reorder_level, fpl.reorder_level, p.reorder_level) as reorder_level')
+            ->selectRaw('COALESCE(fps.max_stock_level, fpl.max_stock_level, p.max_stock_level) as max_stock_level');
         ReportScope::joinPlace($query, 'fps.facility_id');
 
         return $this->filterProducts($query, $filters)->orderBy('s.name')->orderBy('l.name')->orderBy('f.name')->orderBy('p.name')->orderBy('fps.id');

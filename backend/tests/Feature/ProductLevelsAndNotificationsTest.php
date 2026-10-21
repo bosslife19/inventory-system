@@ -4,6 +4,7 @@ use App\Contracts\PushSender;
 use App\Enums\AlertType;
 use App\Enums\TransactionType;
 use App\Models\Alert;
+use App\Models\AmcSnapshot;
 use App\Models\Facility;
 use App\Models\Product;
 use App\Models\UserNotification;
@@ -74,7 +75,7 @@ it('lets each facility set its own min / EOP / max, which drive its level and al
 
     // 25 is now at/below Kawo's EOP of 30: alert raised straight away, other facilities unaffected.
     expect(($this->stock)())->toMatchArray(['level' => 'low_stock', 'levels' => [
-        'min_stock_level' => 60, 'reorder_level' => 30, 'max_stock_level' => 200, 'source' => 'facility',
+        'min_stock_level' => 60, 'reorder_level' => 30, 'max_stock_level' => 200, 'source' => 'facility', 'amc' => null,
     ]])
         ->and(Alert::where(['facility_id' => $this->kawo->id, 'alert_type' => AlertType::LowStock])->live()->count())->toBe(1)
         ->and($this->ors->fresh()->reorder_level)->toBe(10);
@@ -83,6 +84,35 @@ it('lets each facility set its own min / EOP / max, which drive its level and al
     expect(($this->stock)())->toMatchArray(['level' => 'reorder'])
         ->and(($this->stock)()['levels']['source'])->toBe('catalog')
         ->and(Alert::live()->count())->toBe(0);
+});
+
+it('works min / EOP / max out from the AMC once there is one: 2, 1 and 5 months of it', function () {
+    ($this->rec)($this->kawo, TransactionType::Receipt, 35); // fixed levels: min 40, EOP 10 → "reorder"
+    expect(($this->stock)()['level'])->toBe('reorder');
+
+    // Starting AMC 20: min 40, EOP 20, max 100 — 35 is still only below min.
+    $this->actingAs($this->u['sdp'], 'sanctum')
+        ->putJson("/api/v1/facilities/{$this->kawo->id}/product-amcs/{$this->ors->id}", ['amc_quantity' => 20])->assertOk();
+    ($this->rec)($this->kawo, TransactionType::Issue, 15); // 20: at the EOP of 1 month
+
+    expect(($this->stock)())->toMatchArray(['level' => 'low_stock', 'levels' => [
+        'min_stock_level' => 40, 'reorder_level' => 20, 'max_stock_level' => 100, 'source' => 'amc', 'amc' => 20.0,
+    ]])->and(Alert::where(['facility_id' => $this->kawo->id, 'alert_type' => AlertType::LowStock])->live()->count())->toBe(1);
+
+    // A full window of history replaces the entered AMC: 8 a month → min 16, EOP 8, max 40.
+    AmcSnapshot::create(['facility_id' => $this->kawo->id, 'product_id' => $this->ors->id, 'period_month' => '2026-10-01', 'amc_quantity' => 8, 'months_used' => 3, 'suggested_reorder_quantity' => 0]);
+    $this->artisan('stock:refresh-status', ['--facility' => [$this->kawo->id]])->assertSuccessful();
+
+    expect(($this->stock)())->toMatchArray(['level' => 'ok', 'levels' => [
+        'min_stock_level' => 16, 'reorder_level' => 8, 'max_stock_level' => 40, 'source' => 'amc', 'amc' => 8.0,
+    ]])->and(Alert::where(['facility_id' => $this->kawo->id, 'alert_type' => AlertType::LowStock])->live()->count())->toBe(0);
+
+    $levels = $this->getJson("/api/v1/facilities/{$this->kawo->id}/product-levels")->json('data.0');
+    expect($levels)->toMatchArray(['min_stock_level' => 40, 'reorder_level' => 10, 'source' => 'catalog', 'entered_amc' => 20.0])
+        ->and($levels['amc_levels'])->toEqual(['amc' => 8.0, 'min_stock_level' => 16, 'reorder_level' => 8, 'max_stock_level' => 40]);
+
+    $row = $this->getJson("/api/v1/reports/stock-status?area=facility&id={$this->kawo->id}")->json('data.rows.0');
+    expect($row)->toMatchArray(['level' => 'OK', 'min' => 16, 'eop' => 8, 'max' => 40]);
 });
 
 it('lets only whoever keeps the Stock Card set its levels', function () {

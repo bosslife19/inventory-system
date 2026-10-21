@@ -11,8 +11,10 @@ use App\Data\StockLevels;
 use App\Enums\AlertType;
 use App\Enums\ExpiryStatus;
 use App\Enums\StockLevel;
+use App\Models\AmcSnapshot;
 use App\Models\Batch;
 use App\Models\Facility;
+use App\Models\FacilityProductAmc;
 use App\Models\FacilityProductLevel;
 use App\Models\StockBalance;
 use App\Models\StockTransaction;
@@ -25,7 +27,8 @@ use Illuminate\Support\Collection;
  *
  * Thresholds are judged on *usable* stock (unexpired batches), since expired
  * stock on the shelf can't be dispensed. Expired stock is flagged separately.
- * Each facility's own levels (facility_product_levels) win over the catalog's.
+ * Levels come from the AMC where there is one (StockLevels), else each
+ * facility's own fixed levels, else the catalog's.
  */
 class StockStatusService
 {
@@ -62,6 +65,8 @@ class StockStatusService
             ->get()
             ->keyBy(fn (FacilityProductLevel $l) => "{$l->facility_id}:{$l->product_id}");
 
+        $amcs = $this->effectiveAmcs($facilities->map(fn (Facility $f) => $f->id)->all());
+
         $lastEntries = StockTransaction::query()
             ->whereIn('facility_id', $facilities->map(fn (Facility $f) => $f->id)->all())
             ->groupBy('facility_id')
@@ -72,7 +77,11 @@ class StockStatusService
         foreach ($facilities as $facility) {
             $products = ($balances[$facility->id] ?? collect())
                 ->groupBy('product_id')
-                ->map(fn (Collection $rows) => $this->productStock($rows, $ownLevels["{$facility->id}:{$rows->first()->product_id}"] ?? null))
+                ->map(fn (Collection $rows) => $this->productStock(
+                    $rows,
+                    $ownLevels["{$facility->id}:{$rows->first()->product_id}"] ?? null,
+                    $amcs[$facility->id][$rows->first()->product_id]['amc'] ?? null,
+                ))
                 ->sortBy(fn (ProductStock $p) => $p->product->name)
                 ->values()
                 ->all();
@@ -87,6 +96,47 @@ class StockStatusService
         }
 
         return $summaries;
+    }
+
+    /**
+     * The AMC each product's levels are worked out from: the latest monthly
+     * snapshot, or the entered starting AMC while that covers less than a
+     * full window (ReorderService::effectiveAmc).
+     *
+     * @param  list<int>  $facilityIds
+     * @return array<int, array<int, array{amc: float|null, source: 'computed'|'entered'|null}>> by facility id, then product id
+     */
+    public function effectiveAmcs(array $facilityIds): array
+    {
+        $latest = AmcSnapshot::query()
+            ->whereIn('facility_id', $facilityIds)
+            ->groupBy('facility_id', 'product_id')
+            ->selectRaw('facility_id, product_id, max(period_month) as period_month');
+        $snapshots = AmcSnapshot::query()
+            ->joinSub($latest, 'latest', fn ($j) => $j
+                ->on('latest.facility_id', '=', 'amc_snapshots.facility_id')
+                ->on('latest.product_id', '=', 'amc_snapshots.product_id')
+                ->on('latest.period_month', '=', 'amc_snapshots.period_month'))
+            ->get(['amc_snapshots.facility_id', 'amc_snapshots.product_id', 'amc_snapshots.amc_quantity', 'amc_snapshots.months_used']);
+        $entered = FacilityProductAmc::whereIn('facility_id', $facilityIds)->get(['facility_id', 'product_id', 'amc_quantity']);
+
+        $inputs = [];
+        foreach ($snapshots as $s) {
+            $inputs[$s->facility_id][$s->product_id] = [$s->amc_quantity, $s->months_used, null];
+        }
+        foreach ($entered as $e) {
+            $inputs[$e->facility_id][$e->product_id] ??= [null, 0, null];
+            $inputs[$e->facility_id][$e->product_id][2] = (float) $e->amc_quantity;
+        }
+
+        $result = [];
+        foreach ($inputs as $facilityId => $products) {
+            foreach ($products as $productId => [$computed, $months, $enteredAmc]) {
+                $result[$facilityId][$productId] = ReorderService::effectiveAmc($computed, (int) $months, $enteredAmc);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -119,10 +169,10 @@ class StockStatusService
     }
 
     /** @param  Collection<int, StockBalance>  $rows  one product's balance rows at one facility */
-    private function productStock(Collection $rows, ?FacilityProductLevel $ownLevels): ProductStock
+    private function productStock(Collection $rows, ?FacilityProductLevel $ownLevels, ?float $amc): ProductStock
     {
         $product = $rows->first()->product;
-        $levels = StockLevels::resolve($product, $ownLevels);
+        $levels = StockLevels::resolve($product, $ownLevels, $amc);
 
         $batches = $rows
             ->map(fn (StockBalance $b) => new BatchStock(

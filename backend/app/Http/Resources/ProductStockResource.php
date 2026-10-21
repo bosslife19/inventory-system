@@ -14,16 +14,18 @@ class ProductStockResource extends JsonResource
         return [
             'product' => ProductResource::make($this->product),
             /**
-             * The min / EOP / max judged against here: this facility's own when set (`source: "facility"`),
-             * else the catalog's (`source: "catalog"`). EOP < min ≤ max.
+             * The min / EOP / max judged against here: months of AMC when the product has one
+             * (`source: "amc"`, with the `amc` used), else this facility's own fixed levels
+             * (`source: "facility"`), else the catalog's (`source: "catalog"`). EOP < min ≤ max.
              *
-             * @var array{min_stock_level: int, reorder_level: int, max_stock_level: int, source: 'facility'|'catalog'}
+             * @var array{min_stock_level: int, reorder_level: int, max_stock_level: int, source: 'amc'|'facility'|'catalog', amc: float|null}
              */
             'levels' => [
                 'min_stock_level' => $this->levels->min,
                 'reorder_level' => $this->levels->eop,
                 'max_stock_level' => $this->levels->max,
                 'source' => $this->levels->source,
+                'amc' => $this->levels->amc,
             ],
             /** Sum of stock_balances.quantity_on_hand across batches, including expired stock. */
             'quantity_on_hand' => $this->quantityOnHand,

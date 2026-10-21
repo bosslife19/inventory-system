@@ -11,6 +11,7 @@ use App\Models\FacilityProductAmc;
 use App\Models\FacilityProductLevel;
 use App\Models\Product;
 use App\Services\ProductLevelService;
+use App\Services\StockStatusService;
 use App\Support\AuditLog;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
@@ -20,14 +21,15 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Each facility and store sets its own min / EOP / max per product, since
  * the right levels differ between an SDP, an LGA store, a state store and
- * the national store. Without its own, a facility uses the catalog's.
+ * the national store. Without its own, a facility uses the catalog's. Once
+ * a product has an AMC there, levels in months of AMC replace these.
  */
 class ProductLevelController extends Controller
 {
     public function __construct(private readonly ProductLevelService $levels) {}
 
     /** Every active product, plus any retired one this facility set levels or an AMC for, by name. */
-    public function index(Facility $facility): AnonymousResourceCollection
+    public function index(Facility $facility, StockStatusService $status): AnonymousResourceCollection
     {
         Gate::authorize('view', $facility);
 
@@ -37,8 +39,11 @@ class ProductLevelController extends Controller
             ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', $own->keys())->orWhereIn('id', $amcs->keys()))
             ->orderBy('name')
             ->get();
+        $effective = $status->effectiveAmcs([$facility->id])[$facility->id] ?? [];
 
-        return ProductLevelResource::collection($products->map(fn (Product $p) => ['product' => $p, 'own' => $own[$p->id] ?? null, 'amc' => $amcs[$p->id] ?? null]));
+        return ProductLevelResource::collection($products->map(fn (Product $p) => [
+            'product' => $p, 'own' => $own[$p->id] ?? null, 'amc' => $amcs[$p->id] ?? null, 'effective_amc' => $effective[$p->id]['amc'] ?? null,
+        ]));
     }
 
     /**

@@ -68,7 +68,7 @@ export default function ProductDetail() {
             </View>
             <View style={styles.levels}>
               {[
-                [s.levels.source === 'facility' ? 'EOP (set here)' : 'EOP', s.levels.reorder_level],
+                [s.levels.source === 'amc' ? 'EOP (1 mo AMC)' : s.levels.source === 'facility' ? 'EOP (set here)' : 'EOP', s.levels.reorder_level],
                 ['Min', s.levels.min_stock_level],
                 ['Max', s.levels.max_stock_level],
               ].map(([label, value]) => (

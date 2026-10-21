@@ -1246,8 +1246,8 @@ export interface components {
         /** ProductLevelResource */
         ProductLevelResource: {
             product: components["schemas"]["ProductResource"];
+            /** @description The fixed levels: used while the product has no AMC here (see `amc_levels`). */
             min_stock_level: number;
-            /** @description The EOP in force here. */
             reorder_level: number;
             max_stock_level: number;
             /**
@@ -1259,6 +1259,16 @@ export interface components {
             updated_at: string | null;
             /** @description AMC entered here for when history is short (null if none); reorder suggestions use it until there's a full AMC window of records. */
             entered_amc: number | null;
+            /**
+             * @description The levels in force when the product has an AMC here (computed, or the entered one while
+             *     history is short): min / EOP / max = AMC × `INVENTORY_{MIN,EOP,MAX}_MONTHS_OF_STOCK`. Null without an AMC.
+             */
+            amc_levels: {
+                amc: number;
+                min_stock_level: number;
+                reorder_level: number;
+                max_stock_level: number;
+            } | null;
         };
         /** ProductResource */
         ProductResource: {
@@ -1298,15 +1308,17 @@ export interface components {
         ProductStockResource: {
             product: components["schemas"]["ProductResource"];
             /**
-             * @description The min / EOP / max judged against here: this facility's own when set (`source: "facility"`),
-             *     else the catalog's (`source: "catalog"`). EOP < min ≤ max.
+             * @description The min / EOP / max judged against here: months of AMC when the product has one
+             *     (`source: "amc"`, with the `amc` used), else this facility's own fixed levels
+             *     (`source: "facility"`), else the catalog's (`source: "catalog"`). EOP < min ≤ max.
              */
             levels: {
                 min_stock_level: number;
                 reorder_level: number;
                 max_stock_level: number;
                 /** @enum {string} */
-                source: "facility" | "catalog";
+                source: "amc" | "facility" | "catalog";
+                amc: number | null;
             };
             /** @description Sum of stock_balances.quantity_on_hand across batches, including expired stock. */
             quantity_on_hand: number;
