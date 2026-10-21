@@ -16,7 +16,8 @@ import { api } from './api';
  *
  * A notification tap deep-links into the alerts screen, focused on the
  * alert in the payload ({ alert_id }); a reorder request update opens the
- * requests screen ({ reorder_request_id }). Officers' digests carry no alert_id;
+ * requests screen ({ reorder_request_id }), or, for a new request to a
+ * store ({ direction: "incoming" }), the store's incoming list. Officers' digests carry no alert_id;
  * their app is the notifications list itself, so it opens with no deep link.
  */
 
@@ -55,7 +56,8 @@ async function registerPushToken(): Promise<void> {
 
 function openFromNotification(response: Notifications.NotificationResponse | null) {
   const data = response?.notification.request.content.data;
-  if (data?.reorder_request_id != null) router.push({ pathname: '/requests', params: { focus: String(data.reorder_request_id) } });
+  if (data?.reorder_request_id != null)
+    router.push({ pathname: data.direction === 'incoming' ? '/incoming' : '/requests', params: { focus: String(data.reorder_request_id) } });
   else if (data?.alert_id != null) router.push({ pathname: '/alerts', params: { focus: String(data.alert_id) } });
 }
 

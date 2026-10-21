@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { api, unwrap } from './api';
-import type { AlertStatus, StockActivity } from './types';
+import { api, getJson, unwrap } from './api';
+import type { AlertStatus, DeliveryNoteStatus, ReportResult, StockActivity } from './types';
 
 // Server state only; cached to device storage (see _layout) so screens open
 // offline with the last data seen. Balances always come from the API
@@ -152,6 +152,83 @@ export function useMyReorderRequests(facilityId: number) {
           params: { path: { facility: facilityId }, query: { direction: 'outgoing', per_page: 30 } },
         }),
       ),
+  });
+}
+
+/** Requests from the facilities below waiting on this store (pending first), for its officers to answer. */
+export function useIncomingRequests(facilityId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['reorder-requests', facilityId, 'incoming'],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/reorder-requests', {
+          params: { path: { facility: facilityId }, query: { direction: 'incoming', per_page: 50 } },
+        }),
+      ),
+    enabled,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Decline a request to this store, with an optional reason. Needs a connection. */
+export function useDeclineReorderRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string | null }) =>
+      (
+        await unwrap(
+          api.POST('/reorder-requests/{reorderRequest}/reject', { params: { path: { reorderRequest: id } }, body: { reason } }),
+        )
+      ).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reorder-requests'] }),
+  });
+}
+
+/** The facilities one level down this store may dispatch to — cached for offline dispatches. */
+export function useDispatchDestinations(facilityId: number) {
+  return useQuery({
+    queryKey: ['dispatch-destinations', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/dispatch-destinations', { params: { path: { facility: facilityId } } })))
+        .data,
+    staleTime: 60 * 60_000,
+  });
+}
+
+/** This facility's delivery notes, newest first: drafts are deliveries waiting to be signed for. */
+export function useDeliveryNotes(facilityId: number, status?: DeliveryNoteStatus) {
+  return useQuery({
+    queryKey: ['delivery-notes', facilityId, status ?? 'all'],
+    queryFn: () =>
+      unwrap(
+        api.GET('/facilities/{facility}/delivery-notes', {
+          params: { path: { facility: facilityId }, query: { status, per_page: 50 } },
+        }),
+      ),
+  });
+}
+
+/** Refuse a delivery sent from a store: nothing is added here and the stock goes back on the sender's card. */
+export function useRejectDelivery() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason: string | null }) =>
+      (
+        await unwrap(
+          api.POST('/delivery-notes/{deliveryNote}/reject', { params: { path: { deliveryNote: id } }, body: { reason } }),
+        )
+      ).data,
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+}
+
+export type ReportName = 'stock-status' | 'stock-movement' | 'reorder' | 'expiry';
+
+/** A report as JSON (GET /reports/{report}); `params` carries area / id and the report's own filters. */
+export function useReport(report: ReportName, params: Record<string, string | number | boolean | undefined>) {
+  return useQuery({
+    queryKey: ['report', report, params],
+    queryFn: async () => (await getJson<{ data: ReportResult }>(`/reports/${report}`, { ...params, limit: 500 })).data,
   });
 }
 

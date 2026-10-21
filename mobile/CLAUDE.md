@@ -29,17 +29,23 @@ src/
     _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
     sign-in.tsx
     set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
-    (app)/_layout.tsx          <- signed-in stack; wires sync + push; officers / admins get OfficerHome (notifications + daily digests)
+    (app)/_layout.tsx          <- signed-in stack; wires sync + push; SDP staff and store officers get the facility app
+                                  (useFacilityId = own facility, else own store); admins / storeless officers get OfficerHome
     (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
     (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first
     (app)/product/[id].tsx     <- one product's Stock Card
     (app)/amc.tsx              <- starting AMCs per product (new facilities), queued in the outbox
+    (app)/delivery-notes.tsx   <- deliveries to confirm / confirmed / rejected; confirm + reject need a connection
+    (app)/incoming.tsx         <- store officers: requests from facilities below; decline (online) or open fulfil
+    (app)/fulfil.tsx, dispatch.tsx <- store officers: issue stock down the chain (modal), queued in the outbox
+    (app)/reports.tsx          <- read-only reports (status, movement, reorder, expiry); own facility or officer's area
+    (app)/notifications.tsx    <- store officers' digests and store alerts (same list as OfficerHome)
   components/                 <- ui/ kit (Text, Card, Button, Badge, KpiTile, ...) + domain pieces
   constants/theme.ts          <- design tokens: same blue / white / black palette as web/src/index.css
   lib/
     api.ts, types.ts           <- openapi-fetch over ../shared/types (type-only imports)
     session.tsx                <- token in SecureStore; works offline with the last known user
-    offlineQueue.ts            <- outbox: pending transactions, deliveries, reorder requests, starting AMCs (expo-sqlite kv-store)
+    offlineQueue.ts            <- outbox: pending transactions, deliveries, reorder requests, starting AMCs, dispatches, fulfils (expo-sqlite kv-store)
     sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
     push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id> (officers: refresh the list)
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)

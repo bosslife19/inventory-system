@@ -115,9 +115,19 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
   return <SessionContext value={value}>{children}</SessionContext>;
 }
 
-/** The signed-in staff member's facility. Only valid inside the facility app (see (app)/_layout). */
+/**
+ * The Stock Card the signed-in user keeps: SDP staff's facility, or an LGA /
+ * State / Federal officer's store. Only valid inside the facility app (see (app)/_layout).
+ */
 export function useFacilityId(): number {
-  const id = useUser().facility_id;
-  if (id == null) throw new Error('useFacilityId() for a user without a facility');
+  const user = useUser();
+  const id = user.facility_id ?? user.store?.id;
+  if (id == null) throw new Error('useFacilityId() for a user without a facility or store');
   return id;
+}
+
+/** An officer keeping a store (answers reorder requests, dispatches down the chain), not SDP staff. */
+export function useIsStoreOfficer(): boolean {
+  const user = useUser();
+  return user.facility_id == null && user.store != null;
 }

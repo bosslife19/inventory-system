@@ -27,6 +27,12 @@ export type AppNotification = Schemas['NotificationResource'];
 export type ReorderRequest = Schemas['ReorderRequestResource'];
 export type ReorderRequestStatus = Schemas['ReorderRequestStatus'];
 export type NewReorderRequest = Schemas['StoreReorderRequestRequest'];
+export type NewDispatch = Schemas['StoreDispatchRequest'];
+export type FulfilBody = Schemas['FulfilReorderRequestRequest'];
+export type DeliveryNoteStatus = Schemas['DeliveryNoteStatus'];
+
+type ReportResponse = NonNullable<paths['/reports/{report}']['get']['responses'][200]['content']['application/json']>;
+export type ReportResult = ReportResponse['data'];
 
 type ActivityResponse = NonNullable<
   paths['/facilities/{facility}/stock-activity']['get']['responses'][200]['content']['application/json']

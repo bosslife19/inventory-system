@@ -4,9 +4,12 @@ import {
   AlertOctagon,
   ArrowDownToLine,
   ArrowUpFromLine,
+  BellRing,
   ClipboardList,
   Clock3,
+  FileText,
   Gauge,
+  Inbox,
   MapPin,
   Package,
   PackageX,
@@ -15,6 +18,7 @@ import {
   ShoppingCart,
   TrendingDown,
   TriangleAlert,
+  Truck,
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
@@ -31,8 +35,18 @@ import { MaxContentWidth, Radius, Spacing, TabBarInset } from '@/constants/theme
 import { useTheme } from '@/hooks/use-theme';
 import { INBOUND, formatDate, formatQty, greeting, initials, transactionFigure, transactionLabel } from '@/lib/format';
 import { describe, useOutbox } from '@/lib/offlineQueue';
-import { useActivity, useAlerts, useFacility, useRecentTransactions, useReorderSuggestions, useStockBalances } from '@/lib/queries';
-import { useFacilityId, useUser } from '@/lib/session';
+import {
+  useActivity,
+  useAlerts,
+  useDeliveryNotes,
+  useFacility,
+  useIncomingRequests,
+  useNotifications,
+  useRecentTransactions,
+  useReorderSuggestions,
+  useStockBalances,
+} from '@/lib/queries';
+import { useFacilityId, useIsStoreOfficer, useUser } from '@/lib/session';
 import { requestSync } from '@/lib/sync';
 import type { StockLevel } from '@/lib/types';
 
@@ -47,6 +61,10 @@ export default function Home() {
   const activity = useActivity(facilityId);
   const reorder = useReorderSuggestions(facilityId);
   const recent = useRecentTransactions(facilityId);
+  const isStore = useIsStoreOfficer();
+  const incoming = useIncomingRequests(facilityId, isStore);
+  const toConfirm = useDeliveryNotes(facilityId, 'draft').data?.meta.pagination.total ?? 0;
+  const unread = useNotifications().data?.meta.unread_count ?? 0;
   const outbox = useOutbox();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,6 +74,8 @@ export default function Home() {
   const expired = rows.filter((r) => r.flags.includes('expired')).length;
   const toOrder = (reorder.data ?? []).filter((r) => r.suggested_quantity > 0);
   const failed = outbox.filter((i) => i.status === 'failed').length;
+  const toAnswer = (incoming.data?.data ?? []).filter((r) => r.status === 'pending').length;
+  const isNational = facility.data?.store_level === 'national';
 
   async function refresh() {
     setRefreshing(true);
@@ -82,7 +102,7 @@ export default function Home() {
               <View style={styles.location}>
                 <MapPin size={13} color="#9fb0cc" />
                 <Text variant="caption" style={{ color: '#9fb0cc' }}>
-                  {facility.data.lga?.name}, {facility.data.state?.name}
+                  {[facility.data.lga?.name, facility.data.state?.name].filter(Boolean).join(', ') || 'Nigeria'}
                 </Text>
               </View>
             )}
@@ -131,17 +151,75 @@ export default function Home() {
           </Card>
         </View>
 
-        <Card onPress={() => router.push('/requests')} style={styles.banner}>
-          <IconChip icon={ShoppingCart} size={38} />
+        {isStore && (
+          <>
+            <Card onPress={() => router.push('/incoming')} style={[styles.banner, toAnswer > 0 && { borderColor: c.warning }]}>
+              <IconChip icon={Inbox} tone={toAnswer > 0 ? 'warning' : 'primary'} size={38} />
+              <View style={{ flex: 1 }}>
+                <Text variant="label">Incoming requests</Text>
+                <Text variant="caption" tone={toAnswer > 0 ? 'warning' : 'muted'}>
+                  {toAnswer > 0 ? `${toAnswer} waiting for your answer` : 'Requests from the facilities you supply'}
+                </Text>
+              </View>
+            </Card>
+            <Card onPress={() => router.push('/dispatch')} style={styles.banner}>
+              <IconChip icon={Truck} tone="ink" size={38} />
+              <View style={{ flex: 1 }}>
+                <Text variant="label">Dispatch stock</Text>
+                <Text variant="caption" tone="muted">
+                  Send stock to a facility below — they confirm it on arrival
+                </Text>
+              </View>
+            </Card>
+          </>
+        )}
+
+        <Card onPress={() => router.push('/delivery-notes')} style={[styles.banner, toConfirm > 0 && { borderColor: c.warning }]}>
+          <IconChip icon={Truck} tone={toConfirm > 0 ? 'warning' : 'primary'} size={38} />
           <View style={{ flex: 1 }}>
-            <Text variant="label">Reorder requests</Text>
-            <Text variant="caption" tone="muted">
-              {toOrder.length > 0
-                ? `${toOrder.length} product${toOrder.length === 1 ? '' : 's'} to order — ask your LGA store`
-                : 'Ask a store above for stock, and follow your requests'}
+            <Text variant="label">Delivery notes</Text>
+            <Text variant="caption" tone={toConfirm > 0 ? 'warning' : 'muted'}>
+              {toConfirm > 0 ? `${toConfirm} deliver${toConfirm === 1 ? 'y' : 'ies'} to confirm` : 'Deliveries to you, and ones you’ve signed for'}
             </Text>
           </View>
         </Card>
+
+        {!isNational && (
+          <Card onPress={() => router.push('/requests')} style={styles.banner}>
+            <IconChip icon={ShoppingCart} size={38} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">Reorder requests</Text>
+              <Text variant="caption" tone="muted">
+                {toOrder.length > 0
+                  ? `${toOrder.length} product${toOrder.length === 1 ? '' : 's'} to order — ask ${isStore ? 'a store above' : 'your LGA store'}`
+                  : 'Ask a store above for stock, and follow your requests'}
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        <View style={styles.actions}>
+          <Card onPress={() => router.push('/reports')} style={styles.action}>
+            <IconChip icon={FileText} size={38} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">Reports</Text>
+              <Text variant="caption" tone="muted">
+                Status, movement…
+              </Text>
+            </View>
+          </Card>
+          {isStore && (
+            <Card onPress={() => router.push('/notifications')} style={styles.action}>
+              <IconChip icon={BellRing} tone={unread > 0 ? 'warning' : 'primary'} size={38} />
+              <View style={{ flex: 1 }}>
+                <Text variant="label">Notifications</Text>
+                <Text variant="caption" tone={unread > 0 ? 'warning' : 'muted'}>
+                  {unread > 0 ? `${unread} unread` : 'Digests, alerts'}
+                </Text>
+              </View>
+            </Card>
+          )}
+        </View>
 
         <Card onPress={() => router.push('/amc')} style={styles.banner}>
           <IconChip icon={Gauge} tone="ink" size={38} />

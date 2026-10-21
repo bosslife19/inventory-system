@@ -55,6 +55,25 @@ export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; respo
   return data;
 }
 
+/**
+ * GET a route whose query the generated client can't type (GET /reports/{report}:
+ * which filters apply depends on the report). Same auth and errors as `api`.
+ */
+export async function getJson<T>(path: string, query: Record<string, string | number | boolean | undefined>): Promise<T> {
+  const qs = new URLSearchParams(
+    Object.entries(query)
+      .filter(([, v]) => v !== undefined && v !== '')
+      .map(([k, v]) => [k, String(v)]),
+  );
+  const response = await fetch(`${API_URL}${path}?${qs}`, {
+    headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (response.status === 401 && token) onUnauthorized?.();
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as T;
+}
+
 /** No response at all (offline, server unreachable) rather than an HTTP error. */
 export function isNetworkError(err: unknown): boolean {
   return !(err instanceof ApiError);

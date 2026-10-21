@@ -9,7 +9,8 @@ import { getOutbox, removeItem, updateItem } from './offlineQueue';
 /**
  * Flushes the outbox to POST /facilities/{id}/stock-transactions (and
  * /delivery-notes for reviewed delivery scans, /reorder-requests, and
- * PUT / DELETE /product-amcs/{product} for starting AMCs), oldest
+ * PUT / DELETE /product-amcs/{product} for starting AMCs, /dispatches and
+ * /reorder-requests/{id}/fulfil for a store's issues down the chain), oldest
  * first (the Stock Card is written in date order). Runs when an entry is
  * queued, when connectivity returns, when the app comes to the foreground,
  * and every 30s while anything is waiting.
@@ -57,6 +58,13 @@ export async function flushOutbox(): Promise<void> {
           } else {
             await unwrap(api.PUT('/facilities/{facility}/product-amcs/{product}', { params: path, body: { amc_quantity } }));
           }
+        } else if (item.kind === 'dispatch') {
+          await unwrap(api.POST('/facilities/{facility}/dispatches', { params, body: item.body }));
+        } else if (item.kind === 'fulfil') {
+          // No client_reference here: a repeat after a lost response is refused ("already fulfilled") instead of issuing twice.
+          await unwrap(
+            api.POST('/reorder-requests/{reorderRequest}/fulfil', { params: { path: { reorderRequest: item.requestId } }, body: item.body }),
+          );
         } else if (item.kind === 'reorder_request') {
           await unwrap(api.POST('/facilities/{facility}/reorder-requests', { params, body: item.body }));
         } else {

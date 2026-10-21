@@ -17,12 +17,22 @@ import { useMarkNotificationsRead, useNotifications } from '@/lib/queries';
 import { useSession, useUser } from '@/lib/session';
 
 /**
- * LGA / State / Federal officers and admins on the phone: their notifications
- * — the daily digest of new stock alerts in their area, and alerts at their
- * own store. Signing in here registers the device for push. The stock
- * dashboards themselves are on the web.
+ * Admins (and officers without a store) on the phone: their notifications —
+ * the daily digest of new stock alerts in their area. Signing in here
+ * registers the device for push. The stock dashboards are on the web.
  */
 export function OfficerHome() {
+  const refetch = useNotifications().refetch;
+  // A tap on a push lands here: just bring the list up to date.
+  usePushNotifications(useCallback(() => void refetch(), [refetch]));
+  return <NotificationList />;
+}
+
+/**
+ * The signed-in user's notifications. `inApp`: opened from a store officer's
+ * home screen (back button, no sign-out), rather than being the whole app.
+ */
+export function NotificationList({ inApp = false }: { inApp?: boolean }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const user = useUser();
@@ -30,8 +40,6 @@ export function OfficerHome() {
   const notifications = useNotifications();
   const markRead = useMarkNotificationsRead();
   const refetch = notifications.refetch;
-  // A tap on a push lands here: just bring the list up to date.
-  usePushNotifications(useCallback(() => void refetch(), [refetch]));
 
   const rows = notifications.data?.data ?? [];
   const unread = notifications.data?.meta.unread_count ?? 0;
@@ -46,9 +54,14 @@ export function OfficerHome() {
         ListHeaderComponent={
           <View style={{ gap: Spacing.four, marginBottom: Spacing.four }}>
             <PageHeader
+              back={inApp}
               eyebrow={ROLE_LABEL[user.role]}
               title="Notifications"
-              subtitle="A daily digest of new stock alerts in your area, and alerts at your store. Dashboards are on the web."
+              subtitle={
+                inApp
+                  ? 'A daily digest of new stock alerts in your area, and alerts at your store.'
+                  : 'A daily digest of new stock alerts in your area. Dashboards are on the web.'
+              }
             />
             {unread > 0 && (
               <View style={[styles.pad, styles.bar]}>
@@ -89,9 +102,11 @@ export function OfficerHome() {
           )
         }
         ListFooterComponent={
-          <View style={[styles.pad, { marginTop: Spacing.six }]}>
-            <Button label="Sign out" icon={LogOut} variant="ghost" onPress={() => void signOut()} />
-          </View>
+          inApp ? null : (
+            <View style={[styles.pad, { marginTop: Spacing.six }]}>
+              <Button label="Sign out" icon={LogOut} variant="ghost" onPress={() => void signOut()} />
+            </View>
+          )
         }
       />
     </View>

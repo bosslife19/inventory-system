@@ -85,7 +85,7 @@ export default function Requests() {
           ) : requests.isError && isNetworkError(requests.error) ? (
             <EmptyState icon={CloudOff} title="You're offline" body="Your requests will load when you're back online." />
           ) : queued.length ? null : (
-            <EmptyState icon={ClipboardList} title="No requests yet" body="When stock runs low, ask your LGA store — or a store further up." />
+            <EmptyState icon={ClipboardList} title="No requests yet" body="When stock runs low, ask the store above you — or one further up." />
           )
         }
       />

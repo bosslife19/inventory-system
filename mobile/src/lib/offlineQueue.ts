@@ -3,10 +3,11 @@ import { useSyncExternalStore } from 'react';
 
 import { formatDate, formatQty, transactionLabel } from './format';
 import { storage } from './storage';
-import type { NewDeliveryNote, NewReorderRequest, NewStockTransaction } from './types';
+import type { FulfilBody, NewDeliveryNote, NewDispatch, NewReorderRequest, NewStockTransaction } from './types';
 
 /**
- * The outbox: Stock Card entries, delivery notes, reorder requests and starting AMCs made on this device
+ * The outbox: Stock Card entries, delivery notes, reorder requests, starting AMCs, and a store's
+ * dispatches and fulfilled requests made on this device
  * and not yet accepted by the server (mobile/CLAUDE.md rule 1). Everything
  * is written here first, online or not, then sync.ts sends them one by one.
  *
@@ -36,13 +37,17 @@ export type OutboxItem = Base &
     | { kind: 'delivery_note'; body: NewDeliveryNote }
     | { kind: 'reorder_request'; body: NewReorderRequest; supplierName: string }
     | { kind: 'amc'; productId: number; body: EnteredAmc; productName: string; unit: string }
+    | { kind: 'dispatch'; body: NewDispatch; destinationName: string }
+    | { kind: 'fulfil'; requestId: number; requestNumber: string; body: FulfilBody; requesterName: string }
   );
 
 type NewItem =
   | { kind: 'transaction'; facilityId: number; body: NewStockTransaction; productName: string; unit: string }
   | { kind: 'delivery_note'; facilityId: number; body: NewDeliveryNote }
   | { kind: 'reorder_request'; facilityId: number; body: NewReorderRequest; supplierName: string }
-  | { kind: 'amc'; facilityId: number; productId: number; body: EnteredAmc; productName: string; unit: string };
+  | { kind: 'amc'; facilityId: number; productId: number; body: EnteredAmc; productName: string; unit: string }
+  | { kind: 'dispatch'; facilityId: number; body: NewDispatch; destinationName: string }
+  | { kind: 'fulfil'; facilityId: number; requestId: number; requestNumber: string; body: FulfilBody; requesterName: string };
 
 /** A starting AMC to set, or null to clear the one entered (reorder suggestions go back to the computed AMC). */
 export interface EnteredAmc {
@@ -131,7 +136,7 @@ export function useOutbox(): OutboxItem[] {
   return useSyncExternalStore(subscribe, getOutbox, getOutbox);
 }
 
-/** Products an unsynced item will change on this Stock Card (a reorder request changes none until it arrives). */
+/** Products an unsynced item will change on this Stock Card (a reorder request changes none until it arrives; a dispatch issues them). */
 export function productIdsOf(item: OutboxItem): number[] {
   if (item.kind === 'reorder_request' || item.kind === 'amc') return [];
   return item.kind === 'transaction' ? [item.body.product_id] : item.body.items.map((l) => l.product_id);
@@ -154,6 +159,20 @@ export function describe(item: OutboxItem): { title: string; detail: string; fig
     };
   }
   const n = item.body.items.length;
+  if (item.kind === 'dispatch') {
+    return {
+      title: `Dispatch · ${item.destinationName}`,
+      detail: `${formatDate(item.body.dispatched_date)} · ${n} line${n === 1 ? '' : 's'}`,
+      figure: `${n} line${n === 1 ? '' : 's'}`,
+    };
+  }
+  if (item.kind === 'fulfil') {
+    return {
+      title: `Fulfil ${item.requestNumber} · ${item.requesterName}`,
+      detail: `${formatDate(item.body.dispatched_date)} · ${n} line${n === 1 ? '' : 's'}`,
+      figure: `${n} line${n === 1 ? '' : 's'}`,
+    };
+  }
   if (item.kind === 'reorder_request') {
     return {
       title: `Reorder request · ${item.supplierName}`,
