@@ -46,6 +46,7 @@
   --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
   --sidebar-w: 248px;
+  --sidebar-rail-w: 72px;
 
   color-scheme: light;
   font: 14.5px/1.5 var(--sans);
@@ -149,6 +150,7 @@ code,
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.2s ease;
 }
 
 .sidebar {
@@ -298,6 +300,10 @@ a.user-chip:hover {
 .menu-btn {
   display: none;
 }
+.collapse-btn {
+  margin-left: -0.6rem;
+  color: var(--muted);
+}
 .crumbs {
   display: flex;
   flex-wrap: wrap;
@@ -329,6 +335,86 @@ a.user-chip:hover {
   display: none;
 }
 
+/* Collapsed (desktop only): an icon rail; labels show as tooltips on hover. */
+@media (min-width: 961px) {
+  .shell.nav-collapsed {
+    grid-template-columns: var(--sidebar-rail-w) minmax(0, 1fr);
+  }
+  .nav-collapsed .sidebar {
+    z-index: 20;
+    padding-inline: 0.6rem;
+  }
+  .nav-collapsed .page {
+    max-width: 1600px;
+  }
+  .nav-collapsed .brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .nav-collapsed .brand .nav-text,
+  .nav-collapsed .user-chip .nav-text {
+    display: none;
+  }
+  .nav-collapsed .nav-label {
+    height: 0;
+    margin: 0.6rem 0.4rem;
+    padding: 0;
+    overflow: hidden;
+    border-top: 1px solid var(--sidebar-2);
+  }
+  .nav-collapsed .nav a {
+    position: relative;
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .nav-collapsed .nav .nav-text {
+    position: absolute;
+    left: calc(100% + 0.7rem);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-sm);
+    background: var(--sidebar);
+    color: #fff;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgb(0 0 0 / 25%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+  }
+  .nav-collapsed .nav a:hover .nav-text,
+  .nav-collapsed .nav a:focus-visible .nav-text {
+    opacity: 1;
+  }
+  .nav-collapsed .nav-count {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.1rem;
+    min-width: 1.05rem;
+    padding: 0 0.25rem;
+    font-size: 0.6rem;
+    line-height: 1.05rem;
+  }
+  .nav-collapsed .sidebar-foot {
+    padding-inline: 0;
+    justify-items: center;
+  }
+  .nav-collapsed .user-chip {
+    margin: 0;
+    padding: 0.2rem;
+    border-radius: 999px;
+  }
+  .nav-collapsed .btn-signout {
+    justify-content: center;
+    width: 100%;
+    padding-inline: 0;
+  }
+  .nav-collapsed .btn-signout .nav-text {
+    display: none;
+  }
+}
+
 @media (max-width: 960px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
@@ -353,6 +439,9 @@ a.user-chip:hover {
   }
   .menu-btn {
     display: inline-flex;
+  }
+  .collapse-btn {
+    display: none;
   }
   .topbar {
     padding: 0.5rem 1rem;
