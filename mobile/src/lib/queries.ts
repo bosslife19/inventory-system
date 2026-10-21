@@ -60,6 +60,15 @@ export function useProducts() {
   });
 }
 
+/** Every product's levels here, with the starting AMC entered for it (entered_amc, null if none). */
+export function useProductLevels(facilityId: number) {
+  return useQuery({
+    queryKey: ['product-levels', facilityId],
+    queryFn: async () =>
+      (await unwrap(api.GET('/facilities/{facility}/product-levels', { params: { path: { facility: facilityId } } }))).data,
+  });
+}
+
 export function useActivity(facilityId: number) {
   return useQuery({
     queryKey: ['stock-activity', facilityId],

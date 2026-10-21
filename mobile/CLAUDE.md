@@ -33,12 +33,13 @@ src/
     (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
     (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first
     (app)/product/[id].tsx     <- one product's Stock Card
+    (app)/amc.tsx              <- starting AMCs per product (new facilities), queued in the outbox
   components/                 <- ui/ kit (Text, Card, Button, Badge, KpiTile, ...) + domain pieces
   constants/theme.ts          <- design tokens: same blue / white / black palette as web/src/index.css
   lib/
     api.ts, types.ts           <- openapi-fetch over ../shared/types (type-only imports)
     session.tsx                <- token in SecureStore; works offline with the last known user
-    offlineQueue.ts            <- outbox: pending transactions not yet synced (expo-sqlite kv-store)
+    offlineQueue.ts            <- outbox: pending transactions, deliveries, reorder requests, starting AMCs (expo-sqlite kv-store)
     sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
     push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id> (officers: refresh the list)
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)

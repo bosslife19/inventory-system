@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowDownToLine, ArrowUpFromLine, Clock3, PackageSearch } from 'lucide-react-native';
+import { ArrowDownToLine, ArrowUpFromLine, Clock3, Gauge, PackageSearch } from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,7 +36,9 @@ export default function ProductDetail() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <PageHeader back title="Product" />
-        <EmptyState icon={PackageSearch} title="Not stocked here" body="This product has no Stock Card at your facility yet." />
+        <EmptyState icon={PackageSearch} title="Not stocked here" body="This product has no Stock Card at your facility yet.">
+          <Button label="Set its starting AMC" icon={Gauge} variant="soft" onPress={() => router.push({ pathname: '/amc', params: { productId: String(productId) } })} />
+        </EmptyState>
       </View>
     );
 
@@ -99,6 +101,13 @@ export default function ProductDetail() {
               </View>
             </Card>
           )}
+
+          <Button
+            label="Starting AMC"
+            icon={Gauge}
+            variant="ghost"
+            onPress={() => router.push({ pathname: '/amc', params: { productId: String(p.id) } })}
+          />
 
           {p.requires_batch_tracking && (
             <View>

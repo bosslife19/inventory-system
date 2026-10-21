@@ -28,6 +28,7 @@ function FacilityApp() {
       <Stack.Screen name="deliveries/review" />
       <Stack.Screen name="requests" />
       <Stack.Screen name="reorder" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="amc" />
     </Stack>
   );
 }
