@@ -27,7 +27,7 @@ else outside it. See `AGENTS.md` — check the versioned Expo docs, not memory.
 src/
   app/
     _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
-    sign-in.tsx
+    sign-in.tsx, sign-up.tsx   <- signed-out screens (AuthShell); sign-up makes a free-plan organization with you as admin
     set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
     (app)/_layout.tsx          <- signed-in stack; wires sync + push; SDP staff and store officers get the facility app
                                   (useFacilityId = own facility, else own store); admins / storeless officers get OfficerHome

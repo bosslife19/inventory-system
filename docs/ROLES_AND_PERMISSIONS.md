@@ -84,6 +84,10 @@ management. Paid adds:
 | `push_notifications` | Pushes to phones (alerts, daily digests, reorder requests) |
 | `bulk_imports` | CSV imports |
 
+Anyone can sign up (`POST /auth/register`, web `/signup` or the app's sign-up screen): that creates a
+new organization on the free plan with them as its admin. When they pay,
+the owner switches it to paid (with a `paid_until`) in the owner console.
+
 A paid plan past its last day falls back to free; nothing is deleted and
 everything unlocks again when the owner extends it. Members see a renewal
 notice from 14 days before the end.

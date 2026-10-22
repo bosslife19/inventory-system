@@ -29,6 +29,30 @@ export function useLogin() {
   })
 }
 
+export interface SignUp {
+  organization_name: string
+  name: string
+  email: string
+  phone: string
+  password: string
+  password_confirmation: string
+}
+
+/** Self sign-up: a new organization on the free plan, with you as its admin, signed in straight away. */
+export function useRegister() {
+  const queryClient = useQueryClient()
+  const setToken = useAuthStore((s) => s.setToken)
+
+  return useMutation({
+    mutationFn: async ({ phone, ...details }: SignUp) =>
+      (await unwrap(api.POST('/auth/register', { body: { ...details, phone: phone || null, device_name: 'web' } }))).data,
+    onSuccess: ({ token, user }) => {
+      queryClient.setQueryData(['me', token], user)
+      setToken(token)
+    },
+  })
+}
+
 export function useLogout() {
   const queryClient = useQueryClient()
   const clear = useAuthStore((s) => s.clear)
@@ -81,5 +105,9 @@ export function manageableRoles(user: User): UserRole[] {
  * anywhere. UX only — the backend's StockTransactionPolicy is the real gate.
  */
 export function canRecordAt(user: User, facilityId: number): boolean {
-  return user.role === 'admin' || (user.role === 'sdp_staff' && user.facility_id === facilityId) || user.store?.id === facilityId
+  return (
+    user.role === 'admin' ||
+    (user.role === 'sdp_staff' && user.facility_id === facilityId) ||
+    user.store?.id === facilityId
+  )
 }

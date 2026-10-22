@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
 import { Brand } from '../../components/layout/Brand'
 import { ApiError } from '../../lib/api-client'
@@ -26,23 +26,7 @@ export function LoginPage() {
 
   return (
     <div className="login">
-      <aside className="login-hero">
-        <div className="brand">
-          <Brand />
-        </div>
-        <div>
-          <h2>Health commodity visibility, from facility to federal.</h2>
-          <p>Record receipts, issues and counts at the facility, and see stock health roll up across Nigeria.</p>
-          <ul className="login-points">
-            {POINTS.map((p) => (
-              <li key={p}>
-                <CheckCircle2 size={18} /> {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="login-foot">National health supply chain inventory · Nigeria</div>
-      </aside>
+      <LoginHero />
 
       <div className="login-panel">
         <form
@@ -79,6 +63,10 @@ export function LoginPage() {
             {login.isPending ? 'Signing in…' : 'Sign in'}
           </button>
 
+          <p className="muted small auth-switch">
+            New here? <Link to="/signup">Create an account for your organization</Link>
+          </p>
+
           {import.meta.env.DEV && (
             <p className="muted small demo">
               Demo accounts (password <code>password</code>): sdp1@demo.test, lga@demo.test, state@demo.test,
@@ -88,5 +76,28 @@ export function LoginPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+/** The left-hand panel of the sign-in and sign-up screens. */
+export function LoginHero() {
+  return (
+    <aside className="login-hero">
+      <div className="brand">
+        <Brand />
+      </div>
+      <div>
+        <h2>Health commodity visibility, from facility to federal.</h2>
+        <p>Record receipts, issues and counts at the facility, and see stock health roll up across Nigeria.</p>
+        <ul className="login-points">
+          {POINTS.map((p) => (
+            <li key={p}>
+              <CheckCircle2 size={18} /> {p}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="login-foot">National health supply chain inventory · Nigeria</div>
+    </aside>
   )
 }

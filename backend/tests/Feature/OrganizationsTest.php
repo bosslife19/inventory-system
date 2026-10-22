@@ -254,3 +254,42 @@ it('shows the platform branding to everyone, and lets the owner change it', func
 
     $this->actingAs($this->h['users']['admin'])->putJson('/api/v1/owner/platform', ['name' => 'Mine'])->assertForbidden();
 });
+
+// ------------------------------------------------------------------ sign-up
+
+it('lets anyone sign up a new organization on the free plan, as its admin, until the owner upgrades it', function () {
+    Tenant::set(null); // as a real request starts: no organization until the token's user is known
+    $response = $this->postJson('/api/v1/auth/register', [
+        'organization_name' => 'Kano Health Trust', 'name' => 'Amina Bello', 'email' => 'amina@trust.test',
+        'phone' => '08030000000', 'password' => 'secret-pass', 'password_confirmation' => 'secret-pass',
+    ])->assertCreated()
+        ->assertJsonPath('data.user.role', 'admin')
+        ->assertJsonPath('data.user.must_change_password', false)
+        ->assertJsonPath('data.user.organization.plan', 'free')
+        ->assertJsonPath('data.user.organization.features', []);
+
+    $org = Organization::query()->where('name', 'Kano Health Trust')->firstOrFail();
+    expect($org->plan)->toBe(Plan::Free)
+        ->and($org->contact_email)->toBe('amina@trust.test')
+        ->and(Facility::withoutGlobalScopes()->where('organization_id', $org->id)->whereNotNull('store_level')->count())->toBeGreaterThan(0);
+
+    // Signed in straight away, and fenced into the new organization.
+    $token = $response->json('data.token');
+    $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('data.organization.id', $org->id);
+    $this->withToken($token)->getJson("/api/v1/facilities/{$this->h['facilities']['kawo']->id}")->assertNotFound();
+
+    // The owner sees it and upgrades it once paid.
+    $this->actingAs($this->owner);
+    $this->getJson('/api/v1/owner/organizations')->assertOk()->assertJsonFragment(['name' => 'Kano Health Trust']);
+    $this->putJson("/api/v1/owner/organizations/{$org->id}", ['plan' => 'paid', 'paid_until' => '2027-10-21'])
+        ->assertOk()->assertJsonPath('data.effective_plan', 'paid');
+});
+
+it('refuses a sign-up with an email already in use or a short password', function () {
+    $this->postJson('/api/v1/auth/register', [
+        'organization_name' => 'Dup', 'name' => 'X', 'email' => $this->h['users']['lga']->email,
+        'password' => 'short', 'password_confirmation' => 'short',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['email', 'password']);
+
+    expect(Organization::query()->where('name', 'Dup')->exists())->toBeFalse();
+});

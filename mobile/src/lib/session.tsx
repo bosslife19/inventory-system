@@ -13,9 +13,20 @@ type Session =
   | { status: 'signedOut'; user: null; expired: boolean }
   | { status: 'signedIn'; user: User };
 
+export interface SignUp {
+  organization_name: string;
+  name: string;
+  email: string;
+  /** Optional: empty is sent as null. */
+  phone: string;
+  password: string;
+}
+
 interface SessionApi {
   session: Session;
   signIn: (email: string, password: string) => Promise<void>;
+  /** A new organization on the free plan, with this person as its admin; signs them in. */
+  signUp: (details: SignUp) => Promise<void>;
   /** Replace a temporary password; on success the app opens. */
   changePassword: (current: string, next: string) => Promise<void>;
   /** Clears the token, cached data and anything left in the outbox. */
@@ -77,18 +88,45 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
     })();
   }, [clearLocal]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { token, user } = (
-      await unwrap(
-        api.POST('/auth/login', {
-          body: { email, password, device_name: Device.modelName ?? 'mobile' },
-        }),
-      )
-    ).data;
+  const start = useCallback(async ({ token, user }: { token: string; user: User }) => {
     setAuthToken(token);
     await Promise.all([tokenStore.set(token), storage.setItem(USER_KEY, JSON.stringify(user))]);
     setSession({ status: 'signedIn', user });
   }, []);
+
+  const signIn = useCallback(
+    async (email: string, password: string) =>
+      start(
+        (
+          await unwrap(
+            api.POST('/auth/login', {
+              body: { email, password, device_name: Device.modelName ?? 'mobile' },
+            }),
+          )
+        ).data,
+      ),
+    [start],
+  );
+
+  const signUp = useCallback(
+    async ({ phone, password, ...details }: SignUp) =>
+      start(
+        (
+          await unwrap(
+            api.POST('/auth/register', {
+              body: {
+                ...details,
+                phone: phone.trim() || null,
+                password,
+                password_confirmation: password,
+                device_name: Device.modelName ?? 'mobile',
+              },
+            }),
+          )
+        ).data,
+      ),
+    [start],
+  );
 
   const changePassword = useCallback(async (current: string, next: string) => {
     const user = (
@@ -111,7 +149,10 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
     await clearLocal(false);
   }, [clearLocal]);
 
-  const value = useMemo(() => ({ session, signIn, changePassword, signOut }), [session, signIn, changePassword, signOut]);
+  const value = useMemo(
+    () => ({ session, signIn, signUp, changePassword, signOut }),
+    [session, signIn, signUp, changePassword, signOut],
+  );
   return <SessionContext value={value}>{children}</SessionContext>;
 }
 

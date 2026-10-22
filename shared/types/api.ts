@@ -95,6 +95,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign up: creates a new organization on the free plan with you as its
+         *     admin, and signs you in. The platform owner upgrades it once paid
+         */
+        post: operations["auth.register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -1416,7 +1436,7 @@ export interface components {
             /** @description Days left on the paid plan, today included; null when it has no end date or isn't paid. */
             days_left: number | null;
             /** @description True from RENEWAL_WARNING_DAYS out: clients show a "renew" notice. */
-            renewal_due: string;
+            renewal_due: boolean;
             /** @description What the plan unlocks; anything absent answers 402 feature_unavailable. */
             features: ("bulk_imports" | "delivery_scanning" | "push_notifications" | "rollups" | "supply_chain")[];
         };
@@ -2198,6 +2218,48 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            token: string;
+                            user: components["schemas"]["UserResource"];
+                        };
+                    };
+                };
+            };
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "auth.register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Your organization (e.g. a state ministry, an NGO or a programme). */
+                    organization_name: string;
+                    /** @description Your own name. */
+                    name: string;
+                    /** Format: email */
+                    email: string;
+                    phone?: string | null;
+                    /** @description At least 8 characters. */
+                    password: string;
+                    /** @description Label for the token, e.g. "web" or a phone model. */
+                    device_name?: string | null;
+                    password_confirmation: string;
+                };
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

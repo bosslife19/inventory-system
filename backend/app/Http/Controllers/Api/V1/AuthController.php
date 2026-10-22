@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\OrganizationService;
 use App\Support\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -54,6 +56,38 @@ class AuthController extends Controller
                 'user' => UserResource::make($user),
             ],
         ]);
+    }
+
+    /**
+     * Sign up: creates a new organization on the free plan with you as its
+     * admin, and signs you in. The platform owner upgrades it once paid.
+     *
+     * @unauthenticated
+     */
+    public function register(Request $request, OrganizationService $organizations): JsonResponse
+    {
+        $data = $request->validate([
+            /** Your organization (e.g. a state ministry, an NGO or a programme). */
+            'organization_name' => ['required', 'string', 'max:255'],
+            /** Your own name. */
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            'phone' => ['nullable', 'string', 'max:30'],
+            /** At least 8 characters. */
+            'password' => ['required', 'string', 'min:8', 'max:100', 'confirmed'],
+            /** Label for the token, e.g. "web" or a phone model. */
+            'device_name' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        [, $user] = $organizations->signUp($data);
+        $token = $user->createToken($data['device_name'] ?? 'web')->plainTextToken;
+
+        return response()->json([
+            'data' => [
+                'token' => $token,
+                'user' => UserResource::make($user),
+            ],
+        ], 201);
     }
 
     /** Revoke the token used for this request. */

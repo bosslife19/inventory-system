@@ -60,7 +60,9 @@ export function NotificationList({ inApp = false }: { inApp?: boolean }) {
               subtitle={
                 inApp
                   ? 'A daily digest of new stock alerts in your area, and alerts at your store.'
-                  : 'A daily digest of new stock alerts in your area. Dashboards are on the web.'
+                  : user.role === 'admin'
+                    ? 'Set up your facilities, products and staff on the web dashboard. A daily digest of new stock alerts arrives here.'
+                    : 'A daily digest of new stock alerts in your area. Dashboards are on the web.'
               }
             />
             {unread > 0 && (

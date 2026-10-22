@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\Plan;
 use App\Enums\UserRole;
 use App\Models\Facility;
 use App\Models\Organization;
@@ -35,6 +36,41 @@ class OrganizationService
                 : [null, null];
 
             return [$organization, $admin, $password];
+        });
+    }
+
+    /**
+     * Self sign-up (POST /auth/register): a new organization on the free
+     * plan, with the person signing up as its first admin on the password
+     * they chose. The owner upgrades it from the console once they pay.
+     *
+     * @param  array{organization_name: string, name: string, email: string, password: string, phone?: string|null}  $data
+     * @return array{Organization, User}
+     */
+    public function signUp(array $data): array
+    {
+        return DB::transaction(function () use ($data) {
+            $organization = Organization::create([
+                'name' => $data['organization_name'],
+                'plan' => Plan::Free,
+                'contact_name' => $data['name'],
+                'contact_email' => $data['email'],
+                'contact_phone' => $data['phone'] ?? null,
+            ]);
+            Facility::ensureStores($organization->id);
+
+            $admin = Tenant::run($organization, fn () => User::create([
+                'organization_id' => $organization->id,
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'role' => UserRole::Admin,
+                'is_active' => true,
+                'must_change_password' => false,
+            ]));
+            AuditLog::record('organization.signed_up', "{$admin->name} ({$admin->email}) signed up {$organization->name} on the free plan", $organization, actor: $admin);
+
+            return [$organization, $admin];
         });
     }
 

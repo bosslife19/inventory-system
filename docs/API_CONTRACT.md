@@ -24,6 +24,10 @@ human-readable contract and the rules behind it.
 ## Auth
 - `POST /auth/login` → token. Body `email, password, device_name?`. Throttled to 6/min. Bad credentials, or a deactivated account → 422 on `email`.
   - 200 → `{ "data": { "token": "…", "user": <User> } }`. Send the token as `Authorization: Bearer …`.
+- `POST /auth/register` (public) — sign-up. Body `organization_name, name, email, phone?, password, password_confirmation,
+  device_name?`. Throttled to 3 per 10 min. Creates a new organization on the **free** plan (with its stores) and makes
+  you its admin on the password you chose (no temporary password). 201 → same body as `/auth/login`, so you're signed
+  in. Email already in use, or password < 8 characters → 422. The owner upgrades it from the console once paid.
 - `POST /auth/logout` → 204, revokes the token used for the request.
 - `GET /auth/me` → current user + role + hierarchy node
   - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.

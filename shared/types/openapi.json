@@ -545,6 +545,111 @@
                 "security": []
             }
         },
+        "/auth/register": {
+            "post": {
+                "operationId": "auth.register",
+                "summary": "Sign up: creates a new organization on the free plan with you as its\nadmin, and signs you in. The platform owner upgrades it once paid",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "organization_name": {
+                                        "type": "string",
+                                        "description": "Your organization (e.g. a state ministry, an NGO or a programme).",
+                                        "maxLength": 255
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "description": "Your own name.",
+                                        "maxLength": 255
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255
+                                    },
+                                    "phone": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "maxLength": 30
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "description": "At least 8 characters.",
+                                        "minLength": 8,
+                                        "maxLength": 100
+                                    },
+                                    "device_name": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ],
+                                        "description": "Label for the token, e.g. \"web\" or a phone model.",
+                                        "maxLength": 100
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "minLength": 8,
+                                        "maxLength": 100
+                                    }
+                                },
+                                "required": [
+                                    "organization_name",
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string"
+                                                },
+                                                "user": {
+                                                    "$ref": "#/components/schemas/UserResource"
+                                                }
+                                            },
+                                            "required": [
+                                                "token",
+                                                "user"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
         "/auth/logout": {
             "post": {
                 "operationId": "auth.logout",
@@ -6827,7 +6932,7 @@
                         "description": "Days left on the paid plan, today included; null when it has no end date or isn't paid."
                     },
                     "renewal_due": {
-                        "type": "string",
+                        "type": "boolean",
                         "description": "True from RENEWAL_WARNING_DAYS out: clients show a \"renew\" notice."
                     },
                     "features": {

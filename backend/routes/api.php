@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:3,10');
     Route::get('platform', [PlatformController::class, 'show']);
     Route::get('platform/logo/{file}', [PlatformController::class, 'logo']);
     Route::get('organizations/{organization}/logo/{file}', [OrganizationController::class, 'logo']);

@@ -15,6 +15,9 @@ States and LGAs are shared reference data. The platform owner (role
 **organizations**
 `id, name, logo_path (nullable), contact_name, contact_email, contact_phone, address (all nullable), plan (enum: free|paid, default free), paid_until (nullable date), is_active (bool, default true), notes (nullable text), created_at, updated_at`
 
+> Organizations come from the owner console or from self sign-up
+> (always `plan = free`, contact fields from the person signing up).
+>
 > `paid_until` is the last day of the paid plan in business time
 > (Africa/Lagos); null = no end date. A paid plan past that day is treated
 > as free (nothing is deleted). Payment happens outside the system; the
