@@ -343,7 +343,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add a facility (SDP) to an LGA (admin) */
+        /** Add a facility (SDP) to an LGA (admin). The free plan has one open facility (402) */
         post: operations["facility.store"];
         delete?: never;
         options?: never;
@@ -1080,7 +1080,7 @@ export interface paths {
         /** Accounts the caller manages, by name */
         get: operations["user.index"];
         put?: never;
-        /** Create an account on a temporary password (generated unless given), returned once */
+        /** Create an account on a temporary password (generated unless given), returned once. The free plan has one active account per role (402) */
         post: operations["user.store"];
         delete?: never;
         options?: never;
@@ -1438,7 +1438,16 @@ export interface components {
             /** @description True from RENEWAL_WARNING_DAYS out: clients show a "renew" notice. */
             renewal_due: boolean;
             /** @description What the plan unlocks; anything absent answers 402 feature_unavailable. */
-            features: ("bulk_imports" | "delivery_scanning" | "push_notifications" | "rollups" | "supply_chain")[];
+            features: ("bulk_imports" | "delivery_scanning" | "multiple_accounts" | "multiple_facilities" | "push_notifications" | "supply_chain")[];
+            /**
+             * @description The free plan's limits and what already uses them: the roles with an
+             *     active account (one each), and whether the one open facility exists.
+             *     Null on the paid plan. For warnings only; the API re-checks (402).
+             */
+            limits: {
+                roles_in_use: ("sdp_staff" | "lga_officer" | "state_officer" | "federal_officer" | "admin")[];
+                facility_in_use: boolean;
+            } | null;
         };
         /** NotificationCollection */
         NotificationCollection: components["schemas"]["NotificationResource"][];

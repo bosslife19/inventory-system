@@ -9,7 +9,8 @@ import type { Feature, User } from './types';
 // and a queued entry that meets one is marked failed with that reason.
 
 export const FEATURE_LABEL: Record<Feature, string> = {
-  rollups: 'LGA, State and Federal dashboards',
+  multiple_accounts: 'More than one account per role',
+  multiple_facilities: 'More than one facility',
   supply_chain: 'Dispatches and reorder requests',
   delivery_scanning: 'Delivery note scanning',
   push_notifications: 'Push notifications',

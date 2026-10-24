@@ -4,6 +4,7 @@ import { useCreateUser, useLgaFacilities, useLgas, useUpdateUser } from '../../l
 import { fieldErrors } from '../../lib/api-client'
 import { manageableRoles } from '../../lib/auth'
 import { ROLE_LABEL } from '../../lib/format'
+import { roleInUse } from '../../lib/plan'
 import { useStates } from '../../lib/queries'
 import type { User, UserRole } from '../../lib/types'
 import { Field } from '../form/Field'
@@ -26,6 +27,9 @@ const toId = (v: string) => (v ? Number(v) : null)
  */
 export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
   const roles = manageableRoles(me)
+  // Free plan: one active account per role. A deactivated account can be edited freely; it doesn't hold a place.
+  const inUse = (r: UserRole) => (user && !user.is_active ? false : roleInUse(me, r, user))
+  const limited = !!me.organization?.limits
   const states = useStates()
   const create = useCreateUser()
   const update = useUpdateUser()
@@ -36,7 +40,7 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
 
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
-  const [role, setRole] = useState<UserRole>(user?.role ?? roles[0])
+  const [role, setRole] = useState<UserRole>(user?.role ?? roles.find((r) => !inUse(r)) ?? roles[0])
   // Edits know only the node's names (node.path), so the pickers start from those.
   const [stateId, setStateId] = useState<number | null>(ownState ?? user?.state_id ?? null)
   const [stateName] = useState(user && user.role !== 'state_officer' ? user.node.path[0] : null)
@@ -110,8 +114,9 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
             }}
           >
             {roles.map((r) => (
-              <option key={r} value={r}>
+              <option key={r} value={r} disabled={inUse(r)}>
                 {ROLE_LABEL[r]}
+                {inUse(r) ? ' (in use on the free plan)' : ''}
               </option>
             ))}
           </select>
@@ -172,6 +177,20 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
         )}
       </div>
 
+      {inUse(role) ? (
+        <p className="form-error" role="alert">
+          <AlertCircle size={16} /> The free plan has one active {ROLE_LABEL[role].toLowerCase()} account, and it’s already in use.
+          Deactivate it first, or ask the platform owner to upgrade your organization.
+        </p>
+      ) : (
+        limited &&
+        !user && (
+          <p className="muted small" style={{ margin: 0 }}>
+            Free plan: one active account per role.
+          </p>
+        )
+      )}
+
       {general.length > 0 && (
         <p className="form-error" role="alert">
           <AlertCircle size={16} /> {general.map(([, v]) => v).join(' ')}
@@ -188,7 +207,7 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
         <button type="button" className="btn btn-ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary" disabled={pending}>
+        <button type="submit" className="btn btn-primary" disabled={pending || inUse(role)}>
           {user ? <Save size={16} /> : <UserPlus size={16} />} {pending ? 'Saving…' : user ? 'Save changes' : 'Create account'}
         </button>
       </div>

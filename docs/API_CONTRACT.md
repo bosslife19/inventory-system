@@ -34,7 +34,7 @@ human-readable contract and the rules behind it.
   - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
   - `is_active`, `must_change_password`: see below.
   - `organization`: `{ id, name, logo_url | null, plan: free|paid (in force today), paid_until | null, days_left | null,
-    renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|push_notifications|rollups|supply_chain] }`;
+    renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|multiple_accounts|multiple_facilities|push_notifications|supply_chain] }`;
     null for the platform owner (role `owner`), whom clients send to the owner console.
 - `POST /auth/password` — body `current_password, password, password_confirmation`. Changes your own password
   (≥ 8 characters, different from the current one), clears `must_change_password`, and signs out your other
@@ -77,8 +77,10 @@ Lists return only what the caller can see — own node and below, never above or
 - `GET /lgas/{id}/facilities` — 403 unless the caller can see that LGA (SDP staff can't). SDPs only; the LGA's store is not listed.
 - `POST /facilities` (admin) — body `lga_id, name, type (health_center|hospital|pharmacy|warehouse|other),
   address?, latitude?, longitude?, phone?, is_active?` → 201 `<Facility>`. Name unique within the LGA.
+  **[paid: multiple_facilities]** On the free plan, 402 while the organization already has an open SDP.
 - `PUT /facilities/{id}` (admin) — any of the same fields except `lga_id` (a facility can't move LGA: 422).
   `is_active: false` closes it (no new Stock Card entries; history kept). Stores can't be edited (403).
+  Reopening one (`is_active: true`) is a 402 on the free plan while another SDP is open.
 - `GET /facilities/{id}` — includes `store_level` (null for SDPs, else `lga|state|national`), `lga {id,name} | null` (null for state and national stores) and `state {id,name} | null` (null only for the national store)
 
 ## Users (account management)
@@ -94,9 +96,11 @@ Nobody manages their own account here (403) — they use `POST /auth/password`.
   a role the caller can't manage is a 422 on `role`. Email is trimmed, lower-cased and unique.
   201 → `{ data: <User>, temporary_password }` — generated (10 characters, no look-alike letters) unless
   given; shown only in this response. The account must change it at first sign-in.
+  **[paid: multiple_accounts]** On the free plan, 402 while an active account with that role already exists.
 - `PUT /users/{id}` — any of `name, email, role, facility_id, lga_id, state_id, is_active`. Role and node
   are re-checked together as on create. `is_active: false` deactivates the account and signs it out
   everywhere (tokens revoked, FCM token cleared); `true` reactivates it. 200 → `<User>`.
+  On the free plan, reactivating an account or changing its role is a 402 while another active account has that role.
 - `POST /users/{id}/reset-password` — sets a new temporary password, signs the account out everywhere.
   200 → `{ data: <User>, temporary_password }`.
 
@@ -274,9 +278,9 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
 - `POST /reorder-requests/{id}/cancel` — the requester's side. Pending only.
 
 ## Rollups (LGA / State / Federal — read only, SDPs only)
-- **[paid: rollups]** `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
-- **[paid: rollups]** `GET /states/{id}/stock-summary` — aggregated across LGAs
-- **[paid: rollups]** `GET /federal/stock-summary` — aggregated across states
+- `GET /lgas/{id}/stock-summary` — aggregated balances + flagged facilities across the LGA
+- `GET /states/{id}/stock-summary` — aggregated across LGAs
+- `GET /federal/stock-summary` — aggregated across states
 - Each rollup response includes: total on-hand per product, count of
   facilities in `low_stock` / `expiring_soon` / `expired` / `stock_out`
   state, and a drill-down list of the child nodes sorted worst-first.
@@ -321,7 +325,7 @@ officers keeping the store asked; on fulfilment or decline, whoever keeps the re
 
 ## Recording activity
 - `GET /facilities/{id}/stock-activity`, `GET /lgas/{id}/stock-activity`, `GET /states/{id}/stock-activity`,
-  `GET /federal/stock-activity` (the LGA / state / federal ones are **[paid: rollups]**)
+  `GET /federal/stock-activity`
   (query: `weeks`, 4–52, default 12, ending with the current week) —
   Stock Card entries per week, for dashboard charts. Counts entries, not
   quantities (units differ across products):

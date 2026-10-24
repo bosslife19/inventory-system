@@ -4,11 +4,14 @@ import { Link } from 'react-router-dom'
 import { Field } from '../../components/form/Field'
 import { BulkImportButton } from '../../components/import/BulkImport'
 import { ErrorState, Loading } from '../../components/layout/PageState'
+import { LockedAction } from '../../components/plan/Paid'
 import { Modal } from '../../components/ui/Modal'
 import { useLgaFacilities, useLgas, useSaveFacility } from '../../lib/admin-queries'
 import { fieldErrors } from '../../lib/api-client'
+import { facilityInUse } from '../../lib/plan'
 import { useStates } from '../../lib/queries'
 import type { Facility, FacilityType } from '../../lib/types'
+import { useUser } from '../../lib/user-context'
 
 const TYPES: { value: FacilityType; label: string }[] = [
   { value: 'health_center', label: 'Health center' },
@@ -32,6 +35,7 @@ export function FacilitiesPage() {
   const facilities = useLgaFacilities(lgaId)
   const [editing, setEditing] = useState<Facility | 'new' | null>(null)
   const lga = lgas.data?.find((l) => l.id === lgaId)
+  const atLimit = facilityInUse(useUser()) // free plan: its one open facility exists
 
   return (
     <div className="stack">
@@ -49,9 +53,19 @@ export function FacilitiesPage() {
             intro="Add many facilities (SDPs) at once, in any states and LGAs. Each row names its state and LGA as they appear here."
             invalidates={[['lga-facilities']]}
           />
-          <button type="button" className="btn btn-primary" disabled={!lgaId} onClick={() => setEditing('new')} title={lgaId ? undefined : 'Choose an LGA first'}>
-            <Plus size={18} /> New facility
-          </button>
+          {atLimit ? (
+            <LockedAction
+              feature="multiple_facilities"
+              label="New facility"
+              icon={<Plus size={18} />}
+              className="btn btn-primary"
+              reason="The free plan has one open facility, and yours is already set up. Close it to add a different one."
+            />
+          ) : (
+            <button type="button" className="btn btn-primary" disabled={!lgaId} onClick={() => setEditing('new')} title={lgaId ? undefined : 'Choose an LGA first'}>
+              <Plus size={18} /> New facility
+            </button>
+          )}
         </div>
       </header>
 
@@ -152,6 +166,9 @@ export function FacilitiesPage() {
 
 function FacilityForm({ facility, lgaId, onDone }: { facility?: Facility; lgaId: number; onDone: () => void }) {
   const save = useSaveFacility()
+  // Free plan: a closed facility can't reopen while another is open.
+  const atLimit = facilityInUse(useUser())
+  const cantReopen = !!facility && !facility.is_active && atLimit
   const [f, setF] = useState({
     name: facility?.name ?? '',
     type: (facility?.type ?? 'health_center') as FacilityType,
@@ -229,10 +246,14 @@ function FacilityForm({ facility, lgaId, onDone }: { facility?: Facility; lgaId:
 
       {facility && (
         <label className="check">
-          <input type="checkbox" checked={f.is_active} onChange={(e) => set({ is_active: e.target.checked })} />
+          <input type="checkbox" checked={f.is_active} disabled={cantReopen} onChange={(e) => set({ is_active: e.target.checked })} />
           <span>
             Open
-            <small>Untick to close it: no new Stock Card entries; its history and accounts stay.</small>
+            <small>
+              {cantReopen
+                ? 'The free plan has one open facility, and another is open. Close it first to reopen this one.'
+                : 'Untick to close it: no new Stock Card entries; its history and accounts stay.'}
+            </small>
           </span>
         </label>
       )}

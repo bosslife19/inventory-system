@@ -10,6 +10,7 @@ use App\Models\Lga;
 use App\Services\CatalogService;
 use App\Support\AuditLog;
 use App\Support\HierarchyScope;
+use App\Support\PlanLimits;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -33,15 +34,23 @@ class FacilityController extends Controller
         return FacilityResource::make($facility);
     }
 
-    /** Add a facility (SDP) to an LGA (admin). */
+    /** Add a facility (SDP) to an LGA (admin). The free plan has one open facility (402). */
     public function store(SaveFacilityRequest $request, CatalogService $catalog): FacilityResource
     {
+        if ($request->boolean('is_active', true)) {
+            PlanLimits::ensureFacilityAllowed($request->user()->organization);
+        }
+
         return FacilityResource::make($catalog->addFacility([...$request->validated(), 'is_active' => $request->boolean('is_active', true)]));
     }
 
     /** Change a facility's details, or close it with is_active=false (admin). Never deleted. */
     public function update(SaveFacilityRequest $request, Facility $facility): FacilityResource
     {
+        if ($request->has('is_active') && $request->boolean('is_active') && ! $facility->is_active) {
+            PlanLimits::ensureFacilityAllowed($request->user()->organization, $facility);
+        }
+
         DB::transaction(function () use ($request, $facility) {
             $facility->update($request->validated());
             if ($changes = AuditLog::diff($facility)) {

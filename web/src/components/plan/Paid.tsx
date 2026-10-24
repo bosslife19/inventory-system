@@ -13,7 +13,7 @@ function UpgradeNote({ feature }: { feature: Feature }) {
     <div className="upgrade-note">
       <p>
         <strong>{FEATURE_LABEL[feature]}</strong> {FEATURE_LABEL[feature].endsWith('s') ? 'are' : 'is'} part of the paid plan. Your
-        Stock Cards, alerts, reports and accounts keep working on the free plan.
+        Stock Cards, dashboards, alerts and reports keep working on the free plan.
       </p>
       <p className="muted">Ask your organization’s admin to contact {owner} to upgrade. Nothing you have recorded is lost either way.</p>
     </div>
@@ -29,11 +29,14 @@ export function LockedAction({
   label,
   icon,
   className = 'btn btn-ghost',
+  reason,
 }: {
   feature: Feature
   label: string
   icon?: React.ReactNode
   className?: string
+  /** Why it's locked right now, when that's more than the plan lacking it (e.g. a free-plan limit reached). */
+  reason?: string
 }) {
   const [open, setOpen] = useState(false)
 
@@ -43,6 +46,7 @@ export function LockedAction({
         {icon} {label} <Lock size={13} aria-label="Paid plan" />
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title={label} description="Paid plan" icon={<Sparkles size={20} />}>
+        {reason && <p style={{ margin: '0 0 0.9rem' }}>{reason}</p>}
         <UpgradeNote feature={feature} />
         <div className="head-actions" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
           <button type="button" className="btn btn-primary" onClick={() => setOpen(false)}>
@@ -54,17 +58,3 @@ export function LockedAction({
   )
 }
 
-/** A whole section the plan doesn't include. */
-export function LockedCard({ feature, title }: { feature: Feature; title: string }) {
-  return (
-    <section className="card locked-card">
-      <span className="locked-icon" aria-hidden>
-        <Lock size={20} />
-      </span>
-      <div>
-        <h2>{title}</h2>
-        <UpgradeNote feature={feature} />
-      </div>
-    </section>
-  )
-}

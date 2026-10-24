@@ -72,13 +72,20 @@ From the owner console they:
 Organization admins can't create owner accounts.
 
 **Plans.** Free: Stock Cards (facility and own store), physical inventories,
-alerts and notifications in the app, reorder suggestions, stock levels and
-AMCs, reports and CSV export, the audit log, the catalog and account
-management. Paid adds:
+the LGA / State / Federal dashboards, alerts and notifications in the app,
+reorder suggestions, stock levels and AMCs, reports and CSV export, the
+audit log, the catalog and account management — but with **one active
+account per role** (one admin, one federal officer, one state officer, one
+LGA officer, one facility staff) and **one open facility (SDP)**. Stores
+don't count toward the facility limit. Deactivating an account or closing
+the facility frees its place; an organization already past a limit (say, a
+lapsed paid plan) keeps what it has but can't add more. The owner console
+isn't limited. Paid adds:
 
 | Feature | What it unlocks |
 |---|---|
-| `rollups` | LGA / State / Federal dashboards and their weekly activity |
+| `multiple_accounts` | More than one active account per role |
+| `multiple_facilities` | More than one open facility (SDP) |
 | `supply_chain` | Stores dispatching down the chain; asking for and fulfilling reorder requests (cancelling or declining, and confirming a delivery already sent, stay free) |
 | `delivery_scanning` | Capturing delivery notes (the mobile scan) |
 | `push_notifications` | Pushes to phones (alerts, daily digests, reorder requests) |

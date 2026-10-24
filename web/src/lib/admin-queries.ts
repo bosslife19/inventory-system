@@ -26,7 +26,10 @@ export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (body: NewUser) => unwrap(api.POST('/users', { body })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['me'] }) // the free plan's roles in use
+    },
   })
 }
 
@@ -35,7 +38,10 @@ export function useUpdateUser() {
   return useMutation({
     mutationFn: async ({ id, body }: { id: number; body: UpdateUser }) =>
       (await unwrap(api.PUT('/users/{user}', { params: { path: { user: id } }, body }))).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['me'] })
+    },
   })
 }
 
@@ -114,6 +120,7 @@ export function useSaveFacility() {
       queryClient.invalidateQueries({ queryKey: ['lga-facilities'] })
       queryClient.invalidateQueries({ queryKey: ['facility', f.id] })
       queryClient.invalidateQueries({ queryKey: ['lga-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['me'] }) // the free plan's open facility
     },
   })
 }

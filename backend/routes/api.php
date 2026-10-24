@@ -77,12 +77,12 @@ Route::prefix('v1')->group(function () {
         Route::get('states', [StateController::class, 'index']);
         Route::get('states/{state}/lgas', [LgaController::class, 'index']);
         Route::get('lgas/{lga}/facilities', [FacilityController::class, 'index']);
-        Route::get('lgas/{lga}/stock-summary', [LgaStockSummaryController::class, 'show'])->middleware(RequireFeature::class.':rollups');
-        Route::get('lgas/{lga}/stock-activity', [StockActivityController::class, 'lga'])->middleware(RequireFeature::class.':rollups');
-        Route::get('states/{state}/stock-summary', [RollupSummaryController::class, 'state'])->middleware(RequireFeature::class.':rollups');
-        Route::get('states/{state}/stock-activity', [StockActivityController::class, 'state'])->middleware(RequireFeature::class.':rollups');
-        Route::get('federal/stock-summary', [RollupSummaryController::class, 'federal'])->middleware(RequireFeature::class.':rollups');
-        Route::get('federal/stock-activity', [StockActivityController::class, 'federal'])->middleware(RequireFeature::class.':rollups');
+        Route::get('lgas/{lga}/stock-summary', [LgaStockSummaryController::class, 'show']);
+        Route::get('lgas/{lga}/stock-activity', [StockActivityController::class, 'lga']);
+        Route::get('states/{state}/stock-summary', [RollupSummaryController::class, 'state']);
+        Route::get('states/{state}/stock-activity', [StockActivityController::class, 'state']);
+        Route::get('federal/stock-summary', [RollupSummaryController::class, 'federal']);
+        Route::get('federal/stock-activity', [StockActivityController::class, 'federal']);
         Route::get('facilities/{facility}/stock-activity', [StockActivityController::class, 'facility']);
         Route::get('facilities/{facility}', [FacilityController::class, 'show']);
         Route::post('facilities', [FacilityController::class, 'store']);

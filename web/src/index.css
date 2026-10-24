@@ -2256,48 +2256,6 @@ a.cell-title:hover {
   margin: 0 0 0.6rem;
 }
 
-.locked-card {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  border-style: dashed;
-}
-.locked-card h2 {
-  margin: 0 0 0.4rem;
-  font-size: 1.05rem;
-}
-.locked-icon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 10px;
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.link-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.link-list li + li {
-  border-top: 1px solid var(--border);
-}
-.link-list a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.25rem;
-  color: var(--text);
-  text-decoration: none;
-}
-.link-list a:hover {
-  background: var(--surface-2);
-  color: var(--primary);
-}
-
 .org-cell {
   display: flex;
   gap: 0.75rem;

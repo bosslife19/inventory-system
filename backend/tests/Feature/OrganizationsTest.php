@@ -119,15 +119,16 @@ it('never lets an organization admin make a platform owner', function () {
 
 // ------------------------------------------------------------------ the paid plan
 
-it('locks the paid features on the free plan, and leaves the Stock Card free', function () {
+it('locks the paid features on the free plan, and leaves the Stock Card and dashboards free', function () {
     $this->home->update(['plan' => Plan::Free]);
     $kawo = $this->h['facilities']['kawo'];
     $lga = $this->h['lgas']['kadunaNorth'];
 
     $this->actingAs($this->h['users']['lga']);
-    $this->getJson("/api/v1/lgas/{$lga->id}/stock-summary")->assertStatus(402)
-        ->assertJson(['code' => 'feature_unavailable', 'feature' => 'rollups']);
-    $this->getJson('/api/v1/federal/stock-summary')->assertStatus(402);
+    $this->getJson("/api/v1/lgas/{$lga->id}/stock-summary")->assertOk();
+    $this->actingAs($this->h['users']['state'])->getJson("/api/v1/states/{$this->h['states']['kaduna']->id}/stock-summary")->assertOk();
+    $this->actingAs($this->h['users']['federal'])->getJson('/api/v1/federal/stock-summary')->assertOk();
+    $this->actingAs($this->h['users']['lga']);
     $store = Facility::storeForLga($lga);
     $this->getJson("/api/v1/facilities/{$store->id}/dispatch-destinations")->assertStatus(402)->assertJsonPath('feature', 'supply_chain');
 
@@ -165,7 +166,7 @@ it('runs a paid plan to its last day, warning before it ends, then falls back to
     $me()->assertJsonPath('data.organization.plan', 'paid')
         ->assertJsonPath('data.organization.days_left', 10)
         ->assertJsonPath('data.organization.renewal_due', true)
-        ->assertJsonPath('data.organization.features', ['bulk_imports', 'delivery_scanning', 'push_notifications', 'rollups', 'supply_chain']);
+        ->assertJsonPath('data.organization.features', ['bulk_imports', 'delivery_scanning', 'multiple_accounts', 'multiple_facilities', 'push_notifications', 'supply_chain']);
 
     $this->home->update(['paid_until' => '2026-12-31']);
     $me()->assertJsonPath('data.organization.renewal_due', false);
@@ -174,7 +175,58 @@ it('runs a paid plan to its last day, warning before it ends, then falls back to
     $me()->assertJsonPath('data.organization.plan', 'free')
         ->assertJsonPath('data.organization.features', [])
         ->assertJsonPath('data.organization.days_left', null);
-    $this->getJson("/api/v1/lgas/{$this->h['lgas']['kadunaNorth']->id}/stock-summary")->assertStatus(402);
+    $this->getJson("/api/v1/facilities/{$this->h['facilities']['kawo']->id}/reorder-suppliers")->assertStatus(402);
+});
+
+it('allows one active account per role on the free plan', function () {
+    $this->home->update(['plan' => Plan::Free]);
+    $this->actingAs($this->h['users']['admin']);
+    $add = fn (string $email, string $role, array $node = []) => $this->postJson('/api/v1/users', ['name' => 'New', 'email' => $email, 'role' => $role, ...$node]);
+
+    // The fixture already has one of each role (federal, state, LGA, facility staff, admin), and clients are told so.
+    $this->getJson('/api/v1/auth/me')->assertJsonPath('data.organization.limits', [
+        'roles_in_use' => ['admin', 'federal_officer', 'lga_officer', 'sdp_staff', 'state_officer'], 'facility_in_use' => true,
+    ]);
+    $add('admin2@example.test', 'admin')->assertStatus(402)
+        ->assertJson(['code' => 'feature_unavailable', 'feature' => 'multiple_accounts']);
+    $add('fed2@example.test', 'federal_officer')->assertStatus(402);
+    $add('state2@example.test', 'state_officer', ['state_id' => $this->h['states']['lagos']->id])->assertStatus(402);
+    $add('lga2@example.test', 'lga_officer', ['lga_id' => $this->h['lgas']['zaria']->id])->assertStatus(402);
+    $add('sdp2@example.test', 'sdp_staff', ['facility_id' => $this->h['facilities']['kawo']->id])->assertStatus(402);
+
+    // Deactivating frees the slot; reactivating the old one is then refused.
+    $old = $this->h['users']['federal'];
+    $this->putJson("/api/v1/users/{$old->id}", ['is_active' => false])->assertOk();
+    $add('fed2@example.test', 'federal_officer')->assertCreated();
+    $this->putJson("/api/v1/users/{$old->id}", ['is_active' => true])->assertStatus(402);
+    // Nor can an account move into a role that's taken.
+    $this->putJson("/api/v1/users/{$this->h['users']['lga']->id}", ['role' => 'state_officer', 'state_id' => $this->h['states']['lagos']->id])->assertStatus(402);
+    // Editing an account without touching its role is fine.
+    $this->putJson("/api/v1/users/{$this->h['users']['lga']->id}", ['name' => 'Renamed'])->assertOk();
+
+    $this->home->update(['plan' => Plan::Paid]);
+    $this->actingAs($this->h['users']['admin']->unsetRelation('organization'));
+    $this->getJson('/api/v1/auth/me')->assertJsonPath('data.organization.limits', null);
+    $add('admin2@example.test', 'admin')->assertCreated();
+});
+
+it('allows one open facility on the free plan', function () {
+    $this->home->update(['plan' => Plan::Free]);
+    $this->actingAs($this->h['users']['admin']);
+    $lga = $this->h['lgas']['kadunaNorth'];
+    $new = fn (string $name) => $this->postJson('/api/v1/facilities', ['lga_id' => $lga->id, 'name' => $name, 'type' => 'health_center']);
+
+    $new('Another PHC')->assertStatus(402)->assertJsonPath('feature', 'multiple_facilities');
+
+    // Close all but Kawo: still one open, so still refused; close Kawo too and one can be added.
+    foreach (['rimi', 'tudun', 'ikejaGh'] as $key) {
+        $this->putJson("/api/v1/facilities/{$this->h['facilities'][$key]->id}", ['is_active' => false])->assertOk();
+    }
+    $new('Another PHC')->assertStatus(402);
+    $this->putJson("/api/v1/facilities/{$this->h['facilities']['kawo']->id}", ['is_active' => false])->assertOk();
+    $new('Another PHC')->assertCreated();
+    // ... and Kawo can't reopen alongside it.
+    $this->putJson("/api/v1/facilities/{$this->h['facilities']['kawo']->id}", ['is_active' => true])->assertStatus(402);
 });
 
 // ------------------------------------------------------------------ the owner's console

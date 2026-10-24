@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\Feature;
 use App\Models\Organization;
+use App\Support\PlanLimits;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -38,9 +39,17 @@ class MembershipResource extends JsonResource
             /**
              * What the plan unlocks; anything absent answers 402 feature_unavailable.
              *
-             * @var list<'bulk_imports'|'delivery_scanning'|'push_notifications'|'rollups'|'supply_chain'>
+             * @var list<'bulk_imports'|'delivery_scanning'|'multiple_accounts'|'multiple_facilities'|'push_notifications'|'supply_chain'>
              */
             'features' => array_map(fn (Feature $f) => $f->value, $this->features()),
+            /**
+             * The free plan's limits and what already uses them: the roles with an
+             * active account (one each), and whether the one open facility exists.
+             * Null on the paid plan. For warnings only; the API re-checks (402).
+             *
+             * @var array{roles_in_use: list<'sdp_staff'|'lga_officer'|'state_officer'|'federal_officer'|'admin'>, facility_in_use: bool}|null
+             */
+            'limits' => PlanLimits::usage($this->resource),
         ];
     }
 }

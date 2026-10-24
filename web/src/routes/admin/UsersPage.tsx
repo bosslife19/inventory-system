@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { TemporaryPassword } from '../../components/admin/TemporaryPassword'
 import { UserForm } from '../../components/admin/UserForm'
 import { BulkImportButton } from '../../components/import/BulkImport'
+import { LockedAction } from '../../components/plan/Paid'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { Modal } from '../../components/ui/Modal'
 import { type UserFilters, useResetPassword, useUpdateUser, useUsers } from '../../lib/admin-queries'
 import { manageableRoles } from '../../lib/auth'
 import { ROLE_LABEL, formatQty } from '../../lib/format'
+import { roleInUse } from '../../lib/plan'
 import type { User, UserRole } from '../../lib/types'
 
 type Dialog =
@@ -43,6 +45,8 @@ function scopeLine(me: User): string {
  */
 export function UsersPage({ me }: { me: User }) {
   const roles = manageableRoles(me)
+  // Free plan: one active account per role, so there may be nothing left to create.
+  const allRolesInUse = roles.every((r) => roleInUse(me, r))
   const [filters, setFilters] = useState<UserFilters>({ is_active: true, page: 1, per_page: 25 })
   const [query, setQuery] = useState('')
   const [dialog, setDialog] = useState<Dialog | null>(null)
@@ -58,6 +62,8 @@ export function UsersPage({ me }: { me: User }) {
     reset.reset()
   }
   const actionError = (update.error ?? reset.error)?.message
+  // Free plan: someone else already holds the role this account would come back to.
+  const reactivateBlocked = dialog?.kind === 'confirm' && dialog.action === 'reactivate' && roleInUse(me, dialog.user.role)
 
   function confirm(action: 'deactivate' | 'reactivate' | 'reset', user: User) {
     if (action === 'reset') {
@@ -83,9 +89,21 @@ export function UsersPage({ me }: { me: User }) {
             intro="Create many accounts at once, on temporary passwords shown once at the end. You can only create the roles, and places, you manage."
             invalidates={[['users']]}
           />
-          <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'create' })}>
-            <UserPlus size={18} /> New account
-          </button>
+          {allRolesInUse ? (
+            <LockedAction
+              feature="multiple_accounts"
+              label="New account"
+              icon={<UserPlus size={18} />}
+              className="btn btn-primary"
+              reason={`The free plan has one active account per role, and ${
+                roles.length === 1 ? `the ${ROLE_LABEL[roles[0]].toLowerCase()} account is` : 'every role you can create is'
+              } already in use. Deactivate an account to give its place to someone else.`}
+            />
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={() => setDialog({ kind: 'create' })}>
+              <UserPlus size={18} /> New account
+            </button>
+          )}
         </div>
       </header>
 
@@ -266,7 +284,10 @@ export function UsersPage({ me }: { me: User }) {
             <p style={{ margin: 0 }}>
               {dialog.action === 'deactivate' &&
                 `${dialog.user.name} will be signed out on every device and won’t be able to sign in. Their Stock Card entries stay as they are. You can reactivate the account later.`}
-              {dialog.action === 'reactivate' && `${dialog.user.name} will be able to sign in again with their existing password.`}
+              {dialog.action === 'reactivate' &&
+                (reactivateBlocked
+                  ? `The free plan has one active ${ROLE_LABEL[dialog.user.role].toLowerCase()} account, and another is in use. Deactivate that one first, or ask the platform owner to upgrade your organization.`
+                  : `${dialog.user.name} will be able to sign in again with their existing password.`)}
               {dialog.action === 'reset' &&
                 `${dialog.user.name} will be signed out everywhere and given a new temporary password, which you’ll pass on to them.`}
             </p>
@@ -282,7 +303,7 @@ export function UsersPage({ me }: { me: User }) {
               <button
                 type="button"
                 className={dialog.action === 'deactivate' ? 'btn btn-dark' : 'btn btn-primary'}
-                disabled={update.isPending || reset.isPending}
+                disabled={update.isPending || reset.isPending || reactivateBlocked}
                 onClick={() => confirm(dialog.action, dialog.user)}
               >
                 {{ deactivate: 'Deactivate', reactivate: 'Reactivate', reset: 'Reset password' }[dialog.action]}

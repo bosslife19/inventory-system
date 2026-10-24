@@ -11,6 +11,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\UserAdminService;
 use App\Support\HierarchyScope;
+use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -61,9 +62,10 @@ class UserController extends Controller
         return new UserCollection($users);
     }
 
-    /** Create an account on a temporary password (generated unless given), returned once. */
+    /** Create an account on a temporary password (generated unless given), returned once. The free plan has one active account per role (402). */
     public function store(StoreUserRequest $request, UserAdminService $admin): JsonResponse
     {
+        PlanLimits::ensureAccountAllowed($request->user()->organization, UserRole::from($request->validated('role')));
         [$user, $password] = $admin->create($request->validated(), $request->user(), $request->input('temporary_password'));
 
         return response()->json([
@@ -80,6 +82,12 @@ class UserController extends Controller
     /** Change name, email, role / node, or deactivate (signs the account out everywhere). */
     public function update(UpdateUserRequest $request, User $user, UserAdminService $admin): UserResource
     {
+        $role = UserRole::from($request->validated('role', $user->role->value));
+        $active = $request->has('is_active') ? $request->boolean('is_active') : $user->is_active;
+        if ($active && (! $user->is_active || $role !== $user->role)) {
+            PlanLimits::ensureAccountAllowed($request->user()->organization, $role, $user);
+        }
+
         return UserResource::make($admin->update($user, $request->validated())->load(self::RELATIONS));
     }
 
