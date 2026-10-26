@@ -329,6 +329,7 @@ it('lets anyone sign up a new organization on the free plan, as its admin, until
     // Signed in straight away, and fenced into the new organization.
     $token = $response->json('data.token');
     $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk()->assertJsonPath('data.organization.id', $org->id);
+    User::withoutGlobalScopes()->where('email', 'amina@trust.test')->update(['email_verified_at' => now()]); // AccountEmailsTest covers confirming
     $this->withToken($token)->getJson("/api/v1/facilities/{$this->h['facilities']['kawo']->id}")->assertNotFound();
 
     // The owner sees it and upgrades it once paid.

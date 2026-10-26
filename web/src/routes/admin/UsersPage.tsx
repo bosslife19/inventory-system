@@ -16,7 +16,7 @@ type Dialog =
   | { kind: 'create' }
   | { kind: 'edit'; user: User }
   | { kind: 'confirm'; action: 'deactivate' | 'reactivate' | 'reset'; user: User }
-  | { kind: 'password'; user: User; password: string }
+  | { kind: 'password'; user: User; password: string; emailed: boolean }
 
 const STATUS: { value: boolean | undefined; label: string }[] = [
   { value: true, label: 'Active' },
@@ -69,7 +69,7 @@ export function UsersPage({ me }: { me: User }) {
 
   function confirm(action: 'deactivate' | 'reactivate' | 'reset', user: User) {
     if (action === 'reset') {
-      reset.mutate(user.id, { onSuccess: (res) => setDialog({ kind: 'password', user: res.data, password: res.temporary_password }) })
+      reset.mutate(user.id, { onSuccess: (res) => setDialog({ kind: 'password', user: res.data, password: res.temporary_password, emailed: false }) })
     } else {
       update.mutate({ id: user.id, body: { is_active: action === 'reactivate' } }, { onSuccess: close })
     }
@@ -268,7 +268,7 @@ export function UsersPage({ me }: { me: User }) {
           <UserForm
             me={me}
             user={dialog.kind === 'edit' ? dialog.user : undefined}
-            onCreated={(user, password) => setDialog({ kind: 'password', user, password })}
+            onCreated={(user, password) => setDialog({ kind: 'password', user, password, emailed: true })}
             onSaved={close}
             onCancel={close}
           />
@@ -322,7 +322,7 @@ export function UsersPage({ me }: { me: User }) {
       </Modal>
 
       <Modal open={dialog?.kind === 'password'} onClose={close} title="Temporary password" icon={<KeyRound size={20} />}>
-        {dialog?.kind === 'password' && <TemporaryPassword user={dialog.user} password={dialog.password} onClose={close} />}
+        {dialog?.kind === 'password' && <TemporaryPassword user={dialog.user} password={dialog.password} emailed={dialog.emailed} onClose={close} />}
       </Modal>
     </div>
   )

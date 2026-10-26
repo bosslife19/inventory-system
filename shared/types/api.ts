@@ -106,9 +106,32 @@ export interface paths {
         put?: never;
         /**
          * Sign up: creates a new organization on the free plan with you as its
-         *     admin, and signs you in. The platform owner upgrades it once paid
+         *     admin, and signs you in. A link to confirm your email is sent to it;
+         *     until you use it, every other endpoint answers 403
+         *     email_verification_required (`email_verified` is false)
          */
         post: operations["auth.register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/email/verify/{user}/{hash}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The link in the confirmation email. Confirms the address and sends the
+         *     browser on to the web app's /email-verified page with
+         *     ?status=verified|already|expired|invalid
+         */
+        get: operations["verification.verify"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -163,6 +186,23 @@ export interface paths {
          *     temporary one. Other devices are signed out; this one stays signed in
          */
         post: operations["auth.changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send the email-confirmation link again (after signing up). Throttled to 3 per 10 minutes */
+        post: operations["auth.resendVerification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2221,6 +2261,11 @@ export interface components {
             is_active: boolean;
             /** @description Still on a temporary password: clients send the user to change it before anything else. */
             must_change_password: boolean;
+            /**
+             * @description False only for someone who signed up and hasn't confirmed their email yet: clients show a
+             *     "check your inbox" screen, and the API answers 403 email_verification_required until they do.
+             */
+            email_verified: boolean;
             organization: components["schemas"]["MembershipResource"] | null;
         };
         /**
@@ -2523,6 +2568,28 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "verification.verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user: number;
+                hash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     "auth.logout": {
         parameters: {
             query?: never;
@@ -2596,6 +2663,39 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "auth.resendVerification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Your email is already confirmed.";
+                    };
+                };
+            };
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "billing.plans": {

@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\Lga;
 use App\Models\State;
 use App\Models\User;
+use App\Support\AccountMail;
 use App\Support\AuditLog;
 use Illuminate\Support\Facades\DB;
 
@@ -15,8 +16,9 @@ use Illuminate\Support\Facades\DB;
  * by HierarchyScope (via UserPolicy and the form requests); this only applies it.
  *
  * Passwords set here are temporary: the account must change it at its next
- * sign-in (EnsureAccountUsable). Deactivating or resetting signs the account
- * out everywhere.
+ * sign-in (EnsureAccountUsable). A new account is emailed its temporary
+ * password and how to sign in (AccountMail). Deactivating or resetting signs
+ * the account out everywhere.
  */
 class UserAdminService
 {
@@ -32,7 +34,7 @@ class UserAdminService
 
     /**
      * @param  array{name: string, email: string, role: string, facility_id?: int|null, lga_id?: int|null, state_id?: int|null}  $data
-     * @return array{User, string} the account and its temporary password, shown once
+     * @return array{User, string} the account and its temporary password, shown once (and emailed to it)
      */
     public function create(array $data, User $by, ?string $password = null): array
     {
@@ -57,6 +59,7 @@ class UserAdminService
             AuditLog::snapshot($user, ['name', 'email', 'role', 'facility_id', 'lga_id', 'state_id']),
             actor: $by,
         );
+        AccountMail::accountCreated($user, $password);
 
         return [$user, $password];
     }

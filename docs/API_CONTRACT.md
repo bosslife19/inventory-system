@@ -29,12 +29,13 @@ human-readable contract and the rules behind it.
 - `POST /auth/register` (public) — sign-up. Body `organization_name, name, email, phone?, password, password_confirmation,
   device_name?`. Throttled to 3 per 10 min. Creates a new organization on the **free** plan (with its stores) and makes
   you its admin on the password you chose (no temporary password). 201 → same body as `/auth/login`, so you're signed
-  in. Email already in use, or password < 8 characters → 422. The owner upgrades it from the console once paid.
+  in. Email already in use, or password < 8 characters → 422. A link to confirm the email is sent to it (see
+  **Email confirmation** below); the admin upgrades the plan on the Billing page.
 - `POST /auth/logout` → 204, revokes the token used for the request.
 - `GET /auth/me` → current user + role + hierarchy node
   - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.
   - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
-  - `is_active`, `must_change_password`: see below.
+  - `is_active`, `must_change_password`, `email_verified`: see below.
   - `organization`: `{ id, name, logo_url | null, plan: free|paid (in force today), tier | null, paid_until | null, days_left | null,
     renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|multiple_accounts|multiple_facilities|push_notifications|supply_chain],
     limits | null }`; null for the platform owner (role `owner`), whom clients send to the owner console.
@@ -49,6 +50,17 @@ human-readable contract and the rules behind it.
   devices; this token stays valid. 200 → `<User>`.
 - **Temporary passwords.** While `must_change_password` is true every other endpoint answers
   **403** `{ "message": "…", "code": "password_change_required" }` — clients send the user to change it.
+  Every account someone else creates (Users, the owner console, CSV imports) is **emailed** its temporary password
+  and how to sign in (a link to `FRONTEND_URL/login`), once the creation commits; the API still returns the password
+  once, for when the email doesn't arrive. A mail failure is logged and never undoes the account. Replacing the
+  temporary password also confirms the email (it arrived there).
+- **Email confirmation** (people who sign up). `email_verified` is false until they open the link emailed to them;
+  meanwhile every endpoint except `GET /auth/me`, `POST /auth/logout` and `POST /auth/email/resend` answers **403**
+  `{ code: "email_verification_required" }` — clients show a "check your inbox" screen. Signing in still works.
+  - `POST /auth/email/resend` → 202 `{ message }` (a new link), or 200 when already confirmed. Throttled to 3 per 10 min.
+  - `GET /auth/email/verify/{user}/{hash}?expires=…&signature=…` (public; the emailed link, signed, valid
+    `EMAIL_VERIFICATION_HOURS`, default 48) → redirects to `FRONTEND_URL/email-verified?status=verified|already|expired|invalid`.
+  - Accounts that existed before this was added count as confirmed.
 - **Deactivated accounts.** Their tokens are revoked; any request still made with one gets 401.
 - Sign-in is refused (422 on `email`) for members of a suspended organization.
 

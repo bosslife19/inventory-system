@@ -548,7 +548,7 @@
         "/auth/register": {
             "post": {
                 "operationId": "auth.register",
-                "summary": "Sign up: creates a new organization on the free plan with you as its\nadmin, and signs you in. The platform owner upgrades it once paid",
+                "summary": "Sign up: creates a new organization on the free plan with you as its\nadmin, and signs you in. A link to confirm your email is sent to it;\nuntil you use it, every other endpoint answers 403\nemail_verification_required (`email_verified` is false)",
                 "tags": [
                     "Auth"
                 ],
@@ -645,6 +645,46 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/auth/email/verify/{user}/{hash}": {
+            "get": {
+                "operationId": "verification.verify",
+                "summary": "The link in the confirmation email. Confirms the address and sends the\nbrowser on to the web app's /email-verified page with\n?status=verified|already|expired|invalid",
+                "tags": [
+                    "Auth"
+                ],
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "hash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": []
@@ -758,6 +798,57 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/auth/email/resend": {
+            "post": {
+                "operationId": "auth.resendVerification",
+                "summary": "Send the email-confirmation link again (after signing up). Throttled to 3 per 10 minutes",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "202": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Your email is already confirmed."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -9504,6 +9595,10 @@
                         "type": "boolean",
                         "description": "Still on a temporary password: clients send the user to change it before anything else."
                     },
+                    "email_verified": {
+                        "type": "boolean",
+                        "description": "False only for someone who signed up and hasn't confirmed their email yet: clients show a\n\"check your inbox\" screen, and the API answers 403 email_verification_required until they do."
+                    },
                     "organization": {
                         "anyOf": [
                             {
@@ -9528,6 +9623,7 @@
                     "store",
                     "is_active",
                     "must_change_password",
+                    "email_verified",
                     "organization"
                 ],
                 "title": "UserResource"

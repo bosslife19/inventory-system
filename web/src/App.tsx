@@ -15,6 +15,7 @@ import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
+import { EmailVerifiedPage } from './routes/login/EmailVerifiedPage'
 import { SignupPage } from './routes/login/SignupPage'
 import { OrganizationPage } from './routes/owner/OrganizationPage'
 import { OrganizationsPage } from './routes/owner/OrganizationsPage'
@@ -142,6 +143,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/email-verified" element={<EmailVerifiedPage />} />
       <Route
         element={
           <RequireAuth>

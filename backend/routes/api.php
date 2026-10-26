@@ -41,6 +41,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:3,10');
+    Route::get('auth/email/verify/{user}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->whereNumber('user')->middleware('throttle:12,1,email-verify')->name('verification.verify');
     Route::get('platform', [PlatformController::class, 'show']);
     Route::get('platform/logo/{file}', [PlatformController::class, 'logo']);
     Route::get('organizations/{organization}/logo/{file}', [OrganizationController::class, 'logo']);
@@ -51,6 +53,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::post('auth/password', [AuthController::class, 'changePassword']);
+        Route::post('auth/email/resend', [AuthController::class, 'resendVerification'])->middleware('throttle:3,10,email-resend');
     });
 
     // The platform owner's console.
@@ -86,8 +89,8 @@ Route::prefix('v1')->group(function () {
         // Paying for a plan tier through Paystack (admins; web only).
         Route::get('billing/plans', [BillingController::class, 'plans']);
         Route::get('billing/payments', [BillingController::class, 'payments']);
-        Route::post('billing/checkout', [BillingController::class, 'checkout'])->middleware('throttle:10,1');
-        Route::post('billing/payments/{reference}/verify', [BillingController::class, 'verify'])->middleware('throttle:30,1');
+        Route::post('billing/checkout', [BillingController::class, 'checkout'])->middleware('throttle:10,1,billing-checkout');
+        Route::post('billing/payments/{reference}/verify', [BillingController::class, 'verify'])->middleware('throttle:30,1,billing-verify');
 
         Route::get('states', [StateController::class, 'index']);
         Route::get('states/{state}/lgas', [LgaController::class, 'index']);

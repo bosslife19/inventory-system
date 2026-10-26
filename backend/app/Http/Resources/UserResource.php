@@ -39,6 +39,11 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             /** Still on a temporary password: clients send the user to change it before anything else. */
             'must_change_password' => $this->must_change_password,
+            /**
+             * False only for someone who signed up and hasn't confirmed their email yet: clients show a
+             * "check your inbox" screen, and the API answers 403 email_verification_required until they do.
+             */
+            'email_verified' => ! $this->needsEmailVerification(),
             /** Their organization, its logo and what its plan unlocks; null for the platform owner. */
             'organization' => $this->organization ? MembershipResource::make($this->organization) : null,
         ];

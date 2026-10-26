@@ -124,6 +124,7 @@ export function OrganizationsPage() {
           <TemporaryPassword
             user={created.admin}
             password={created.password}
+            emailed
             onClose={() => {
               const id = created.org.id
               setCreated(null)

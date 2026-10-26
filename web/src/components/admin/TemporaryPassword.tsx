@@ -1,12 +1,23 @@
-import { Check, Copy, KeyRound } from 'lucide-react'
+import { Check, Copy, KeyRound, Mail } from 'lucide-react'
 import { useState } from 'react'
 import type { User } from '../../lib/types'
 
 /**
  * A temporary password, shown once (the API never returns it again). The
- * person signs in with it and must choose their own straight away.
+ * person signs in with it and must choose their own straight away. A new
+ * account is also emailed it (`emailed`); a reset one isn't.
  */
-export function TemporaryPassword({ user, password, onClose }: { user: User; password: string; onClose: () => void }) {
+export function TemporaryPassword({
+  user,
+  password,
+  onClose,
+  emailed = false,
+}: {
+  user: User
+  password: string
+  onClose: () => void
+  emailed?: boolean
+}) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -20,9 +31,16 @@ export function TemporaryPassword({ user, password, onClose }: { user: User; pas
 
   return (
     <div className="stack" style={{ gap: '1rem' }}>
-      <p style={{ margin: 0 }}>
-        Give these to <strong>{user.name}</strong>. They’ll be asked to choose their own password when they first sign in.
-      </p>
+      {emailed ? (
+        <p className="notice-line" style={{ margin: 0 }}>
+          <Mail size={16} aria-hidden /> We’ve emailed these and how to sign in to {user.email}. If it doesn’t arrive, give them
+          the details below.
+        </p>
+      ) : (
+        <p style={{ margin: 0 }}>
+          Give these to <strong>{user.name}</strong>. They’ll be asked to choose their own password when they first sign in.
+        </p>
+      )}
       <dl className="credentials">
         <div>
           <dt>Email</dt>

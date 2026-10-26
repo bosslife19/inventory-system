@@ -44,6 +44,12 @@ States and LGAs are shared reference data. The platform owner (role
 > signed webhook), under a row lock, only from `pending`, and only to
 > `success` when amount and currency match — so it's applied once.
 
+> **users.email_verified_at**: set when someone who signed up opens the
+> confirmation link, or when an account someone else made replaces its
+> emailed temporary password. Null with `must_change_password = false`
+> means a sign-up still to confirm (the API holds it, 403
+> `email_verification_required`).
+
 **platform_settings** (the owner's own branding, shown beside each organization's)
 `key (string, primary), value (nullable text)` — keys `name`, `tagline`, `logo_path`.
 

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\OrganizationService;
+use App\Support\AccountMail;
 use App\Support\AuditLog;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
@@ -60,7 +62,9 @@ class AuthController extends Controller
 
     /**
      * Sign up: creates a new organization on the free plan with you as its
-     * admin, and signs you in. The platform owner upgrades it once paid.
+     * admin, and signs you in. A link to confirm your email is sent to it;
+     * until you use it, every other endpoint answers 403
+     * email_verification_required (`email_verified` is false).
      *
      * @unauthenticated
      */
@@ -112,7 +116,12 @@ class AuthController extends Controller
 
         $user = $request->user();
         $wasTemporary = $user->must_change_password;
-        $user->update(['password' => $validated['password'], 'must_change_password' => false]);
+        $user->update([
+            'password' => $validated['password'],
+            'must_change_password' => false,
+            // Signing in with the temporary password emailed to them proves the address is theirs.
+            'email_verified_at' => $user->email_verified_at ?? ($wasTemporary ? now() : null),
+        ]);
         AuditLog::record(
             'user.password_changed',
             "{$user->name} ".($wasTemporary ? 'set their own password, replacing a temporary one' : 'changed their password'),
@@ -123,6 +132,47 @@ class AuthController extends Controller
         $user->tokens()->when($current instanceof PersonalAccessToken, fn ($q) => $q->whereKeyNot($current->getKey()))->delete();
 
         return UserResource::make($user);
+    }
+
+    /** Send the email-confirmation link again (after signing up). Throttled to 3 per 10 minutes. */
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user->needsEmailVerification()) {
+            return response()->json(['message' => 'Your email is already confirmed.']);
+        }
+
+        AccountMail::verifyEmail($user);
+
+        return response()->json(['message' => "We’ve sent a new link to {$user->email}."], 202);
+    }
+
+    /**
+     * The link in the confirmation email. Confirms the address and sends the
+     * browser on to the web app's /email-verified page with
+     * ?status=verified|already|expired|invalid.
+     *
+     * @unauthenticated
+     */
+    public function verifyEmail(Request $request, int $user, string $hash): RedirectResponse
+    {
+        $to = fn (string $status) => redirect()->away(config('app.frontend_url')."/email-verified?status={$status}");
+        $account = User::withoutGlobalScope(User::ORGANIZATION_SCOPE)->find($user);
+
+        if (! $account || ! hash_equals(sha1($account->email), $hash)) {
+            return $to('invalid');
+        }
+        if (! $request->hasValidSignature()) {
+            return $to($account->email_verified_at ? 'already' : 'expired');
+        }
+        if ($account->email_verified_at) {
+            return $to('already');
+        }
+
+        $account->update(['email_verified_at' => now()]);
+        AuditLog::record('user.email_verified', "{$account->name} confirmed their email ({$account->email})", $account, AuditLog::placeOfUser($account), actor: $account);
+
+        return $to('verified');
     }
 
     /** The current user, their role, and the hierarchy node they are anchored at. */

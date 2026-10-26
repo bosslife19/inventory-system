@@ -29,6 +29,10 @@ interface SessionApi {
   signUp: (details: SignUp) => Promise<void>;
   /** Replace a temporary password; on success the app opens. */
   changePassword: (current: string, next: string) => Promise<void>;
+  /** Fetch the signed-in user again (e.g. after confirming the email in a browser); resolves to it. */
+  refresh: () => Promise<User>;
+  /** After signing up: send the email-confirmation link again; resolves to the server's message. */
+  resendVerification: () => Promise<string>;
   /** Clears the token, cached data and anything left in the outbox. */
   signOut: () => Promise<void>;
 }
@@ -138,6 +142,15 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
     setSession({ status: 'signedIn', user });
   }, []);
 
+  const refresh = useCallback(async () => {
+    const user = (await unwrap(api.GET('/auth/me'))).data;
+    await storage.setItem(USER_KEY, JSON.stringify(user));
+    setSession({ status: 'signedIn', user });
+    return user;
+  }, []);
+
+  const resendVerification = useCallback(async () => (await unwrap(api.POST('/auth/email/resend'))).message, []);
+
   const signOut = useCallback(async () => {
     // Best effort: stop pushes to this device and revoke the token server-side.
     try {
@@ -150,8 +163,8 @@ export function SessionProvider({ children, onSignOut }: { children: React.React
   }, [clearLocal]);
 
   const value = useMemo(
-    () => ({ session, signIn, signUp, changePassword, signOut }),
-    [session, signIn, signUp, changePassword, signOut],
+    () => ({ session, signIn, signUp, changePassword, refresh, resendVerification, signOut }),
+    [session, signIn, signUp, changePassword, refresh, resendVerification, signOut],
   );
   return <SessionContext value={value}>{children}</SessionContext>;
 }

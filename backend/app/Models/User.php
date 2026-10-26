@@ -40,6 +40,7 @@ class User extends Authenticatable
         'fcm_token',
         'is_active',
         'must_change_password',
+        'email_verified_at',
         'created_by',
     ];
 
@@ -79,6 +80,17 @@ class User extends Authenticatable
     public function isOwner(): bool
     {
         return $this->role === UserRole::Owner;
+    }
+
+    /**
+     * Signed up on their own and hasn't confirmed their email yet. Accounts
+     * someone else made confirm theirs by signing in with the temporary
+     * password emailed to them and replacing it (AuthController::changePassword),
+     * so they're never asked twice.
+     */
+    public function needsEmailVerification(): bool
+    {
+        return $this->email_verified_at === null && ! $this->must_change_password;
     }
 
     public function facility(): BelongsTo

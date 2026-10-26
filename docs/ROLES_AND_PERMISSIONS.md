@@ -73,6 +73,12 @@ From the owner console they:
 
 Organization admins can't create owner accounts.
 
+**Account emails.** Whoever creates an account (an admin, an officer, the
+owner, a CSV import), the new account is emailed its temporary password
+and how to sign in; the person creating it also sees the password once.
+People who sign up themselves must confirm their email address (a link
+emailed to them) before they can do anything else.
+
 **Plans.** Free: Stock Cards (facility and own store), physical inventories,
 the LGA / State / Federal dashboards, alerts and notifications in the app,
 reorder suggestions, stock levels and AMCs, reports and CSV export, the

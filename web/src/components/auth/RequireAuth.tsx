@@ -4,6 +4,7 @@ import { useAuthStore } from '../../lib/auth-store'
 import { UserContext } from '../../lib/user-context'
 import { ErrorState, Loading } from '../layout/PageState'
 import { SetPasswordScreen } from './SetPasswordScreen'
+import { VerifyEmailScreen } from './VerifyEmailScreen'
 
 /** Resolves the signed-in user (GET /auth/me) for everything below it, or sends them to /login. */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,8 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   if (me.isError) return <ErrorState error={me.error} />
   // A temporary password has to be replaced before anything else works (the API enforces it too).
   if (me.data.must_change_password) return <SetPasswordScreen user={me.data} />
+  // After signing up: the email has to be confirmed first (the API enforces it too).
+  if (!me.data.email_verified) return <VerifyEmailScreen user={me.data} />
 
   return <UserContext.Provider value={me.data}>{children}</UserContext.Provider>
 }

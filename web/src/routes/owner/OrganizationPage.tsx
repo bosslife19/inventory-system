@@ -37,7 +37,7 @@ export function OrganizationPage({ id }: { id: number }) {
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
   const [suspending, setSuspending] = useState(false)
-  const [password, setPassword] = useState<{ user: User; password: string } | null>(null)
+  const [password, setPassword] = useState<{ user: User; password: string; emailed: boolean } | null>(null)
 
   if (org.isError) return <ErrorState error={org.error} />
   if (org.isPending) return <Loading />
@@ -185,7 +185,7 @@ export function OrganizationPage({ id }: { id: number }) {
                         type="button"
                         className="btn btn-ghost btn-sm"
                         disabled={reset.isPending}
-                        onClick={() => reset.mutate(u.id, { onSuccess: (res) => setPassword({ user: res.data, password: res.temporary_password }) })}
+                        onClick={() => reset.mutate(u.id, { onSuccess: (res) => setPassword({ user: res.data, password: res.temporary_password, emailed: false }) })}
                       >
                         <KeyRound size={14} /> Reset password
                       </button>{' '}
@@ -238,14 +238,14 @@ export function OrganizationPage({ id }: { id: number }) {
             onCancel={() => setAdding(false)}
             onCreated={(user, pw) => {
               setAdding(false)
-              setPassword({ user, password: pw })
+              setPassword({ user, password: pw, emailed: true })
             }}
           />
         )}
       </Modal>
 
       <Modal open={password !== null} onClose={() => setPassword(null)} title="Sign-in details" description={o.name} icon={<KeyRound size={20} />}>
-        {password && <TemporaryPassword user={password.user} password={password.password} onClose={() => setPassword(null)} />}
+        {password && <TemporaryPassword user={password.user} password={password.password} emailed={password.emailed} onClose={() => setPassword(null)} />}
       </Modal>
 
       <Modal open={suspending} onClose={() => setSuspending(false)} title={`Suspend ${o.name}?`} icon={<Ban size={20} />}>

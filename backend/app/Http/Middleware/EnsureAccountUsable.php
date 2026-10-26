@@ -11,12 +11,17 @@ use Symfony\Component\HttpFoundation\Response;
  * those of a suspended organization's members. An account
  * still on a temporary password can only read itself, sign out and change
  * the password until it does (403, code password_change_required) — so a
- * password someone else knows is never the one doing the work.
+ * password someone else knows is never the one doing the work. Someone who
+ * signed up and hasn't confirmed their email yet is held the same way
+ * (403, code email_verification_required).
  */
 class EnsureAccountUsable
 {
     /** Routes a user on a temporary password may still call. */
     private const ALLOWED_WHILE_TEMPORARY = ['api/v1/auth/me', 'api/v1/auth/logout', 'api/v1/auth/password'];
+
+    /** Routes someone who hasn't confirmed their email may still call. */
+    private const ALLOWED_WHILE_UNVERIFIED = ['api/v1/auth/me', 'api/v1/auth/logout', 'api/v1/auth/email/resend'];
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -35,6 +40,13 @@ class EnsureAccountUsable
             return response()->json([
                 'message' => 'Change your temporary password to continue.',
                 'code' => 'password_change_required',
+            ], 403);
+        }
+
+        if ($user && $user->needsEmailVerification() && ! $request->is(...self::ALLOWED_WHILE_UNVERIFIED)) {
+            return response()->json([
+                'message' => 'Confirm your email address to continue — use the link we emailed you.',
+                'code' => 'email_verification_required',
             ], 403);
         }
 

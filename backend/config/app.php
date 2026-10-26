@@ -75,6 +75,15 @@ return [
     'business_timezone' => env('APP_BUSINESS_TIMEZONE', 'Africa/Lagos'),
 
     /*
+    | The web dashboard's address: emails link to its sign-in page, and
+    | confirming an email address lands on its /email-verified page.
+    */
+    'frontend_url' => rtrim((string) env('FRONTEND_URL', 'http://localhost:5173'), '/'),
+
+    /* How long the link in an email-confirmation message works, in hours. */
+    'email_verification_hours' => (int) env('EMAIL_VERIFICATION_HOURS', 48),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

@@ -53,6 +53,13 @@ export function useRegister() {
   })
 }
 
+/** After signing up: send the email-confirmation link again. */
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: async () => unwrap(api.POST('/auth/email/resend')),
+  })
+}
+
 export function useLogout() {
   const queryClient = useQueryClient()
   const clear = useAuthStore((s) => s.clear)

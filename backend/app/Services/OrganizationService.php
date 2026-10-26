@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Facility;
 use App\Models\Organization;
 use App\Models\User;
+use App\Support\AccountMail;
 use App\Support\AuditLog;
 use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,8 @@ class OrganizationService
     /**
      * Self sign-up (POST /auth/register): a new organization on the free
      * plan, with the person signing up as its first admin on the password
-     * they chose. The owner upgrades it from the console once they pay.
+     * they chose. They're sent a link to confirm their email, and can do
+     * nothing else until they have (EnsureAccountUsable).
      *
      * @param  array{organization_name: string, name: string, email: string, password: string, phone?: string|null}  $data
      * @return array{Organization, User}
@@ -69,6 +71,7 @@ class OrganizationService
                 'must_change_password' => false,
             ]));
             AuditLog::record('organization.signed_up', "{$admin->name} ({$admin->email}) signed up {$organization->name} on the free plan", $organization, actor: $admin);
+            AccountMail::verifyEmail($admin);
 
             return [$organization, $admin];
         });

@@ -40,17 +40,22 @@ function RootNavigator() {
   const signedIn = session.status === 'signedIn';
   // A temporary password (new or reset account) must be replaced before the app opens; the API enforces it too.
   const mustChangePassword = signedIn && session.user.must_change_password;
+  // After signing up, the email has to be confirmed first; the API enforces it too.
+  const mustVerifyEmail = signedIn && !mustChangePassword && !session.user.email_verified;
 
   if (session.status === 'loading') return null;
   SplashScreen.hide();
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={signedIn && !mustChangePassword}>
+      <Stack.Protected guard={signedIn && !mustChangePassword && !mustVerifyEmail}>
         <Stack.Screen name="(app)" />
       </Stack.Protected>
       <Stack.Protected guard={mustChangePassword}>
         <Stack.Screen name="set-password" />
+      </Stack.Protected>
+      <Stack.Protected guard={mustVerifyEmail}>
+        <Stack.Screen name="verify-email" />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" />
