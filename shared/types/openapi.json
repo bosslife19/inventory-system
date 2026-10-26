@@ -765,6 +765,171 @@
                 }
             }
         },
+        "/billing/plans": {
+            "get": {
+                "operationId": "billing.plans",
+                "summary": "The tiers on offer, cheapest first",
+                "tags": [
+                    "Billing"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PlanTierResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PlanTierResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/billing/payments": {
+            "get": {
+                "operationId": "billing.payments",
+                "summary": "The organization's payments, newest first (the last 50)",
+                "tags": [
+                    "Billing"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PaymentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PaymentResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/billing/checkout": {
+            "post": {
+                "operationId": "billing.checkout",
+                "summary": "Start paying for a tier: send the admin to authorization_url (Paystack's\ncheckout). They come back to the web app's /billing page with\n?reference=\u2026, which then verifies the payment",
+                "tags": [
+                    "Billing"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CheckoutRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentResource"
+                                        },
+                                        "authorization_url": {
+                                            "type": "string",
+                                            "description": "Paystack's checkout page."
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "authorization_url"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/billing/payments/{reference}/verify": {
+            "post": {
+                "operationId": "billing.verify",
+                "summary": "Ask Paystack how a payment went and, if it succeeded, apply it (once). A finished payment is returned as it is",
+                "tags": [
+                    "Billing"
+                ],
+                "parameters": [
+                    {
+                        "name": "reference",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PaymentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/facilities/{facility}/delivery-notes": {
             "get": {
                 "operationId": "deliveryNote.index",
@@ -2535,6 +2700,55 @@
                 }
             }
         },
+        "/owner/organizations/{organization}/payments": {
+            "get": {
+                "operationId": "organization.payments",
+                "summary": "The organization's Paystack payments, newest first (the last 50)",
+                "tags": [
+                    "Organization"
+                ],
+                "parameters": [
+                    {
+                        "name": "organization",
+                        "in": "path",
+                        "required": true,
+                        "description": "The organization ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PaymentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PaymentResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/owner/organizations/{organization}/logo": {
             "post": {
                 "operationId": "organization.uploadLogo",
@@ -2905,6 +3119,190 @@
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/webhooks/paystack": {
+            "post": {
+                "operationId": "webhooks.paystackWebhook",
+                "tags": [
+                    "PaystackWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "received": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "received"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Invalid signature."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/owner/plan-tiers": {
+            "get": {
+                "operationId": "planTier.index",
+                "summary": "Every tier, withdrawn ones included, in the order they're offered",
+                "tags": [
+                    "PlanTier"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PlanTierResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PlanTierResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "planTier.store",
+                "tags": [
+                    "PlanTier"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavePlanTierRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PlanTierResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PlanTierResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/owner/plan-tiers/{planTier}": {
+            "put": {
+                "operationId": "planTier.update",
+                "summary": "Change a tier; a new price applies to checkouts from now on. is_active=false withdraws it from sale",
+                "tags": [
+                    "PlanTier"
+                ],
+                "parameters": [
+                    {
+                        "name": "planTier",
+                        "in": "path",
+                        "required": true,
+                        "description": "The plan tier ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SavePlanTierRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PlanTierResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PlanTierResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -6271,6 +6669,31 @@
                 ],
                 "title": "BatchStockResource"
             },
+            "CheckoutRequest": {
+                "type": "object",
+                "description": "POST /billing/checkout (the organization's admins).",
+                "properties": {
+                    "plan_tier_id": {
+                        "type": "integer",
+                        "description": "A tier on offer (GET /billing/plans)."
+                    },
+                    "months": {
+                        "type": "integer",
+                        "description": "How many months to pay for.",
+                        "enum": [
+                            1,
+                            3,
+                            6,
+                            12
+                        ]
+                    }
+                },
+                "required": [
+                    "plan_tier_id",
+                    "months"
+                ],
+                "title": "CheckoutRequest"
+            },
             "DeliveryNoteCollection": {
                 "type": "array",
                 "items": {
@@ -6917,6 +7340,39 @@
                         "description": "The plan in force today.",
                         "$ref": "#/components/schemas/Plan"
                     },
+                    "tier": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The paid tier in force today (its limits); null on the free plan, or a paid plan without limits.",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "max_facilities": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "max_accounts": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name",
+                            "max_facilities",
+                            "max_accounts"
+                        ]
+                    },
                     "paid_until": {
                         "type": [
                             "string",
@@ -6955,7 +7411,7 @@
                             "object",
                             "null"
                         ],
-                        "description": "The free plan's limits and what already uses them: the roles with an\nactive account (one each), and whether the one open facility exists.\nNull on the paid plan. For warnings only; the API re-checks (402).",
+                        "description": "The plan's limits and what already uses them. Free plan: the roles\nwith an active account (one each) and whether the one open facility\nexists. Paid tier: max_accounts (every role together) and\nmax_facilities, null where it has none. Null when the plan has no\nlimits at all. For warnings only; the API re-checks (402).",
                         "properties": {
                             "roles_in_use": {
                                 "type": "array",
@@ -6972,11 +7428,33 @@
                             },
                             "facility_in_use": {
                                 "type": "boolean"
+                            },
+                            "max_accounts": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "accounts_in_use": {
+                                "type": "integer"
+                            },
+                            "max_facilities": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "facilities_in_use": {
+                                "type": "integer"
                             }
                         },
                         "required": [
                             "roles_in_use",
-                            "facility_in_use"
+                            "facility_in_use",
+                            "max_accounts",
+                            "accounts_in_use",
+                            "max_facilities",
+                            "facilities_in_use"
                         ]
                     }
                 },
@@ -6985,6 +7463,7 @@
                     "name",
                     "logo_url",
                     "plan",
+                    "tier",
                     "paid_until",
                     "days_left",
                     "renewal_due",
@@ -7113,6 +7592,45 @@
                         "description": "The plan as set; see effective_plan for what applies today.",
                         "$ref": "#/components/schemas/Plan"
                     },
+                    "plan_tier_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "The paid tier (limits); null = no limits on the paid plan."
+                    },
+                    "plan_tier": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "max_facilities": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "max_accounts": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name",
+                            "max_facilities",
+                            "max_accounts"
+                        ]
+                    },
                     "paid_until": {
                         "type": [
                             "string",
@@ -7180,6 +7698,8 @@
                     "contact_phone",
                     "address",
                     "plan",
+                    "plan_tier_id",
+                    "plan_tier",
                     "paid_until",
                     "effective_plan",
                     "days_left",
@@ -7193,6 +7713,119 @@
                 ],
                 "title": "OrganizationResource"
             },
+            "PaymentResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "plan_tier": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
+                    "months": {
+                        "type": "integer"
+                    },
+                    "amount": {
+                        "type": "integer",
+                        "description": "Naira (amount_kobo / 100)."
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "pending = sent to Paystack, not finished (or not yet confirmed).",
+                        "enum": [
+                            "pending",
+                            "success",
+                            "failed",
+                            "abandoned"
+                        ]
+                    },
+                    "channel": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "How it was paid (card, bank_transfer, ussd, \u2026) once it succeeds."
+                    },
+                    "failure_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "paid_by": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Who started it; null if that account is gone."
+                    },
+                    "paid_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "period_start": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The days it paid for (Y-m-d), once it succeeds."
+                    },
+                    "period_end": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "credit_days": {
+                        "type": "integer",
+                        "description": "Days carried over from the previous tier and added to the end."
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "reference",
+                    "plan_tier",
+                    "months",
+                    "amount",
+                    "currency",
+                    "status",
+                    "channel",
+                    "failure_reason",
+                    "paid_by",
+                    "paid_at",
+                    "period_start",
+                    "period_end",
+                    "credit_days",
+                    "created_at"
+                ],
+                "title": "PaymentResource"
+            },
             "Plan": {
                 "type": "string",
                 "enum": [
@@ -7200,6 +7833,59 @@
                     "paid"
                 ],
                 "title": "Plan"
+            },
+            "PlanTierResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "monthly_price": {
+                        "type": "integer",
+                        "description": "Whole naira a month."
+                    },
+                    "max_facilities": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Open facilities (SDPs); null = no limit."
+                    },
+                    "max_accounts": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Active accounts, every role together; null = no limit."
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "description": "Offered to organizations; withdrawn tiers stay on organizations already on them until they lapse."
+                    },
+                    "sort_order": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "monthly_price",
+                    "max_facilities",
+                    "max_accounts",
+                    "is_active",
+                    "sort_order"
+                ],
+                "title": "PlanTierResource"
             },
             "ProductLevelResource": {
                 "type": "object",
@@ -7881,7 +8567,7 @@
             },
             "SaveOrganizationRequest": {
                 "type": "object",
-                "description": "POST /owner/organizations and PUT /owner/organizations/{organization}\n(the platform owner only \u2014 EnsureOwner). On update every field is\noptional. Creating may also make the organization's first admin account.",
+                "description": "POST /owner/organizations and PUT /owner/organizations/{organization}\r\n(the platform owner only \u2014 EnsureOwner). On update every field is\r\noptional. Creating may also make the organization's first admin account.",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -7918,6 +8604,13 @@
                     },
                     "plan": {
                         "$ref": "#/components/schemas/Plan"
+                    },
+                    "plan_tier_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "The paid tier whose limits apply; empty = no limits. Withdrawn tiers may still be set."
                     },
                     "paid_until": {
                         "type": [
@@ -7960,6 +8653,59 @@
                     "plan"
                 ],
                 "title": "SaveOrganizationRequest"
+            },
+            "SavePlanTierRequest": {
+                "type": "object",
+                "description": "POST /owner/plan-tiers and PUT /owner/plan-tiers/{planTier} (the platform\nowner only \u2014 EnsureOwner). On update every field is optional. A new price\napplies to checkouts from now on, never to payments already made.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "monthly_price": {
+                        "type": "integer",
+                        "description": "Whole naira a month.",
+                        "minimum": 100,
+                        "maximum": 100000000
+                    },
+                    "max_facilities": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Open facilities (SDPs); empty = no limit.",
+                        "minimum": 1
+                    },
+                    "max_accounts": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Active accounts, every role together; empty = no limit.",
+                        "minimum": 1
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "description": "False withdraws it from sale; organizations on it keep it until it lapses."
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000
+                    }
+                },
+                "required": [
+                    "name",
+                    "monthly_price"
+                ],
+                "title": "SavePlanTierRequest"
             },
             "SaveProductLevelsRequest": {
                 "type": "object",

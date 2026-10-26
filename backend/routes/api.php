@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AlertController;
 use App\Http\Controllers\Api\V1\AuditEventController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\DeliveryNoteController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\DispatchController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Owner\OrganizationAdminController;
 use App\Http\Controllers\Api\V1\Owner\OrganizationController;
+use App\Http\Controllers\Api\V1\Owner\PlanTierController;
 use App\Http\Controllers\Api\V1\Owner\PlatformController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductLevelController;
@@ -25,6 +27,7 @@ use App\Http\Controllers\Api\V1\StockActivityController;
 use App\Http\Controllers\Api\V1\StockBalanceController;
 use App\Http\Controllers\Api\V1\StockTransactionController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\Webhooks\PaystackWebhookController;
 use App\Http\Middleware\EnsureAccountUsable;
 use App\Http\Middleware\EnsureOrganizationMember;
 use App\Http\Middleware\EnsureOwner;
@@ -41,6 +44,7 @@ Route::prefix('v1')->group(function () {
     Route::get('platform', [PlatformController::class, 'show']);
     Route::get('platform/logo/{file}', [PlatformController::class, 'logo']);
     Route::get('organizations/{organization}/logo/{file}', [OrganizationController::class, 'logo']);
+    Route::post('webhooks/paystack', PaystackWebhookController::class);
 
     // Every signed-in account, the platform owner included.
     Route::middleware(['auth:sanctum', EnsureAccountUsable::class])->group(function () {
@@ -55,9 +59,14 @@ Route::prefix('v1')->group(function () {
         Route::post('platform/logo', [PlatformController::class, 'uploadLogo']);
         Route::delete('platform/logo', [PlatformController::class, 'deleteLogo']);
 
+        Route::get('plan-tiers', [PlanTierController::class, 'index']);
+        Route::post('plan-tiers', [PlanTierController::class, 'store']);
+        Route::put('plan-tiers/{planTier}', [PlanTierController::class, 'update']);
+
         Route::get('organizations', [OrganizationController::class, 'index']);
         Route::post('organizations', [OrganizationController::class, 'store']);
         Route::get('organizations/{organization}', [OrganizationController::class, 'show']);
+        Route::get('organizations/{organization}/payments', [OrganizationController::class, 'payments']);
         Route::put('organizations/{organization}', [OrganizationController::class, 'update']);
         Route::post('organizations/{organization}/logo', [OrganizationController::class, 'uploadLogo']);
         Route::delete('organizations/{organization}/logo', [OrganizationController::class, 'deleteLogo']);
@@ -73,6 +82,12 @@ Route::prefix('v1')->group(function () {
     // An organization's own data: its members only, run as that organization (Tenant).
     Route::middleware(['auth:sanctum', EnsureAccountUsable::class, EnsureOrganizationMember::class, ScopeToHierarchy::class])->group(function () {
         Route::post('users/me/fcm-token', [DeviceTokenController::class, 'store']);
+
+        // Paying for a plan tier through Paystack (admins; web only).
+        Route::get('billing/plans', [BillingController::class, 'plans']);
+        Route::get('billing/payments', [BillingController::class, 'payments']);
+        Route::post('billing/checkout', [BillingController::class, 'checkout'])->middleware('throttle:10,1');
+        Route::post('billing/payments/{reference}/verify', [BillingController::class, 'verify'])->middleware('throttle:30,1');
 
         Route::get('states', [StateController::class, 'index']);
         Route::get('states/{state}/lgas', [LgaController::class, 'index']);

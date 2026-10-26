@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Owner;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SaveOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
+use App\Http\Resources\PaymentResource;
 use App\Http\Resources\UserResource;
 use App\Models\Organization;
 use App\Services\OrganizationService;
@@ -22,6 +23,7 @@ class OrganizationController extends Controller
     {
         return OrganizationResource::collection(
             Organization::query()
+                ->with('tier')
                 ->withCount(['admins', 'users', 'facilities' => fn ($q) => $q->whereNull('store_level')])
                 ->latest('id')
                 ->get()
@@ -31,6 +33,12 @@ class OrganizationController extends Controller
     public function show(Organization $organization): OrganizationResource
     {
         return OrganizationResource::make($organization);
+    }
+
+    /** The organization's Paystack payments, newest first (the last 50). */
+    public function payments(Organization $organization): AnonymousResourceCollection
+    {
+        return PaymentResource::collection($organization->payments()->with(['tier', 'user'])->latest('id')->limit(50)->get());
     }
 
     /** Set up an organization: its stores are created, and its first admin when given (temporary password returned once). */

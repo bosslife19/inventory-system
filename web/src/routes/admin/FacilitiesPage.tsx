@@ -8,7 +8,7 @@ import { LockedAction } from '../../components/plan/Paid'
 import { Modal } from '../../components/ui/Modal'
 import { useLgaFacilities, useLgas, useSaveFacility } from '../../lib/admin-queries'
 import { fieldErrors } from '../../lib/api-client'
-import { facilityInUse } from '../../lib/plan'
+import { facilitiesFull, onPaidPlan } from '../../lib/plan'
 import { useStates } from '../../lib/queries'
 import type { Facility, FacilityType } from '../../lib/types'
 import { useUser } from '../../lib/user-context'
@@ -35,7 +35,9 @@ export function FacilitiesPage() {
   const facilities = useLgaFacilities(lgaId)
   const [editing, setEditing] = useState<Facility | 'new' | null>(null)
   const lga = lgas.data?.find((l) => l.id === lgaId)
-  const atLimit = facilityInUse(useUser()) // free plan: its one open facility exists
+  const user = useUser()
+  const atLimit = facilitiesFull(user) // free plan: its one facility; paid tier: its max_facilities
+  const max = user.organization?.limits?.max_facilities
 
   return (
     <div className="stack">
@@ -59,7 +61,11 @@ export function FacilitiesPage() {
               label="New facility"
               icon={<Plus size={18} />}
               className="btn btn-primary"
-              reason="The free plan has one open facility, and yours is already set up. Close it to add a different one."
+              reason={
+                onPaidPlan(user)
+                  ? `Your ${user.organization?.tier?.name ?? ''} plan allows ${max} open facilities, and they’re all in use. Close one, or move to a bigger plan.`
+                  : 'The free plan has one open facility, and yours is already set up. Close it to add a different one.'
+              }
             />
           ) : (
             <button type="button" className="btn btn-primary" disabled={!lgaId} onClick={() => setEditing('new')} title={lgaId ? undefined : 'Choose an LGA first'}>
@@ -166,8 +172,9 @@ export function FacilitiesPage() {
 
 function FacilityForm({ facility, lgaId, onDone }: { facility?: Facility; lgaId: number; onDone: () => void }) {
   const save = useSaveFacility()
-  // Free plan: a closed facility can't reopen while another is open.
-  const atLimit = facilityInUse(useUser())
+  // At the plan's limit, a closed facility can't reopen until another closes.
+  const user = useUser()
+  const atLimit = facilitiesFull(user)
   const cantReopen = !!facility && !facility.is_active && atLimit
   const [f, setF] = useState({
     name: facility?.name ?? '',
@@ -251,7 +258,9 @@ function FacilityForm({ facility, lgaId, onDone }: { facility?: Facility; lgaId:
             Open
             <small>
               {cantReopen
-                ? 'The free plan has one open facility, and another is open. Close it first to reopen this one.'
+                ? onPaidPlan(user)
+                  ? 'Your plan’s open facilities are all in use. Close another first, or move to a bigger plan, to reopen this one.'
+                  : 'The free plan has one open facility, and another is open. Close it first to reopen this one.'
                 : 'Untick to close it: no new Stock Card entries; its history and accounts stay.'}
             </small>
           </span>

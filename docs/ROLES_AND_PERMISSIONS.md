@@ -63,7 +63,9 @@ From the owner console they:
 
 - set up an organization (details, logo, plan) and its first admin, on a
   temporary password they hand over; the admins then create everyone else;
-- record payment by setting the plan and its last day (`paid_until`);
+- set the paid plan tiers (price per month, facility and account limits);
+- record a payment made outside Paystack by setting the plan, tier and its
+  last day (`paid_until`);
 - suspend an organization (its members are signed out and can't sign in);
 - reset an admin's password, or deactivate / reactivate an admin;
 - set the platform's own name, tagline and logo, shown on the sign-in
@@ -80,7 +82,16 @@ LGA officer, one facility staff) and **one open facility (SDP)**. Stores
 don't count toward the facility limit. Deactivating an account or closing
 the facility frees its place; an organization already past a limit (say, a
 lapsed paid plan) keeps what it has but can't add more. The owner console
-isn't limited. Paid adds:
+isn't limited.
+
+**Paid tiers.** The paid plan comes in tiers the owner sets (seeded:
+Starter, Standard, Enterprise), each a monthly price with a cap on **open
+facilities (SDPs)** and on **active accounts — every role together**
+(null = no limit). Every tier unlocks all the paid features below; past a
+cap, adding answers 402 `plan_limit_reached`, with the same keep-what-you-have
+rule as the free plan. A paid plan set by the owner without a tier has no
+limits. Organization **admins** (only) pay on the web Billing page through
+Paystack for 1, 3, 6 or 12 months; there's no automatic renewal. Paid adds:
 
 | Feature | What it unlocks |
 |---|---|
@@ -92,9 +103,10 @@ isn't limited. Paid adds:
 | `bulk_imports` | CSV imports |
 
 Anyone can sign up (`POST /auth/register`, web `/signup` or the app's sign-up screen): that creates a
-new organization on the free plan with them as its admin. When they pay,
-the owner switches it to paid (with a `paid_until`) in the owner console.
+new organization on the free plan with them as its admin. Its admin
+upgrades it on the Billing page (or the owner switches it to paid in the
+owner console after payment made another way).
 
 A paid plan past its last day falls back to free; nothing is deleted and
-everything unlocks again when the owner extends it. Members see a renewal
+everything unlocks again when it's paid for again. Members see a renewal
 notice from 14 days before the end.

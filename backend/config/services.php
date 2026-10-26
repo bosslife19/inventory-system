@@ -44,4 +44,17 @@ return [
         'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase-credentials.json')),
     ],
 
+    /*
+    | Paystack, for organizations paying for a plan tier on the web
+    | (BillingService). Use the test secret key (sk_test_…) until going live;
+    | the same key signs webhooks. callback_url is the web app's /billing
+    | page, where Paystack sends the admin back after paying. Without a
+    | secret key, checkout answers 503.
+    */
+    'paystack' => [
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+        'callback_url' => env('PAYSTACK_CALLBACK_URL', 'http://localhost:5173/billing'),
+    ],
+
 ];

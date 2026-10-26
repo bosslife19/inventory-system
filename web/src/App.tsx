@@ -10,6 +10,7 @@ import { FacilitiesPage } from './routes/admin/FacilitiesPage'
 import { ProductsPage } from './routes/admin/ProductsPage'
 import { UsersPage } from './routes/admin/UsersPage'
 import { AlertsPage } from './routes/alerts/AlertsPage'
+import { BillingPage } from './routes/billing/BillingPage'
 import { DeliveryNotesPage } from './routes/delivery-notes/DeliveryNotesPage'
 import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
@@ -17,6 +18,7 @@ import { LoginPage } from './routes/login/LoginPage'
 import { SignupPage } from './routes/login/SignupPage'
 import { OrganizationPage } from './routes/owner/OrganizationPage'
 import { OrganizationsPage } from './routes/owner/OrganizationsPage'
+import { PlansPage } from './routes/owner/PlansPage'
 import { PlatformPage } from './routes/owner/PlatformPage'
 import { ReportsPage } from './routes/reports/ReportsPage'
 import { FacilityPage } from './routes/sdp/FacilityPage'
@@ -97,6 +99,13 @@ function Levels() {
   return <StockLevelsPage key={facilityId} facilityId={facilityId} user={user} />
 }
 
+/** Paying for the organization's plan (admins only; Paystack, web only). */
+function Billing() {
+  const user = useUser()
+  if (user.role !== 'admin' || !user.organization) return <Navigate to={homePath(user)} replace />
+  return <BillingPage user={user} />
+}
+
 function Reports() {
   return <ReportsPage user={useUser()} />
 }
@@ -105,8 +114,8 @@ function Account() {
   return <AccountPage user={useUser()} />
 }
 
-/** The owner's console: organizations and the platform's branding, for the platform owner only. */
-function Owner({ page }: { page: 'organizations' | 'organization' | 'platform' }) {
+/** The owner's console: organizations, plan tiers and the platform's branding, for the platform owner only. */
+function Owner({ page }: { page: 'organizations' | 'organization' | 'plans' | 'platform' }) {
   const user = useUser()
   const id = Number(useParams().id)
   if (user.role !== 'owner') return <Navigate to={homePath(user)} replace />
@@ -116,6 +125,8 @@ function Owner({ page }: { page: 'organizations' | 'organization' | 'platform' }
       return <OrganizationsPage />
     case 'organization':
       return <OrganizationPage key={id} id={id} />
+    case 'plans':
+      return <PlansPage />
     case 'platform':
       return <PlatformPage />
   }
@@ -153,6 +164,7 @@ export default function App() {
         <Route path="/levels" element={<Levels />} />
         <Route path="/facilities/:id/levels" element={<Levels />} />
         <Route path="/admin/facilities" element={<Admin page="facilities" />} />
+        <Route path="/billing" element={<Billing />} />
         <Route path="/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id/delivery-notes" element={<Deliveries />} />
         <Route path="/facilities/:id" element={<ById page="facility" />} />
@@ -160,6 +172,7 @@ export default function App() {
         <Route path="/states/:id" element={<ById page="state" />} />
         <Route path="/owner" element={<Owner page="organizations" />} />
         <Route path="/owner/organizations/:id" element={<Owner page="organization" />} />
+        <Route path="/owner/plans" element={<Owner page="plans" />} />
         <Route path="/owner/platform" element={<Owner page="platform" />} />
         <Route path="*" element={<div className="page-state">Page not found.</div>} />
       </Route>

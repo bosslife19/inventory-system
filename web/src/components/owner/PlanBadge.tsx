@@ -15,7 +15,8 @@ export function PlanBadge({ organization: o }: { organization: Organization }) {
 
   return (
     <span className={`badge ${due ? 'badge-warning' : 'badge-ok'}`}>
-      Paid{o.paid_until ? ` · to ${formatDate(o.paid_until)}` : ''}
+      {o.plan_tier?.name ?? 'Paid'}
+      {o.paid_until ? ` · to ${formatDate(o.paid_until)}` : ''}
     </span>
   )
 }

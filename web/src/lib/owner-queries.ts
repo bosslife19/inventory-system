@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api, unwrap } from './api-client'
 import { useAuthStore } from './auth-store'
-import type { NewOrganization, Organization, Platform } from './types'
+import type { NewOrganization, NewPlanTier, Organization, Platform } from './types'
 
 // The platform's branding (public) and the owner's console
 // (docs/API_CONTRACT.md: Platform, Owner console).
@@ -90,6 +90,34 @@ export function useResetAdminPassword(id: number) {
           params: { path: { organization: id, user: userId } },
         }),
       ),
+  })
+}
+
+export function useOrganizationPayments(id: number) {
+  return useQuery({
+    queryKey: ['organizations', id, 'payments'],
+    queryFn: async () =>
+      (await unwrap(api.GET('/owner/organizations/{organization}/payments', { params: { path: { organization: id } } }))).data,
+  })
+}
+
+/** Every paid plan tier, withdrawn ones included. */
+export function usePlanTiers() {
+  return useQuery({
+    queryKey: ['plan-tiers'],
+    queryFn: async () => (await unwrap(api.GET('/owner/plan-tiers'))).data,
+  })
+}
+
+/** Add a tier (no id) or change one. */
+export function useSavePlanTier(id?: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: NewPlanTier) =>
+      id
+        ? (await unwrap(api.PUT('/owner/plan-tiers/{planTier}', { params: { path: { planTier: id } }, body }))).data
+        : (await unwrap(api.POST('/owner/plan-tiers', { body }))).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plan-tiers'] }),
   })
 }
 

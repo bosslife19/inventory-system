@@ -4,7 +4,7 @@ import { useCreateUser, useLgaFacilities, useLgas, useUpdateUser } from '../../l
 import { fieldErrors } from '../../lib/api-client'
 import { manageableRoles } from '../../lib/auth'
 import { ROLE_LABEL } from '../../lib/format'
-import { roleInUse } from '../../lib/plan'
+import { accountsFull, roleInUse } from '../../lib/plan'
 import { useStates } from '../../lib/queries'
 import type { User, UserRole } from '../../lib/types'
 import { Field } from '../form/Field'
@@ -29,7 +29,10 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
   const roles = manageableRoles(me)
   // Free plan: one active account per role. A deactivated account can be edited freely; it doesn't hold a place.
   const inUse = (r: UserRole) => (user && !user.is_active ? false : roleInUse(me, r, user))
-  const limited = !!me.organization?.limits
+  const limits = me.organization?.limits
+  const onFree = me.organization?.plan === 'free'
+  // Paid tier: creating, or bringing back a deactivated account, needs a free place.
+  const noPlace = accountsFull(me) && !(user && user.is_active)
   const states = useStates()
   const create = useCreateUser()
   const update = useUpdateUser()
@@ -180,13 +183,20 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
       {inUse(role) ? (
         <p className="form-error" role="alert">
           <AlertCircle size={16} /> The free plan has one active {ROLE_LABEL[role].toLowerCase()} account, and it’s already in use.
-          Deactivate it first, or ask the platform owner to upgrade your organization.
+          Deactivate it first, or upgrade your organization on the Billing page.
+        </p>
+      ) : noPlace && !user ? (
+        <p className="form-error" role="alert">
+          <AlertCircle size={16} /> Your plan’s {limits?.max_accounts} active accounts are all in use. Deactivate one first, or move to a
+          bigger plan.
         </p>
       ) : (
-        limited &&
+        limits &&
         !user && (
           <p className="muted small" style={{ margin: 0 }}>
-            Free plan: one active account per role.
+            {onFree
+              ? 'Free plan: one active account per role.'
+              : `Your plan: ${limits.accounts_in_use} of ${limits.max_accounts} active accounts in use.`}
           </p>
         )
       )}
@@ -207,7 +217,7 @@ export function UserForm({ me, user, onCreated, onSaved, onCancel }: Props) {
         <button type="button" className="btn btn-ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="btn btn-primary" disabled={pending || inUse(role)}>
+        <button type="submit" className="btn btn-primary" disabled={pending || inUse(role) || (noPlace && !user)}>
           {user ? <Save size={16} /> : <UserPlus size={16} />} {pending ? 'Saving…' : user ? 'Save changes' : 'Create account'}
         </button>
       </div>

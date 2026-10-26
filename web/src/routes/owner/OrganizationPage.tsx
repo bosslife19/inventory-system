@@ -1,7 +1,8 @@
-import { ArrowLeft, Ban, Building, KeyRound, Mail, MapPin, Pencil, Phone, PlayCircle, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, Ban, Building, KeyRound, Mail, MapPin, Pencil, Phone, PlayCircle, Receipt, UserPlus, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { TemporaryPassword } from '../../components/admin/TemporaryPassword'
+import { PaymentTable } from '../../components/billing/PaymentTable'
 import { Field } from '../../components/form/Field'
 import { ErrorState, Loading } from '../../components/layout/PageState'
 import { LogoUpload } from '../../components/owner/LogoUpload'
@@ -15,6 +16,7 @@ import {
   useAddOrganizationAdmin,
   useOrganization,
   useOrganizationAdmins,
+  useOrganizationPayments,
   useResetAdminPassword,
   useSetAdminActive,
   useUpdateOrganization,
@@ -28,6 +30,7 @@ import type { Feature, User } from '../../lib/types'
 export function OrganizationPage({ id }: { id: number }) {
   const org = useOrganization(id)
   const admins = useOrganizationAdmins(id)
+  const payments = useOrganizationPayments(id)
   const update = useUpdateOrganization(id)
   const setActive = useSetAdminActive(id)
   const reset = useResetAdminPassword(id)
@@ -90,6 +93,7 @@ export function OrganizationPage({ id }: { id: number }) {
             <div>
               <h2>Plan</h2>
               <p>
+                {o.effective_plan === 'paid' && o.plan_tier ? `${o.plan_tier.name} · ` : ''}
                 {o.effective_plan === 'paid'
                   ? o.paid_until
                     ? `Paid to ${formatDate(o.paid_until)} — ${o.days_left} day${o.days_left === 1 ? '' : 's'} left`
@@ -108,7 +112,10 @@ export function OrganizationPage({ id }: { id: number }) {
             ))}
           </ul>
           <p className="muted small" style={{ margin: '0.75rem 0 0' }}>
-            {o.facility_count} facilities · {o.user_count} accounts. To renew, edit the plan and move “Paid until” on.
+            {o.facility_count} facilities
+            {o.plan_tier?.max_facilities != null ? ` (of ${o.plan_tier.max_facilities})` : ''} · {o.user_count} accounts
+            {o.plan_tier?.max_accounts != null ? ` (${o.plan_tier.max_accounts} may be active)` : ''}. They pay online on their Billing page;
+            to record a payment made another way, edit the plan and move “Paid until” on.
           </p>
           {o.notes && <p className="owner-notes">{o.notes}</p>}
         </section>
@@ -196,6 +203,27 @@ export function OrganizationPage({ id }: { id: number }) {
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+
+      <section className="card card-flush">
+        <div className="card-head">
+          <div>
+            <h2>Payments</h2>
+            <p>Paid online through Paystack, newest first</p>
+          </div>
+        </div>
+        {payments.isError ? (
+          <ErrorState error={payments.error} />
+        ) : payments.isPending ? (
+          <Loading />
+        ) : payments.data.length === 0 ? (
+          <div className="page-state" style={{ padding: '2.5rem 1rem' }}>
+            <Receipt size={28} aria-hidden />
+            No online payments yet.
+          </div>
+        ) : (
+          <PaymentTable payments={payments.data} />
         )}
       </section>
 

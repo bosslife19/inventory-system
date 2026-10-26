@@ -8,6 +8,7 @@ use App\Models\Facility;
 use App\Models\User;
 use App\Services\UserAdminService;
 use App\Support\HierarchyScope;
+use App\Support\PlanLimits;
 use Illuminate\Auth\Access\Response;
 
 /**
@@ -67,6 +68,7 @@ class UserImporter extends Importer
         };
 
         $request = $this->validate(StoreUserRequest::class, $data, $user);
+        PlanLimits::ensureAccountAllowed($user->organization, UserRole::from($request->validated('role')));
         [$created, $password] = $this->admin->create($request->validated(), $user, $request->input('temporary_password'));
 
         return ['label' => "{$created->name} ({$created->email})", 'temporary_password' => $password];

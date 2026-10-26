@@ -1,7 +1,8 @@
 import { AlertCircle, Save } from 'lucide-react'
 import { useState } from 'react'
 import { fieldErrors } from '../../lib/api-client'
-import { useCreateOrganization, useUpdateOrganization } from '../../lib/owner-queries'
+import { formatNaira } from '../../lib/format'
+import { useCreateOrganization, usePlanTiers, useUpdateOrganization } from '../../lib/owner-queries'
 import type { Organization, Plan, User } from '../../lib/types'
 import { Field } from '../form/Field'
 
@@ -15,8 +16,9 @@ interface Props {
 
 /**
  * An organization's details and plan. Setting one up can also make its first
- * admin, whose temporary password comes back once. Payment is arranged
- * outside the system; recording it is setting the plan and its last day.
+ * admin, whose temporary password comes back once. Organizations pay
+ * online on their Billing page; a payment made another way is recorded here
+ * by setting the plan, its tier and its last day.
  */
 export function OrganizationForm({ organization: o, onCreated, onSaved, onCancel }: Props) {
   const create = useCreateOrganization()
@@ -27,6 +29,8 @@ export function OrganizationForm({ organization: o, onCreated, onSaved, onCancel
   const [contactPhone, setContactPhone] = useState(o?.contact_phone ?? '')
   const [address, setAddress] = useState(o?.address ?? '')
   const [plan, setPlan] = useState<Plan>(o?.plan ?? 'paid')
+  const [tierId, setTierId] = useState<number | null>(o?.plan_tier_id ?? null)
+  const tiers = usePlanTiers()
   const [paidUntil, setPaidUntil] = useState(o?.paid_until ?? '')
   const [notes, setNotes] = useState(o?.notes ?? '')
   const [adminName, setAdminName] = useState('')
@@ -52,6 +56,7 @@ export function OrganizationForm({ organization: o, onCreated, onSaved, onCancel
       contact_phone: contactPhone.trim() || null,
       address: address.trim() || null,
       plan,
+      plan_tier_id: plan === 'paid' ? tierId : null,
       paid_until: plan === 'paid' && paidUntil ? paidUntil : null,
       notes: notes.trim() || null,
     }
@@ -91,12 +96,25 @@ export function OrganizationForm({ organization: o, onCreated, onSaved, onCancel
       </div>
 
       <div className="field-row">
-        <Field label="Plan" error={errors.plan} hint="Free: Stock Cards, alerts, reports, accounts. Paid adds dashboards, dispatches, reorder requests, scanning, push and imports.">
+        <Field label="Plan" error={errors.plan} hint="Free: one facility, one account per role. Paid adds dispatches, reorder requests, scanning, push and imports.">
           <select value={plan} onChange={(e) => setPlan(e.target.value as Plan)}>
             <option value="paid">Paid</option>
             <option value="free">Free</option>
           </select>
         </Field>
+        <Field label="Tier" error={errors.plan_tier_id} hint={plan === 'paid' ? 'Its facility and account limits.' : 'Only for the paid plan.'}>
+          <select value={tierId ?? ''} disabled={plan !== 'paid'} onChange={(e) => setTierId(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">No limits</option>
+            {tiers.data?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} — {formatNaira(t.monthly_price)}/month{t.is_active ? '' : ' (withdrawn)'}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div className="field-row">
         <Field label="Paid until" error={errors.paid_until} hint={plan === 'paid' ? 'Last day of the paid plan. Leave empty for no end date.' : 'Only for the paid plan.'}>
           <input type="date" value={paidUntil} disabled={plan !== 'paid'} onChange={(e) => setPaidUntil(e.target.value)} />
         </Field>

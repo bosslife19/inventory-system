@@ -28,6 +28,12 @@ class OrganizationResource extends JsonResource
             'address' => $this->address,
             /** The plan as set; see effective_plan for what applies today. */
             'plan' => $this->plan,
+            /** The paid tier (limits); null = no limits on the paid plan. */
+            'plan_tier_id' => $this->plan_tier_id,
+            /** @var array{id: int, name: string, max_facilities: int|null, max_accounts: int|null}|null */
+            'plan_tier' => $this->tier ? [
+                'id' => $this->tier->id, 'name' => $this->tier->name, 'max_facilities' => $this->tier->max_facilities, 'max_accounts' => $this->tier->max_accounts,
+            ] : null,
             /** Last day of the paid plan (Y-m-d); null = no end date. */
             'paid_until' => $this->paid_until?->toDateString(),
             /** "free" once a paid plan has passed its last day. */

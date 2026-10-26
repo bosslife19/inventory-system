@@ -24,6 +24,8 @@ class SaveOrganizationRequest extends FormRequest
             'contact_phone' => ['nullable', 'string', 'max:30'],
             'address' => ['nullable', 'string', 'max:500'],
             'plan' => [$required, Rule::enum(Plan::class)],
+            /** The paid tier whose limits apply; empty = no limits. Withdrawn tiers may still be set. */
+            'plan_tier_id' => ['nullable', 'integer', Rule::exists('plan_tiers', 'id')],
             /** Last day of the paid plan (Y-m-d); leave empty for no end date. */
             'paid_until' => ['nullable', 'date_format:Y-m-d'],
             /** Suspending signs every member out and stops them signing in. Nothing is deleted. */

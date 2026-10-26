@@ -7,13 +7,15 @@ use App\Enums\Plan;
 use App\Enums\UserRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A partner using the system: its own facilities, stores, catalog and
  * accounts, kept apart from every other organization's. The platform owner
- * creates it, uploads its logo and sets its plan; paying is arranged
- * outside the system, and the plan runs to paid_until (null: no end date).
+ * creates it, uploads its logo and sets its plan; its admins can also pay
+ * for a plan tier through Paystack (BillingService). The paid plan runs to
+ * paid_until (null: no end date), within its tier's limits (no tier: none).
  */
 class Organization extends Model
 {
@@ -21,7 +23,7 @@ class Organization extends Model
     public const RENEWAL_WARNING_DAYS = 14;
 
     protected $fillable = [
-        'name', 'logo_path', 'contact_name', 'contact_email', 'contact_phone', 'address', 'plan', 'paid_until', 'is_active', 'notes',
+        'name', 'logo_path', 'contact_name', 'contact_email', 'contact_phone', 'address', 'plan', 'plan_tier_id', 'paid_until', 'is_active', 'notes',
     ];
 
     protected $attributes = [
@@ -51,6 +53,23 @@ class Organization extends Model
     public function facilities(): HasMany
     {
         return $this->hasMany(Facility::class);
+    }
+
+    /** The paid tier as set; see effectiveTier() for what applies today. */
+    public function tier(): BelongsTo
+    {
+        return $this->belongsTo(PlanTier::class, 'plan_tier_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /** The tier whose limits apply today: none on the free plan, or on a paid plan without one (no limits). */
+    public function effectiveTier(): ?PlanTier
+    {
+        return $this->effectivePlan() === Plan::Paid ? $this->tier : null;
     }
 
     /** The plan in force today: a paid plan past its last day is free again. Nothing is deleted either way. */
@@ -91,7 +110,7 @@ class Organization extends Model
     }
 
     /** Plans run by the business day (Lagos), not by UTC. */
-    private static function today(): CarbonImmutable
+    public static function today(): CarbonImmutable
     {
         return CarbonImmutable::now(config('app.business_timezone'))->startOfDay();
     }

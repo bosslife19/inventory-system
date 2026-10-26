@@ -1,4 +1,4 @@
-import { Building, LogOut, Menu, Palette } from 'lucide-react'
+import { Building, CreditCard, LogOut, Menu, Palette } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useLogout } from '../../lib/auth'
@@ -8,7 +8,7 @@ import { Brand } from './Brand'
 
 /**
  * The platform owner's console: the same shell as everyone else's, with
- * organizations and the platform's branding in place of the Stock Card
+ * organizations, plan tiers and the platform's branding in place of the Stock Card
  * screens — the owner sees no organization's data.
  */
 export function OwnerShell({ user }: { user: User }) {
@@ -27,6 +27,9 @@ export function OwnerShell({ user }: { user: User }) {
         <nav className="nav">
           <NavLink to="/owner" end onClick={close}>
             <Building size={18} /> <span className="nav-text">Organizations</span>
+          </NavLink>
+          <NavLink to="/owner/plans" onClick={close}>
+            <CreditCard size={18} /> <span className="nav-text">Plans & prices</span>
           </NavLink>
           <NavLink to="/owner/platform" onClick={close}>
             <Palette size={18} /> <span className="nav-text">Your branding</span>

@@ -1,4 +1,4 @@
-import { Bell, Building2, ChevronRight, ClipboardList, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Truck, UserCog, Warehouse } from 'lucide-react'
+import { Bell, Building2, ChevronRight, ClipboardList, CreditCard, FileText, Gauge, History, LayoutDashboard, ListChecks, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, Truck, UserCog, Warehouse } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
 import { homePath, manageableRoles, useLogout } from '../../lib/auth'
@@ -133,6 +133,11 @@ export function AppShell({ user }: { user: User }) {
               {user.role === 'admin' && (
                 <NavLink to="/admin/facilities" onClick={close}>
                   <Building2 size={18} /> <span className="nav-text">Facilities</span>
+                </NavLink>
+              )}
+              {user.role === 'admin' && (
+                <NavLink to="/billing" onClick={close}>
+                  <CreditCard size={18} /> <span className="nav-text">Billing</span>
                 </NavLink>
               )}
             </nav>

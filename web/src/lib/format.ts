@@ -132,3 +132,6 @@ export function formatDate(iso: string | null | undefined): string {
 }
 
 export const formatQty = (n: number) => n.toLocaleString('en-NG')
+
+/** 25000 -> '₦25,000' (whole naira). */
+export const formatNaira = (n: number) => `₦${n.toLocaleString('en-NG')}`

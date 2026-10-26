@@ -27,6 +27,23 @@ export function facilityInUse(user: User): boolean {
   return user.organization?.limits?.facility_in_use ?? false
 }
 
+/** Paid tier: every active account it allows is in use (any role). */
+export function accountsFull(user: User): boolean {
+  const l = user.organization?.limits
+  return l?.max_accounts != null && l.accounts_in_use >= l.max_accounts
+}
+
+/** Free plan or paid tier: every open facility it allows is in use. */
+export function facilitiesFull(user: User): boolean {
+  const l = user.organization?.limits
+  return l?.max_facilities != null && l.facilities_in_use >= l.max_facilities
+}
+
+/** On the paid plan: limits come from its tier, and upgrading means a bigger tier. */
+export function onPaidPlan(user: User): boolean {
+  return user.organization?.plan === 'paid'
+}
+
 export function isOwner(user: User): boolean {
   return user.role === 'owner'
 }

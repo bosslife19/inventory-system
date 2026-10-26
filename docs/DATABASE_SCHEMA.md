@@ -13,19 +13,36 @@ States and LGAs are shared reference data. The platform owner (role
 `owner`) sets organizations up and belongs to none of them.
 
 **organizations**
-`id, name, logo_path (nullable), contact_name, contact_email, contact_phone, address (all nullable), plan (enum: free|paid, default free), paid_until (nullable date), is_active (bool, default true), notes (nullable text), created_at, updated_at`
+`id, name, logo_path (nullable), contact_name, contact_email, contact_phone, address (all nullable), plan (enum: free|paid, default free), plan_tier_id (nullable fk plan_tiers), paid_until (nullable date), is_active (bool, default true), notes (nullable text), created_at, updated_at`
 
 > Organizations come from the owner console or from self sign-up
 > (always `plan = free`, contact fields from the person signing up).
 >
 > `paid_until` is the last day of the paid plan in business time
 > (Africa/Lagos); null = no end date. A paid plan past that day is treated
-> as free (nothing is deleted). Payment happens outside the system; the
-> owner records it by setting `plan` / `paid_until`. `is_active = false`
+> as free (nothing is deleted). Admins pay through Paystack (`payments`
+> below), or the owner records a payment made another way by setting
+> `plan` / `plan_tier_id` / `paid_until`. `plan_tier_id` null on the paid
+> plan means no limits (organizations paid before tiers existed). `is_active = false`
 > suspends the organization: its members can't sign in and their tokens
 > stop working. `notes` are the owner's own and never shown to the
 > organization. `logo_path` is on the local disk under `logos/`, a new
 > random file name per upload.
+
+**plan_tiers** (what the paid plan costs and allows; set by the owner)
+`id, name, description (nullable), monthly_price (unsigned int, whole naira), max_facilities (nullable: open SDPs), max_accounts (nullable: active accounts, every role), is_active (bool: on offer), sort_order, created_at, updated_at`
+
+> Every tier unlocks the same paid features; null limit = none. Never
+> deleted — payments point at them; `is_active = false` withdraws one.
+> The migration seeds Starter (₦25,000: 5 / 15), Standard (₦75,000: 25 / 75)
+> and Enterprise (₦200,000: no limits) for the owner to adjust.
+
+**payments** (Paystack checkouts for a tier)
+`id, organization_id (fk), plan_tier_id (fk), user_id (nullable fk: the admin who paid), reference (unique, ours), months (1|3|6|12), amount_kobo (fixed at checkout), currency (NGN), status (enum: pending|success|failed|abandoned), channel (nullable), gateway_id (nullable: Paystack's transaction id), failure_reason (nullable), paid_at (nullable), period_start, period_end (nullable dates, set on success), credit_days (days carried over from another tier), created_at, updated_at`
+
+> Settled from Paystack's own record (verify on the way back, or the
+> signed webhook), under a row lock, only from `pending`, and only to
+> `success` when amount and currency match — so it's applied once.
 
 **platform_settings** (the owner's own branding, shown beside each organization's)
 `key (string, primary), value (nullable text)` — keys `name`, `tagline`, `logo_path`.

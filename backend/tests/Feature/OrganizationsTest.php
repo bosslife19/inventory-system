@@ -186,6 +186,7 @@ it('allows one active account per role on the free plan', function () {
     // The fixture already has one of each role (federal, state, LGA, facility staff, admin), and clients are told so.
     $this->getJson('/api/v1/auth/me')->assertJsonPath('data.organization.limits', [
         'roles_in_use' => ['admin', 'federal_officer', 'lga_officer', 'sdp_staff', 'state_officer'], 'facility_in_use' => true,
+        'max_accounts' => null, 'accounts_in_use' => 5, 'max_facilities' => 1, 'facilities_in_use' => 4,
     ]);
     $add('admin2@example.test', 'admin')->assertStatus(402)
         ->assertJson(['code' => 'feature_unavailable', 'feature' => 'multiple_accounts']);

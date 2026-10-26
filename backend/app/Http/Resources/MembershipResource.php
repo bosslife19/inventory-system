@@ -26,6 +26,14 @@ class MembershipResource extends JsonResource
             'logo_url' => $this->logoUrl(),
             /** The plan in force today. */
             'plan' => $this->effectivePlan(),
+            /**
+             * The paid tier in force today (its limits); null on the free plan, or a paid plan without limits.
+             *
+             * @var array{id: int, name: string, max_facilities: int|null, max_accounts: int|null}|null
+             */
+            'tier' => ($tier = $this->effectiveTier()) ? [
+                'id' => $tier->id, 'name' => $tier->name, 'max_facilities' => $tier->max_facilities, 'max_accounts' => $tier->max_accounts,
+            ] : null,
             /** Last day of the paid plan (Y-m-d); null = no end date, or on the free plan. */
             'paid_until' => $daysLeft === null ? null : $this->paid_until?->toDateString(),
             /** Days left on the paid plan, today included; null when it has no end date or isn't paid. */
@@ -43,11 +51,13 @@ class MembershipResource extends JsonResource
              */
             'features' => array_map(fn (Feature $f) => $f->value, $this->features()),
             /**
-             * The free plan's limits and what already uses them: the roles with an
-             * active account (one each), and whether the one open facility exists.
-             * Null on the paid plan. For warnings only; the API re-checks (402).
+             * The plan's limits and what already uses them. Free plan: the roles
+             * with an active account (one each) and whether the one open facility
+             * exists. Paid tier: max_accounts (every role together) and
+             * max_facilities, null where it has none. Null when the plan has no
+             * limits at all. For warnings only; the API re-checks (402).
              *
-             * @var array{roles_in_use: list<'sdp_staff'|'lga_officer'|'state_officer'|'federal_officer'|'admin'>, facility_in_use: bool}|null
+             * @var array{roles_in_use: list<'sdp_staff'|'lga_officer'|'state_officer'|'federal_officer'|'admin'>, facility_in_use: bool, max_accounts: int|null, accounts_in_use: int, max_facilities: int|null, facilities_in_use: int}|null
              */
             'limits' => PlanLimits::usage($this->resource),
         ];

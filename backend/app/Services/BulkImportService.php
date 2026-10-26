@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\FeatureUnavailable;
+use App\Exceptions\PlanLimitReached;
 use App\Imports\FacilityImporter;
 use App\Imports\Importer;
 use App\Imports\ProductImporter;
@@ -58,7 +60,7 @@ class BulkImportService
                 } catch (ValidationException $e) {
                     $failed = true;
                     $results[] = ['row' => $line, 'ok' => false, 'label' => null, 'errors' => $this->rowErrors($importer, $e)];
-                } catch (AuthorizationException $e) {
+                } catch (AuthorizationException|FeatureUnavailable|PlanLimitReached $e) {
                     $failed = true;
                     $results[] = ['row' => $line, 'ok' => false, 'label' => null, 'errors' => [['column' => null, 'message' => $e->getMessage()]]];
                 }

@@ -9,6 +9,7 @@ use App\Models\Lga;
 use App\Models\State;
 use App\Models\User;
 use App\Services\CatalogService;
+use App\Support\PlanLimits;
 use Illuminate\Auth\Access\Response;
 
 /** New facilities (SDPs), as POST /facilities. Admins only. */
@@ -49,6 +50,7 @@ class FacilityImporter extends Importer
             'longitude' => $row['longitude'] ?? null,
         ], $user);
 
+        PlanLimits::ensureFacilityAllowed($user->organization);
         $facility = $this->catalog->addFacility($request->validated());
 
         return ['label' => "{$facility->name}, {$lga->name} LGA, {$lga->state->name}"];

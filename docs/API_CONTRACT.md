@@ -10,7 +10,9 @@ never expands it. Another organization's ids answer 404 (or 422 in a body).
 **403** `{ code: "owner_account" }` there. Routes marked **[paid: feature]**
 answer **402** `{ message, code: "feature_unavailable", feature }` when the
 caller's organization's plan doesn't include that feature (see
-`organization.features` on `/auth/me`). Members of a suspended
+`organization.features` on `/auth/me`). Adding an account or a facility
+past a paid tier's cap answers **402** `{ message, code: "plan_limit_reached",
+limit: accounts|facilities, max }`. Members of a suspended
 organization get **401** `{ code: "organization_inactive" }`.
 
 Update this file whenever a route, field, or status code changes — it is
@@ -33,9 +35,15 @@ human-readable contract and the rules behind it.
   - `<User>` = `{ id, name, email, role, facility_id, lga_id, state_id, node: { level: facility|lga|state|national, id, name, path: [state?, lga?, facility?] }, store: { id, name } | null }`. Clients route on `role` / `node.level`.
   - `store`: the store an LGA / State / Federal officer keeps the Stock Card of (see "Stores" below); null for SDP staff and admins. Every facility endpoint works on its id.
   - `is_active`, `must_change_password`: see below.
-  - `organization`: `{ id, name, logo_url | null, plan: free|paid (in force today), paid_until | null, days_left | null,
-    renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|multiple_accounts|multiple_facilities|push_notifications|supply_chain] }`;
-    null for the platform owner (role `owner`), whom clients send to the owner console.
+  - `organization`: `{ id, name, logo_url | null, plan: free|paid (in force today), tier | null, paid_until | null, days_left | null,
+    renewal_due (bool: ≤ 14 days left), features: [bulk_imports|delivery_scanning|multiple_accounts|multiple_facilities|push_notifications|supply_chain],
+    limits | null }`; null for the platform owner (role `owner`), whom clients send to the owner console.
+  - `tier`: `{ id, name, max_facilities | null, max_accounts | null }` — the paid tier in force today; null on the free plan
+    or a paid plan without limits.
+  - `limits`: `{ roles_in_use: [role], facility_in_use, max_accounts | null, accounts_in_use, max_facilities | null,
+    facilities_in_use }`, null when the plan has no limits. Free plan: `roles_in_use` (one active account each) and
+    `facility_in_use`, `max_facilities` 1, `max_accounts` null. Paid tier: `max_accounts` (every role together) and
+    `max_facilities`, `roles_in_use` empty. Warnings only — the API re-checks (402).
 - `POST /auth/password` — body `current_password, password, password_confirmation`. Changes your own password
   (≥ 8 characters, different from the current one), clears `must_change_password`, and signs out your other
   devices; this token stays valid. 200 → `<User>`.
@@ -50,14 +58,46 @@ human-readable contract and the rules behind it.
 - `GET /platform/logo/{file}`, `GET /organizations/{id}/logo/{file}` — the images behind `logo_url`; cacheable
   forever (each upload gets a new file name). 404 for any other file name.
 
+## Billing (Paystack; organization admins, web only — 403 for anyone else)
+Admins pay for a plan tier for 1, 3, 6 or 12 months through Paystack's checkout (card, bank transfer, USSD, …).
+No automatic renewals: paying again extends the plan.
+- `GET /billing/plans` → `{ data: [<PlanTier>] }`, the tiers on offer, in order.
+  `<PlanTier>` = `{ id, name, description | null, monthly_price (whole naira), max_facilities | null, max_accounts | null
+  (null = no limit), is_active, sort_order }`. Every tier unlocks every paid feature; tiers differ by limits.
+- `POST /billing/checkout` — `plan_tier_id, months (1|3|6|12)` → 201 `{ data: <Payment>, authorization_url }`.
+  Send the admin to `authorization_url`; Paystack sends them back to the web app's `/billing?reference=…`
+  (`PAYSTACK_CALLBACK_URL`). The price is fixed now (`monthly_price × months`). A tier no longer on offer → 422;
+  a paid plan with no end date → 422 on `plan_tier_id`; Paystack down or not configured → 502 / 503
+  `{ code: "payment_gateway_error" }`. Throttled to 10/min.
+- `POST /billing/payments/{reference}/verify` → `{ data: <Payment> }`. Asks Paystack how a pending payment went
+  and applies it; a finished one is returned as it is (nothing is applied twice). Another organization's → 404.
+- `GET /billing/payments` → `{ data: [<Payment>] }`, newest 50.
+  `<Payment>` = `{ id, reference, plan_tier: { id, name }, months, amount (naira), currency, status:
+  pending|success|failed|abandoned, channel | null, failure_reason | null, paid_by | null, paid_at | null,
+  period_start | null, period_end | null, credit_days, created_at }`.
+- **Applying a payment**: the organization goes on the paid plan in that tier. The same tier carries on from its
+  current last day; a different tier starts today and the old tier's days left are converted at the two monthly
+  prices (`credit_days`, added to the end); a paid plan the owner set without a tier keeps its days and the tier
+  follows them; on the free plan or a lapsed one it starts today. `period_end` becomes `paid_until`.
+- `POST /webhooks/paystack` (public; Paystack only) — signed with `x-paystack-signature` (HMAC-SHA512 of the body
+  with the secret key; wrong → 401). `charge.success` settles the payment it names, like verify; anything else → 200
+  and ignored. Set it in the Paystack dashboard to `{APP_URL}/api/v1/webhooks/paystack`.
+
 ## Owner console (`/owner/*`, role `owner` only — 403 for anyone else)
-The owner sees organizations, never their Stock Cards. Payment is arranged outside the system.
+The owner sees organizations, never their Stock Cards. Organizations pay online (Billing above), or the owner
+records a payment made another way by setting the plan, tier and `paid_until`.
+- `GET /owner/plan-tiers` → `{ data: [<PlanTier>] }`, withdrawn ones too. `POST /owner/plan-tiers` — `name,
+  monthly_price (≥ 100), description?, max_facilities?, max_accounts? (empty = no limit), is_active?, sort_order?`;
+  `PUT /owner/plan-tiers/{id}` — the same, all optional. A new price applies to checkouts from then on. Never
+  deleted: `is_active=false` withdraws a tier (organizations on it keep it until it lapses).
+- `GET /owner/organizations/{id}/payments` → `{ data: [<Payment>] }`, newest 50.
 - `PUT /owner/platform` — `name, tagline?`; `POST /owner/platform/logo` (multipart `logo`); `DELETE /owner/platform/logo`.
   Each → `{ data: <Platform> }`.
 - `GET /owner/organizations` → `{ data: [<Organization>] }`, newest first.
-  `<Organization>` = `{ id, name, logo_url, contact_name, contact_email, contact_phone, address, plan, paid_until,
+  `<Organization>` = `{ id, name, logo_url, contact_name, contact_email, contact_phone, address, plan, plan_tier_id,
+  plan_tier: { id, name, max_facilities, max_accounts } | null, paid_until,
   effective_plan, days_left, features, is_active, notes, admin_count, user_count, facility_count (SDPs), created_at }`.
-- `POST /owner/organizations` — `name, plan (free|paid), paid_until? (Y-m-d; empty = no end date), contact_name?,
+- `POST /owner/organizations` — `name, plan (free|paid), plan_tier_id? (empty = no limits), paid_until? (Y-m-d; empty = no end date), contact_name?,
   contact_email?, contact_phone?, address?, notes?, admin?: { name, email }` → 201
   `{ data: <Organization>, admin: <User> | null, temporary_password: string | null }`. Creates the organization's
   stores; the admin (role `admin`) signs in with the temporary password and must change it.

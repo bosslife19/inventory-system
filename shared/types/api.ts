@@ -169,6 +169,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The tiers on offer, cheapest first */
+        get: operations["billing.plans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organization's payments, newest first (the last 50) */
+        get: operations["billing.payments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start paying for a tier: send the admin to authorization_url (Paystack's
+         *     checkout). They come back to the web app's /billing page with
+         *     ?reference=…, which then verifies the payment
+         */
+        post: operations["billing.checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/payments/{reference}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask Paystack how a payment went and, if it succeeded, apply it (once). A finished payment is returned as it is */
+        post: operations["billing.verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/facilities/{facility}/delivery-notes": {
         parameters: {
             query?: never;
@@ -531,6 +603,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/owner/organizations/{organization}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organization's Paystack payments, newest first (the last 50) */
+        get: operations["organization.payments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/owner/organizations/{organization}/logo": {
         parameters: {
             query?: never;
@@ -593,6 +682,56 @@ export interface paths {
         put?: never;
         /** New temporary password for an admin who lost theirs; signs them out everywhere */
         post: operations["organizationAdmin.resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/paystack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["webhooks.paystackWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/plan-tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every tier, withdrawn ones included, in the order they're offered */
+        get: operations["planTier.index"];
+        put?: never;
+        post: operations["planTier.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/owner/plan-tiers/{planTier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a tier; a new price applies to checkouts from now on. is_active=false withdraws it from sale */
+        put: operations["planTier.update"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1253,6 +1392,19 @@ export interface components {
             quantity_on_hand: number;
             last_transaction_id: number;
         };
+        /**
+         * CheckoutRequest
+         * @description POST /billing/checkout (the organization's admins).
+         */
+        CheckoutRequest: {
+            /** @description A tier on offer (GET /billing/plans). */
+            plan_tier_id: number;
+            /**
+             * @description How many months to pay for.
+             * @enum {integer}
+             */
+            months: 1 | 3 | 6 | 12;
+        };
         /** DeliveryNoteCollection */
         DeliveryNoteCollection: components["schemas"]["DeliveryNoteResource"][];
         /** DeliveryNoteResource */
@@ -1431,6 +1583,13 @@ export interface components {
             logo_url: string | null;
             /** @description The plan in force today. */
             plan: components["schemas"]["Plan"];
+            /** @description The paid tier in force today (its limits); null on the free plan, or a paid plan without limits. */
+            tier: {
+                id: number;
+                name: string;
+                max_facilities: number | null;
+                max_accounts: number | null;
+            } | null;
             /** @description Last day of the paid plan (Y-m-d); null = no end date, or on the free plan. */
             paid_until: string | null;
             /** @description Days left on the paid plan, today included; null when it has no end date or isn't paid. */
@@ -1440,13 +1599,19 @@ export interface components {
             /** @description What the plan unlocks; anything absent answers 402 feature_unavailable. */
             features: ("bulk_imports" | "delivery_scanning" | "multiple_accounts" | "multiple_facilities" | "push_notifications" | "supply_chain")[];
             /**
-             * @description The free plan's limits and what already uses them: the roles with an
-             *     active account (one each), and whether the one open facility exists.
-             *     Null on the paid plan. For warnings only; the API re-checks (402).
+             * @description The plan's limits and what already uses them. Free plan: the roles
+             *     with an active account (one each) and whether the one open facility
+             *     exists. Paid tier: max_accounts (every role together) and
+             *     max_facilities, null where it has none. Null when the plan has no
+             *     limits at all. For warnings only; the API re-checks (402).
              */
             limits: {
                 roles_in_use: ("sdp_staff" | "lga_officer" | "state_officer" | "federal_officer" | "admin")[];
                 facility_in_use: boolean;
+                max_accounts: number | null;
+                accounts_in_use: number;
+                max_facilities: number | null;
+                facilities_in_use: number;
             } | null;
         };
         /** NotificationCollection */
@@ -1489,6 +1654,14 @@ export interface components {
             address: string | null;
             /** @description The plan as set; see effective_plan for what applies today. */
             plan: components["schemas"]["Plan"];
+            /** @description The paid tier (limits); null = no limits on the paid plan. */
+            plan_tier_id: number | null;
+            plan_tier: {
+                id: number;
+                name: string;
+                max_facilities: number | null;
+                max_accounts: number | null;
+            } | null;
             /** @description Last day of the paid plan (Y-m-d); null = no end date. */
             paid_until: string | null;
             /** @description "free" once a paid plan has passed its last day. */
@@ -1504,11 +1677,56 @@ export interface components {
             facility_count: number;
             created_at: string | null;
         };
+        /** PaymentResource */
+        PaymentResource: {
+            id: number;
+            reference: string;
+            plan_tier: {
+                id: number;
+                name: string;
+            };
+            months: number;
+            /** @description Naira (amount_kobo / 100). */
+            amount: number;
+            currency: string;
+            /**
+             * @description pending = sent to Paystack, not finished (or not yet confirmed).
+             * @enum {string}
+             */
+            status: "pending" | "success" | "failed" | "abandoned";
+            /** @description How it was paid (card, bank_transfer, ussd, …) once it succeeds. */
+            channel: string | null;
+            failure_reason: string | null;
+            /** @description Who started it; null if that account is gone. */
+            paid_by: string | null;
+            paid_at: string | null;
+            /** @description The days it paid for (Y-m-d), once it succeeds. */
+            period_start: string | null;
+            period_end: string | null;
+            /** @description Days carried over from the previous tier and added to the end. */
+            credit_days: number;
+            created_at: string | null;
+        };
         /**
          * Plan
          * @enum {string}
          */
         Plan: "free" | "paid";
+        /** PlanTierResource */
+        PlanTierResource: {
+            id: number;
+            name: string;
+            description: string | null;
+            /** @description Whole naira a month. */
+            monthly_price: number;
+            /** @description Open facilities (SDPs); null = no limit. */
+            max_facilities: number | null;
+            /** @description Active accounts, every role together; null = no limit. */
+            max_accounts: number | null;
+            /** @description Offered to organizations; withdrawn tiers stay on organizations already on them until they lapse. */
+            is_active: boolean;
+            sort_order: number;
+        };
         /** ProductLevelResource */
         ProductLevelResource: {
             product: components["schemas"]["ProductResource"];
@@ -1720,6 +1938,8 @@ export interface components {
             contact_phone?: string | null;
             address?: string | null;
             plan: components["schemas"]["Plan"];
+            /** @description The paid tier whose limits apply; empty = no limits. Withdrawn tiers may still be set. */
+            plan_tier_id?: number | null;
             /**
              * Format: date
              * @description Last day of the paid plan (Y-m-d); leave empty for no end date.
@@ -1735,6 +1955,25 @@ export interface components {
                 /** Format: email */
                 email?: string;
             };
+        };
+        /**
+         * SavePlanTierRequest
+         * @description POST /owner/plan-tiers and PUT /owner/plan-tiers/{planTier} (the platform
+         *     owner only — EnsureOwner). On update every field is optional. A new price
+         *     applies to checkouts from now on, never to payments already made.
+         */
+        SavePlanTierRequest: {
+            name: string;
+            description?: string | null;
+            /** @description Whole naira a month. */
+            monthly_price: number;
+            /** @description Open facilities (SDPs); empty = no limit. */
+            max_facilities?: number | null;
+            /** @description Active accounts, every role together; empty = no limit. */
+            max_accounts?: number | null;
+            /** @description False withdraws it from sale; organizations on it keep it until it lapses. */
+            is_active?: boolean;
+            sort_order?: number;
         };
         /**
          * SaveProductLevelsRequest
@@ -2357,6 +2596,107 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             422: components["responses"]["ValidationException"];
+        };
+    };
+    "billing.plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PlanTierResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PlanTierResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "billing.payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PaymentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "billing.checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentResource"];
+                        /** @description Paystack's checkout page. */
+                        authorization_url: string;
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            403: components["responses"]["AuthorizationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "billing.verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PaymentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
         };
     };
     "deliveryNote.index": {
@@ -3208,6 +3548,33 @@ export interface operations {
             422: components["responses"]["ValidationException"];
         };
     };
+    "organization.payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The organization ID */
+                organization: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PaymentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+        };
+    };
     "organization.uploadLogo": {
         parameters: {
             query?: never;
@@ -3401,6 +3768,121 @@ export interface operations {
             };
             401: components["responses"]["AuthenticationException"];
             404: components["responses"]["ModelNotFoundException"];
+        };
+    };
+    "webhooks.paystackWebhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        received: boolean;
+                    };
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        message: "Invalid signature.";
+                    };
+                };
+            };
+        };
+    };
+    "planTier.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PlanTierResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PlanTierResource"][];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+        };
+    };
+    "planTier.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePlanTierRequest"];
+            };
+        };
+        responses: {
+            /** @description `PlanTierResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PlanTierResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            422: components["responses"]["ValidationException"];
+        };
+    };
+    "planTier.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan tier ID */
+                planTier: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePlanTierRequest"];
+            };
+        };
+        responses: {
+            /** @description `PlanTierResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PlanTierResource"];
+                    };
+                };
+            };
+            401: components["responses"]["AuthenticationException"];
+            404: components["responses"]["ModelNotFoundException"];
+            422: components["responses"]["ValidationException"];
         };
     };
     "platform.show": {
