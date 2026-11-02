@@ -3,46 +3,74 @@ import { StyleSheet, View } from 'react-native';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { LEVEL_LABEL, formatShortDate } from '@/lib/format';
-import type { ActivityWeek, StockLevel } from '@/lib/types';
+import type { ActivityWeek, FacilityStatusCounts, StockLevel } from '@/lib/types';
 
 import { Text } from './ui/text';
 
 const LEVELS: StockLevel[] = ['stock_out', 'low_stock', 'reorder', 'ok'];
 
+export interface Segment {
+  key: string;
+  label: string;
+  color: string;
+  value: number;
+}
+
 /**
- * Products by stock status as one stacked bar with a labelled legend — the
- * web donut's data in a phone-friendly form. Status colours carry labels.
+ * Counts as one stacked bar with a labelled legend — the web donut's data in
+ * a phone-friendly form. Status colours always carry their labels.
  */
-export function LevelBar({ counts }: { counts: Record<StockLevel, number> }) {
+export function SegmentBar({ segments }: { segments: Segment[] }) {
   const c = useTheme();
-  const color: Record<StockLevel, string> = { stock_out: c.statusCritical, low_stock: c.statusWarning, reorder: c.statusNotice, ok: c.statusOk };
-  const total = LEVELS.reduce((n, l) => n + counts[l], 0);
+  const total = segments.reduce((n, s) => n + s.value, 0);
 
   return (
     <View style={{ gap: Spacing.three }}>
       <View style={[styles.stack, { backgroundColor: c.surface2 }]}>
-        {LEVELS.filter((l) => counts[l] > 0).map((l) => (
-          <View key={l} style={{ flex: counts[l], backgroundColor: color[l] }} />
-        ))}
+        {segments
+          .filter((s) => s.value > 0)
+          .map((s) => (
+            <View key={s.key} style={{ flex: s.value, backgroundColor: s.color }} />
+          ))}
       </View>
       <View style={styles.legend}>
-        {LEVELS.map((l) => (
-          <View key={l} style={styles.legendItem}>
-            <View style={[styles.swatch, { backgroundColor: color[l] }]} />
+        {segments.map((s) => (
+          <View key={s.key} style={styles.legendItem}>
+            <View style={[styles.swatch, { backgroundColor: s.color }]} />
             <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
-              {LEVEL_LABEL[l]}
+              {s.label}
             </Text>
             <Text variant="caption" weight="bold">
-              {counts[l]}
+              {s.value}
             </Text>
             <Text variant="caption" tone="muted" style={{ width: 34, textAlign: 'right' }}>
-              {total ? Math.round((counts[l] / total) * 100) : 0}%
+              {total ? Math.round((s.value / total) * 100) : 0}%
             </Text>
           </View>
         ))}
       </View>
     </View>
   );
+}
+
+/** Products by stock status. */
+export function LevelBar({ counts }: { counts: Record<StockLevel, number> }) {
+  const c = useTheme();
+  const color: Record<StockLevel, string> = { stock_out: c.statusCritical, low_stock: c.statusWarning, reorder: c.statusNotice, ok: c.statusOk };
+  return <SegmentBar segments={LEVELS.map((l) => ({ key: l, label: LEVEL_LABEL[l], color: color[l], value: counts[l] }))} />;
+}
+
+/** Facilities by their most serious issue, each counted once (the server's facility_status rule). */
+export function FacilityStatusBar({ status }: { status: FacilityStatusCounts }) {
+  const c = useTheme();
+  const segments: Segment[] = [
+    { key: 'stock_out', label: 'Has a stock-out', color: c.statusCritical, value: status.stock_out },
+    { key: 'low_stock', label: 'At EOP', color: c.statusWarning, value: status.low_stock },
+    { key: 'reorder', label: 'Below min / expired', color: c.statusNotice, value: status.reorder },
+    { key: 'ok', label: 'All OK', color: c.statusOk, value: status.ok },
+    { key: 'no_data', label: 'Nothing recorded yet', color: c.chart3, value: status.no_data },
+  ];
+  return <SegmentBar segments={segments.filter((s) => s.key !== 'no_data' || s.value > 0)} />;
 }
 
 /**

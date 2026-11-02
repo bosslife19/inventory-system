@@ -47,3 +47,24 @@ export type { paths };
 export type Membership = Schemas['MembershipResource'];
 export type Feature = Membership['features'][number];
 export type Platform = NonNullable<paths['/platform']['get']['responses'][200]['content']['application/json']>['data'];
+
+// Area dashboards (docs/API_CONTRACT.md: Rollups) and the officer tools around them.
+export type FacilityStockSummary = Schemas['FacilityStockSummaryResource'];
+export type AreaStockSummary = Schemas['AreaStockSummaryResource'];
+export type ProductRollup = Schemas['ProductRollupResource'];
+export type AuditEvent = Schemas['AuditEventResource'];
+export type AuditCategory = AuditEvent['category'];
+export type NewUser = Schemas['StoreUserRequest'];
+export type UpdateUser = Schemas['UpdateUserRequest'];
+
+type Json<P extends keyof paths> = NonNullable<
+  paths[P] extends { get: { responses: { 200: { content: { 'application/json': infer B } } } } } ? B : never
+>;
+export type LgaSummary = Json<'/lgas/{lga}/stock-summary'>['data'];
+export type StateSummary = Json<'/states/{state}/stock-summary'>['data'];
+export type FederalSummary = Json<'/federal/stock-summary'>['data'];
+export type FacilityStatusCounts = LgaSummary['facility_status'];
+/** What every rollup level has in common — the shared RollupView renders this. */
+export type RollupSummary = Pick<LgaSummary, 'child_count' | 'facility_count' | 'facility_counts' | 'facility_status' | 'products'> & {
+  children: FacilityStockSummary[] | AreaStockSummary[];
+};

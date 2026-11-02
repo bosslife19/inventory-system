@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import {
   AlertOctagon,
   ArrowDownToLine,
@@ -52,7 +52,14 @@ import type { StockLevel } from '@/lib/types';
 import { BrandStrip } from '@/components/brand';
 import { usePaidAction } from '@/lib/plan';
 
+/** Facility staff's home, or an officer's store. Admins keep no Stock Card: their home is the Overview tab. */
 export default function Home() {
+  const user = useUser();
+  if (user.facility_id == null && user.store == null) return <Redirect href="/overview" />;
+  return <FacilityHome />;
+}
+
+function FacilityHome() {
   const c = useTheme();
   const user = useUser();
   const facilityId = useFacilityId();

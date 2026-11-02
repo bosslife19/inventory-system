@@ -15,18 +15,27 @@ import { useTheme } from '@/hooks/use-theme';
 import { INBOUND, formatDate, formatQty, transactionFigure, transactionLabel, unitDescription } from '@/lib/format';
 import { describe, productIdsOf, useOutbox } from '@/lib/offlineQueue';
 import { useProductHistory, useReorderSuggestions, useStockBalances } from '@/lib/queries';
-import { useFacilityId } from '@/lib/session';
+import { canRecordAt } from '@/lib/roles';
+import { useUser } from '@/lib/session';
 
-/** One product's Stock Card: balance, batches, reorder figure and running-balance history. */
+/**
+ * One product's Stock Card: balance, batches, reorder figure and running-balance history.
+ * `?facility=<id>`: another facility's card, opened from an area dashboard — read-only
+ * unless it's where this user records.
+ */
 export default function ProductDetail() {
   const c = useTheme();
   const insets = useSafeAreaInsets();
-  const facilityId = useFacilityId();
-  const productId = Number(useLocalSearchParams<{ id: string }>().id);
+  const user = useUser();
+  const params = useLocalSearchParams<{ id: string; facility?: string }>();
+  const facilityId = params.facility ? Number(params.facility) : (user.facility_id ?? user.store?.id)!;
+  const productId = Number(params.id);
+  const canRecord = canRecordAt(user, facilityId);
   const stock = useStockBalances(facilityId);
   const history = useProductHistory(facilityId, productId);
   const reorder = useReorderSuggestions(facilityId);
-  const pending = useOutbox().filter((i) => productIdsOf(i).includes(productId));
+  const outbox = useOutbox();
+  const pending = canRecord ? outbox.filter((i) => productIdsOf(i).includes(productId)) : [];
 
   const s = stock.data?.find((x) => x.product.id === productId);
   const suggestion = reorder.data?.find((r) => r.product.id === productId);
@@ -36,8 +45,10 @@ export default function ProductDetail() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <PageHeader back title="Product" />
-        <EmptyState icon={PackageSearch} title="Not stocked here" body="This product has no Stock Card at your facility yet.">
-          <Button label="Set its starting AMC" icon={Gauge} variant="soft" onPress={() => router.push({ pathname: '/amc', params: { productId: String(productId) } })} />
+        <EmptyState icon={PackageSearch} title="Not stocked here" body={`This product has no Stock Card at ${canRecord ? 'your' : 'this'} facility yet.`}>
+          {canRecord && (
+            <Button label="Set its starting AMC" icon={Gauge} variant="soft" onPress={() => router.push({ pathname: '/amc', params: { productId: String(productId) } })} />
+          )}
         </EmptyState>
       </View>
     );
@@ -47,7 +58,7 @@ export default function ProductDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: (canRecord ? 120 : Spacing.eight) + insets.bottom }}>
         <PageHeader back eyebrow={`${p.sku} · ${p.category}`} title={p.name} />
         <View style={styles.body}>
           <LinearGradient colors={['#0a0f1c', '#1d4ed8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balance}>
@@ -102,12 +113,14 @@ export default function ProductDetail() {
             </Card>
           )}
 
-          <Button
-            label="Starting AMC"
-            icon={Gauge}
-            variant="ghost"
-            onPress={() => router.push({ pathname: '/amc', params: { productId: String(p.id) } })}
-          />
+          {canRecord && (
+            <Button
+              label="Starting AMC"
+              icon={Gauge}
+              variant="ghost"
+              onPress={() => router.push({ pathname: '/amc', params: { productId: String(p.id) } })}
+            />
+          )}
 
           {p.requires_batch_tracking && (
             <View>
@@ -201,12 +214,14 @@ export default function ProductDetail() {
         </View>
       </ScrollView>
 
-      <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.three, backgroundColor: c.surface, borderColor: c.border }]}>
-        <View style={styles.actionsInner}>
-          <Button label="Receive" icon={ArrowDownToLine} variant="ghost" size="lg" style={{ flex: 1 }} onPress={() => record('receipt')} />
-          <Button label="Issue" icon={ArrowUpFromLine} size="lg" style={{ flex: 1 }} onPress={() => record('issue')} />
+      {canRecord && (
+        <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.three, backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={styles.actionsInner}>
+            <Button label="Receive" icon={ArrowDownToLine} variant="ghost" size="lg" style={{ flex: 1 }} onPress={() => record('receipt')} />
+            <Button label="Issue" icon={ArrowUpFromLine} size="lg" style={{ flex: 1 }} onPress={() => record('issue')} />
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }

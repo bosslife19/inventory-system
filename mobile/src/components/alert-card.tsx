@@ -26,14 +26,23 @@ function detail(a: Alert): string {
   return a.alert_type === 'stock_out' ? 'No usable stock left' : 'Usable stock is below the minimum level';
 }
 
+interface Props {
+  alert: Alert;
+  compact?: boolean;
+  highlight?: boolean;
+  actions?: boolean;
+  /** Area view: name the facility; tapping the card opens it. */
+  onOpenFacility?: () => void;
+}
+
 /** An alert with its follow-up actions. Status is always written out, not colour alone. */
-export function AlertCard({ alert: a, compact, highlight, actions = true }: { alert: Alert; compact?: boolean; highlight?: boolean; actions?: boolean }) {
+export function AlertCard({ alert: a, compact, highlight, actions = true, onOpenFacility }: Props) {
   const c = useTheme();
   const act = useAlertAction();
   const busy = act.isPending;
 
   return (
-    <Card style={[styles.card, highlight && { borderColor: c.primary, borderWidth: 1.5 }]}>
+    <Card onPress={onOpenFacility} style={[styles.card, highlight && { borderColor: c.primary, borderWidth: 1.5 }]}>
       <View style={styles.row}>
         <IconChip icon={ICON[a.alert_type]} tone={TONE[a.severity]} size={compact ? 36 : 42} />
         <View style={{ flex: 1, gap: 3 }}>
@@ -45,6 +54,11 @@ export function AlertCard({ alert: a, compact, highlight, actions = true }: { al
           <Text variant="small" tone="secondary" numberOfLines={1}>
             {a.product.name}
           </Text>
+          {onOpenFacility && (
+            <Text variant="caption" weight="semibold" tone="primary" numberOfLines={1}>
+              {a.facility.name}
+            </Text>
+          )}
           <Text variant="caption" tone="muted">
             {detail(a)} · {a.status === 'resolved' ? (a.resolved_by_name ? `resolved ${timeAgo(a.resolved_at)}` : `cleared ${timeAgo(a.resolved_at)}`) : timeAgo(a.created_at)}
           </Text>

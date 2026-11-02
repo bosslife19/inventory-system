@@ -1,23 +1,23 @@
 import { Stack } from 'expo-router';
 
-import { OfficerHome } from '@/components/officer-home';
 import { OwnerNotice } from '@/components/owner-notice';
 import { useTheme } from '@/hooks/use-theme';
 import { usePushNotifications } from '@/lib/push';
 import { useUser } from '@/lib/session';
 import { useSyncTriggers } from '@/lib/sync';
 
-/** Signed-in area: tabs, plus the record sheet and product detail on top. */
+/**
+ * Signed-in area: tabs, plus sheets and detail screens on top. SDP staff get
+ * their facility's app; officers and admins get their area's dashboard and,
+ * officers, their own store's app as well (see (tabs)/_layout and TabBar).
+ */
 export default function AppLayout() {
   const user = useUser();
   if (user.role === 'owner') return <OwnerNotice />;
-  // Admins (and any officer without a store) keep no Stock Card here; they get their notifications and digests.
-  // SDP staff and store officers get the full app for their facility or store.
-  if (user.facility_id == null && user.store == null) return <OfficerHome />;
-  return <FacilityApp />;
+  return <SignedInApp />;
 }
 
-function FacilityApp() {
+function SignedInApp() {
   const c = useTheme();
   useSyncTriggers();
   usePushNotifications();
@@ -38,6 +38,11 @@ function FacilityApp() {
       <Stack.Screen name="dispatch" options={{ presentation: 'modal' }} />
       <Stack.Screen name="reports" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="area/[level]/[id]" />
+      <Stack.Screen name="facility/[id]" />
+      <Stack.Screen name="activity" />
+      <Stack.Screen name="accounts/index" />
+      <Stack.Screen name="accounts/new" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { BellRing, CloudOff } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
@@ -11,17 +11,21 @@ import { MaxContentWidth, Spacing, TabBarInset } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isNetworkError } from '@/lib/api';
 import { useAlerts } from '@/lib/queries';
-import { useFacilityId } from '@/lib/session';
+import { isAreaUser } from '@/lib/roles';
+import { useUser } from '@/lib/session';
 
 type View_ = 'active' | 'resolved';
 
 /**
- * Alerts for this facility, scoped by the API. A push notification tap
- * lands here with ?focus=<alert id> (mobile/CLAUDE.md rule 3).
+ * Alerts for this facility — or, for officers and admins, every facility and
+ * store in their area — scoped by the API. A push notification tap lands
+ * here with ?focus=<alert id> (mobile/CLAUDE.md rule 3).
  */
 export default function Alerts() {
   const c = useTheme();
-  const facilityId = useFacilityId();
+  const user = useUser();
+  const area = isAreaUser(user);
+  const facilityId = area ? undefined : (user.facility_id ?? undefined);
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [view, setView] = useState<View_>('active');
   const alerts = useAlerts(view === 'resolved' ? 'resolved' : undefined, facilityId);
@@ -42,7 +46,11 @@ export default function Alerts() {
             <PageHeader
               eyebrow="Alerts"
               title="Stock alerts"
-              subtitle="Raised automatically and cleared when the stock situation is fixed."
+              subtitle={
+                area
+                  ? 'Across your area, most severe first. Tap one to open its facility.'
+                  : 'Raised automatically and cleared when the stock situation is fixed.'
+              }
             />
             <View style={styles.pad}>
               <Segmented
@@ -59,7 +67,11 @@ export default function Alerts() {
         ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
         renderItem={({ item }) => (
           <View style={styles.pad}>
-            <AlertCard alert={item} highlight={item.id === focusId} />
+            <AlertCard
+              alert={item}
+              highlight={item.id === focusId}
+              onOpenFacility={area ? () => router.push({ pathname: '/facility/[id]', params: { id: String(item.facility.id) } }) : undefined}
+            />
           </View>
         )}
         ListEmptyComponent={

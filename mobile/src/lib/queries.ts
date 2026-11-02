@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, getJson, unwrap } from './api';
-import type { AlertStatus, DeliveryNoteStatus, ReportResult, StockActivity } from './types';
+import type { AlertStatus, AuditCategory, DeliveryNoteStatus, NewUser, ReportResult, StockActivity, UpdateUser, UserRole } from './types';
 
 // Server state only; cached to device storage (see _layout) so screens open
 // offline with the last data seen. Balances always come from the API
@@ -258,5 +258,127 @@ export function usePlatform() {
     queryKey: ['platform'],
     queryFn: async () => (await unwrap(api.GET('/platform'))).data,
     staleTime: 60 * 60_000,
+  });
+}
+
+// ---------------------------------------------------------------- area dashboards (officers and admins)
+
+/** Rollups refresh every minute, like the web dashboards. */
+const ROLLUP_REFRESH = 60_000;
+
+export function useLgaSummary(lgaId: number) {
+  return useQuery({
+    queryKey: ['stock-summary', 'lga', lgaId],
+    queryFn: async () => (await unwrap(api.GET('/lgas/{lga}/stock-summary', { params: { path: { lga: lgaId } } }))).data,
+    refetchInterval: ROLLUP_REFRESH,
+  });
+}
+
+export function useStateSummary(stateId: number) {
+  return useQuery({
+    queryKey: ['stock-summary', 'state', stateId],
+    queryFn: async () => (await unwrap(api.GET('/states/{state}/stock-summary', { params: { path: { state: stateId } } }))).data,
+    refetchInterval: ROLLUP_REFRESH,
+  });
+}
+
+export function useFederalSummary() {
+  return useQuery({
+    queryKey: ['stock-summary', 'federal'],
+    queryFn: async () => (await unwrap(api.GET('/federal/stock-summary'))).data,
+    refetchInterval: ROLLUP_REFRESH,
+  });
+}
+
+/** Stock Card entries per week across an area's SDPs. */
+export function useAreaActivity(level: 'lga' | 'state' | 'national', id: number | null) {
+  return useQuery({
+    queryKey: ['stock-activity', level, id],
+    queryFn: async () => {
+      const res =
+        level === 'lga'
+          ? api.GET('/lgas/{lga}/stock-activity', { params: { path: { lga: id! } } })
+          : level === 'state'
+            ? api.GET('/states/{state}/stock-activity', { params: { path: { state: id! } } })
+            : api.GET('/federal/stock-activity');
+      return (await unwrap(res)).data as StockActivity;
+    },
+  });
+}
+
+// ---------------------------------------------------------------- activity log
+
+/** The audit log, newest first, a page at a time (scoped by the API). */
+export function useAuditEvents(filters: { category?: AuditCategory; q?: string }) {
+  return useInfiniteQuery({
+    queryKey: ['audit-events', filters],
+    queryFn: ({ pageParam }) =>
+      unwrap(api.GET('/audit-events', { params: { query: { ...filters, q: filters.q || undefined, per_page: 30, page: pageParam } } })),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last.meta.pagination.current_page < last.meta.pagination.last_page ? last.meta.pagination.current_page + 1 : undefined,
+    placeholderData: keepPreviousData,
+  });
+}
+
+// ---------------------------------------------------------------- accounts (needs a connection)
+
+export function useUsers(filters: { q?: string; role?: UserRole; is_active?: boolean }) {
+  return useQuery({
+    queryKey: ['users', filters],
+    queryFn: () =>
+      unwrap(api.GET('/users', { params: { query: { ...filters, q: filters.q || undefined, per_page: 100 } } })),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: NewUser) => unwrap(api.POST('/users', { body })),
+    // The organization's limits (on /auth/me) change too.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: number; body: UpdateUser }) =>
+      (await unwrap(api.PUT('/users/{user}', { params: { path: { user: id } }, body }))).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
+/** A new temporary password; the account is signed out everywhere. */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (id: number) => unwrap(api.POST('/users/{user}/reset-password', { params: { path: { user: id } } })),
+  });
+}
+
+export function useStates() {
+  return useQuery({
+    queryKey: ['states'],
+    queryFn: async () => (await unwrap(api.GET('/states'))).data,
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useLgas(stateId: number | null) {
+  return useQuery({
+    queryKey: ['lgas', stateId],
+    queryFn: async () => (await unwrap(api.GET('/states/{state}/lgas', { params: { path: { state: stateId! } } }))).data,
+    enabled: stateId !== null,
+    staleTime: 60 * 60_000,
+  });
+}
+
+/** SDPs in an LGA (the LGA's store is not listed). */
+export function useLgaFacilities(lgaId: number | null) {
+  return useQuery({
+    queryKey: ['lga-facilities', lgaId],
+    queryFn: async () => (await unwrap(api.GET('/lgas/{lga}/facilities', { params: { path: { lga: lgaId! } } }))).data,
+    enabled: lgaId !== null,
   });
 }

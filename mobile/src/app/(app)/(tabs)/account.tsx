@@ -1,5 +1,24 @@
 import Constants from 'expo-constants';
-import { Building2, CloudCheck, CloudOff, LogOut, RefreshCw, RotateCcw, Server, Trash2, TriangleAlert } from 'lucide-react-native';
+import { router } from 'expo-router';
+import {
+  BellRing,
+  Building2,
+  ChevronRight,
+  CloudCheck,
+  CloudOff,
+  FileText,
+  ListChecks,
+  LogOut,
+  MapPinned,
+  Monitor,
+  RefreshCw,
+  RotateCcw,
+  Server,
+  Trash2,
+  TriangleAlert,
+  UserCog,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { PageHeader } from '@/components/page-header';
@@ -14,14 +33,17 @@ import { API_URL } from '@/lib/config';
 import { confirm } from '@/lib/confirm';
 import { ROLE_LABEL, initials, timeAgo } from '@/lib/format';
 import { describe, removeItem, retryItem, useOutbox } from '@/lib/offlineQueue';
-import { useFacility } from '@/lib/queries';
-import { useFacilityId, useSession, useUser } from '@/lib/session';
+import { useFacility, useNotifications } from '@/lib/queries';
+import { isAreaUser, manageableRoles } from '@/lib/roles';
+import { useSession, useUser } from '@/lib/session';
 import { requestSync, useSyncState } from '@/lib/sync';
 
+/** Account and sync — for officers and admins also "More": their tools beyond the dashboard. */
 export default function Account() {
   const c = useTheme();
   const user = useUser();
-  const facility = useFacility(useFacilityId());
+  const area = isAreaUser(user);
+  const ownFacilityId = user.facility_id ?? user.store?.id ?? null;
   const { signOut } = useSession();
   const outbox = useOutbox();
   const { online, running, lastSyncedAt } = useSyncState();
@@ -41,7 +63,7 @@ export default function Account() {
 
   return (
     <ScrollView style={{ backgroundColor: c.bg }} contentContainerStyle={styles.scroll}>
-      <PageHeader eyebrow="Account" title="You & sync" />
+      <PageHeader eyebrow={area ? 'More' : 'Account'} title={area ? 'Tools & account' : 'You & sync'} />
       <View style={styles.body}>
         <Card style={styles.profile}>
           <View style={[styles.avatar, { backgroundColor: c.primary }]}>
@@ -60,18 +82,23 @@ export default function Account() {
           </View>
         </Card>
 
-        <Card style={styles.facility}>
-          <IconChip icon={Building2} tone="ink" />
-          <View style={{ flex: 1 }}>
-            <Text variant="label">{facility.data?.name ?? '—'}</Text>
-            <Text variant="caption" tone="muted">
-              {facility.data
-                ? [facility.data.lga && `${facility.data.lga.name} LGA`, facility.data.state && `${facility.data.state.name} State`].filter(Boolean).join(' · ') || 'Nigeria'
-                : user.node.path.join(' › ')}
-            </Text>
-          </View>
-        </Card>
+        {ownFacilityId !== null ? (
+          <FacilityCard id={ownFacilityId} />
+        ) : (
+          <Card style={styles.facility}>
+            <IconChip icon={MapPinned} tone="ink" />
+            <View style={{ flex: 1 }}>
+              <Text variant="label">{user.node.name}</Text>
+              <Text variant="caption" tone="muted">
+                {user.node.path.join(' › ')}
+              </Text>
+            </View>
+          </Card>
+        )}
 
+        {area && <Tools />}
+
+        {ownFacilityId !== null && (
         <View>
           <SectionHeader title="Sync" />
           <Card style={{ gap: Spacing.four }}>
@@ -135,6 +162,7 @@ export default function Account() {
             ))}
           </Card>
         </View>
+        )}
 
         <Card style={styles.facility}>
           <IconChip icon={Server} />
@@ -155,7 +183,78 @@ export default function Account() {
   );
 }
 
+function FacilityCard({ id }: { id: number }) {
+  const user = useUser();
+  const facility = useFacility(id);
+  return (
+    <Card style={styles.facility}>
+      <IconChip icon={Building2} tone="ink" />
+      <View style={{ flex: 1 }}>
+        <Text variant="label">{facility.data?.name ?? '—'}</Text>
+        <Text variant="caption" tone="muted">
+          {facility.data
+            ? [facility.data.lga && `${facility.data.lga.name} LGA`, facility.data.state && `${facility.data.state.name} State`].filter(Boolean).join(' · ') || 'Nigeria'
+            : user.node.path.join(' › ')}
+        </Text>
+      </View>
+    </Card>
+  );
+}
+
+function ToolRow({ icon, title, hint, onPress, tone }: { icon: LucideIcon; title: string; hint: string; onPress: () => void; tone?: 'warning' }) {
+  const c = useTheme();
+  return (
+    <Card onPress={onPress} style={styles.facility}>
+      <IconChip icon={icon} tone={tone ?? 'primary'} />
+      <View style={{ flex: 1 }}>
+        <Text variant="label">{title}</Text>
+        <Text variant="caption" tone={tone ?? 'muted'}>
+          {hint}
+        </Text>
+      </View>
+      <ChevronRight size={18} color={c.muted} />
+    </Card>
+  );
+}
+
+/** Officers' and admins' tools: the web dashboard's pages that work well on a phone. */
+function Tools() {
+  const c = useTheme();
+  const user = useUser();
+  const unread = useNotifications().data?.meta.unread_count ?? 0;
+  const manages = manageableRoles(user).length > 0;
+
+  return (
+    <View style={{ gap: Spacing.three }}>
+      <SectionHeader title="Tools" />
+      <ToolRow
+        icon={BellRing}
+        title="Notifications"
+        hint={unread > 0 ? `${unread} unread` : 'Daily digests of new alerts in your area'}
+        tone={unread > 0 ? 'warning' : undefined}
+        onPress={() => router.push('/notifications')}
+      />
+      <ToolRow icon={FileText} title="Reports" hint="Stock status, movement, reorder and expiry for your area" onPress={() => router.push('/reports')} />
+      <ToolRow icon={ListChecks} title="Activity log" hint="Who recorded, confirmed or changed what" onPress={() => router.push('/activity')} />
+      {manages && <ToolRow icon={UserCog} title="Accounts" hint="Add people, reset passwords, deactivate" onPress={() => router.push('/accounts')} />}
+      <View style={[styles.webNote, { backgroundColor: c.surface2 }]}>
+        <Monitor size={16} color={c.muted} />
+        <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+          Products, stock levels, CSV imports{user.role === 'admin' ? ', facilities and billing' : ''} are on the web dashboard.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  webNote: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    alignItems: 'flex-start',
+    padding: Spacing.three,
+    borderRadius: Radius.md,
+  },
   scroll: {
     paddingBottom: TabBarInset + Spacing.four,
   },

@@ -121,3 +121,21 @@ export function initials(name: string): string {
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+export const ZONE_LABEL: Record<string, string> = {
+  north_central: 'North Central',
+  north_east: 'North East',
+  north_west: 'North West',
+  south_east: 'South East',
+  south_south: 'South South',
+  south_west: 'South West',
+};
+
+export const AUDIT_CATEGORY_LABEL: Record<string, string> = {
+  stock: 'Stock',
+  deliveries: 'Deliveries',
+  accounts: 'Accounts',
+  catalog: 'Catalog',
+  facilities: 'Facilities',
+  alerts: 'Alerts',
+};

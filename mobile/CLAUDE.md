@@ -1,4 +1,4 @@
-# CLAUDE.md — mobile (React Native, SDP staff)
+# CLAUDE.md — mobile (React Native: SDP staff, officers and admins)
 
 Build this last (see `../docs/ROADMAP.md` Phase 4) — it depends on the
 API contract being stable, since offline sync is much harder to retrofit
@@ -30,17 +30,25 @@ src/
     sign-in.tsx, sign-up.tsx   <- signed-out screens (AuthShell); sign-up makes a free-plan organization with you as admin
     set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
     verify-email.tsx           <- after signing up: confirm the emailed link before the app opens (resend / check again)
-    (app)/_layout.tsx          <- signed-in stack; wires sync + push; SDP staff and store officers get the facility app
-                                  (useFacilityId = own facility, else own store); admins / storeless officers get OfficerHome
-    (app)/(tabs)/              <- index (Home), stock, alerts, account — custom floating TabBar
+    (app)/_layout.tsx          <- signed-in stack for everyone but the owner; wires sync + push
+    (app)/(tabs)/              <- custom floating TabBar picks the tabs by role (lib/roles.ts isAreaUser):
+                                  SDP staff: index (Home), stock, alerts, account
+                                  officers: overview, index (= their Store; useFacilityId = own store), alerts, account ("More")
+                                  admins (no store): overview, alerts, account — no record button
+    (app)/(tabs)/overview.tsx  <- own LGA / state / national rollup (components/area-dashboard + rollup.tsx, as web RollupDashboard)
+    (app)/area/[level]/[id].tsx <- drill-down: a state's or LGA's rollup
+    (app)/facility/[id].tsx    <- a facility or store opened from a rollup or an area alert: read-only stock, alerts, entries
     (app)/record.tsx           <- RecordTransaction sheet (modal): saves to the outbox first
-    (app)/product/[id].tsx     <- one product's Stock Card
+    (app)/product/[id].tsx     <- one product's Stock Card; ?facility=<id> opens another facility's, read-only unless canRecordAt
     (app)/amc.tsx              <- starting AMCs per product (new facilities), queued in the outbox
     (app)/delivery-notes.tsx   <- deliveries to confirm / confirmed / rejected; confirm + reject need a connection
     (app)/incoming.tsx         <- store officers: requests from facilities below; decline (online) or open fulfil
     (app)/fulfil.tsx, dispatch.tsx <- store officers: issue stock down the chain (modal), queued in the outbox
     (app)/reports.tsx          <- read-only reports (status, movement, reorder, expiry); own facility or officer's area
-    (app)/notifications.tsx    <- store officers' digests and store alerts (same list as OfficerHome)
+    (app)/notifications.tsx    <- officers' / admins' digests and store alerts (a digest push opens it)
+    (app)/activity.tsx         <- audit log for the user's area (read-only, paged)
+    (app)/accounts/            <- index: accounts the user manages (reset password, deactivate / reactivate); new: add one (modal).
+                                  Online only. Products, stock levels, imports, facilities and billing stay on the web.
   components/                 <- ui/ kit (Text, Card, Button, Badge, KpiTile, ...) + domain pieces
   constants/theme.ts          <- design tokens: same blue / white / black palette as web/src/index.css
   lib/
@@ -48,7 +56,8 @@ src/
     session.tsx                <- token in SecureStore; works offline with the last known user
     offlineQueue.ts            <- outbox: pending transactions, deliveries, reorder requests, starting AMCs, dispatches, fulfils (expo-sqlite kv-store)
     sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
-    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id> (officers: refresh the list)
+    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>, digests -> /notifications
+    roles.ts                   <- isAreaUser, manageableRoles, canRecordAt (UX only; mirrors HierarchyScope)
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)
 ```
 

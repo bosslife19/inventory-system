@@ -17,8 +17,8 @@ import { api } from './api';
  * A notification tap deep-links into the alerts screen, focused on the
  * alert in the payload ({ alert_id }); a reorder request update opens the
  * requests screen ({ reorder_request_id }), or, for a new request to a
- * store ({ direction: "incoming" }), the store's incoming list. Officers' digests carry no alert_id;
- * their app is the notifications list itself, so it opens with no deep link.
+ * store ({ direction: "incoming" }), the store's incoming list. Officers' daily digests
+ * ({ type: "digest" }) open their notifications list.
  */
 
 Notifications.setNotificationHandler({
@@ -59,12 +59,10 @@ function openFromNotification(response: Notifications.NotificationResponse | nul
   if (data?.reorder_request_id != null)
     router.push({ pathname: data.direction === 'incoming' ? '/incoming' : '/requests', params: { focus: String(data.reorder_request_id) } });
   else if (data?.alert_id != null) router.push({ pathname: '/alerts', params: { focus: String(data.alert_id) } });
+  else if (data?.type === 'digest') router.push('/notifications');
 }
 
-/**
- * Mount once inside the signed-in app. `onOpen` replaces the alerts deep
- * link (officers, who have no alerts tab, just refresh their list).
- */
+/** Mount once inside the signed-in app. `onOpen` replaces the default deep links. */
 export function usePushNotifications(onOpen: (response: Notifications.NotificationResponse | null) => void = openFromNotification) {
   const lastResponse = Notifications.useLastNotificationResponse();
 

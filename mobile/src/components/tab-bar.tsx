@@ -1,20 +1,40 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { Bell, House, Package, Plus, UserRound, type LucideIcon } from 'lucide-react-native';
+import { Bell, House, LayoutDashboard, Menu, Package, Plus, UserRound, Warehouse, type LucideIcon } from 'lucide-react-native';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAlerts } from '@/lib/queries';
+import { isAreaUser } from '@/lib/roles';
+import { useUser } from '@/lib/session';
 
 import { Text } from './ui/text';
 
-const TABS: Record<string, { label: string; icon: LucideIcon }> = {
+type TabSet = Record<string, { label: string; icon: LucideIcon }>;
+
+/** Facility staff: their facility's app. */
+const FACILITY_TABS: TabSet = {
   index: { label: 'Home', icon: House },
   stock: { label: 'Stock', icon: Package },
   alerts: { label: 'Alerts', icon: Bell },
   account: { label: 'Account', icon: UserRound },
+};
+
+/** Officers: their area's dashboard, plus their own store (its stock list opens from the store's home). */
+const OFFICER_TABS: TabSet = {
+  overview: { label: 'Overview', icon: LayoutDashboard },
+  index: { label: 'Store', icon: Warehouse },
+  alerts: { label: 'Alerts', icon: Bell },
+  account: { label: 'More', icon: Menu },
+};
+
+/** Admins (no store of their own): the dashboard and tools; recording happens at a facility or store. */
+const ADMIN_TABS: TabSet = {
+  overview: { label: 'Overview', icon: LayoutDashboard },
+  alerts: { label: 'Alerts', icon: Bell },
+  account: { label: 'More', icon: Menu },
 };
 
 function tap() {
@@ -28,9 +48,13 @@ function tap() {
  */
 export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = useTheme();
+  const user = useUser();
   const open = useAlerts('open').data?.meta.pagination.total ?? 0;
-  const routes = state.routes.filter((r) => r.name in TABS);
-  const half = Math.ceil(routes.length / 2);
+  const TABS = !isAreaUser(user) ? FACILITY_TABS : user.store ? OFFICER_TABS : ADMIN_TABS;
+  // The record button records where this user keeps a Stock Card.
+  const canRecord = TABS !== ADMIN_TABS;
+  const routes = state.routes.filter((r) => r.name in TABS).sort((a, b) => Object.keys(TABS).indexOf(a.name) - Object.keys(TABS).indexOf(b.name));
+  const half = canRecord ? Math.ceil(routes.length / 2) : routes.length;
 
   const item = (route: (typeof routes)[number]) => {
     const { label, icon: Icon } = TABS[route.name];
@@ -68,6 +92,7 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
       <View style={[styles.bar, { backgroundColor: c.surface, borderColor: c.border, shadowColor: c.shadow }]}>
         {routes.slice(0, half).map(item)}
+        {canRecord && (
         <View style={styles.centerSlot}>
           <Pressable
             accessibilityRole="button"
@@ -84,6 +109,7 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
             <Plus size={28} color="#ffffff" strokeWidth={2.6} />
           </Pressable>
         </View>
+        )}
         {routes.slice(half).map(item)}
       </View>
     </View>

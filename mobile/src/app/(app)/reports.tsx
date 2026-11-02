@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { isNetworkError } from '@/lib/api';
 import { formatDate, formatQty, todayInLagos } from '@/lib/format';
 import { useReport, type ReportName } from '@/lib/queries';
-import { useFacilityId, useUser } from '@/lib/session';
+import { useUser } from '@/lib/session';
 import type { ReportResult } from '@/lib/types';
 
 const REPORTS: { value: ReportName; label: string; hint: string }[] = [
@@ -64,18 +64,19 @@ export default function Reports() {
   const c = useTheme();
   const insets = useSafeAreaInsets();
   const user = useUser();
-  const facilityId = useFacilityId();
+  // Admins keep no Stock Card, so they only see area reports.
+  const facilityId = user.facility_id ?? user.store?.id ?? null;
   const periods = recentPeriods();
   const [report, setReport] = useState<ReportName>('stock-status');
   const hasArea = user.node.level !== 'facility';
-  const [scope, setScope] = useState<'own' | 'area'>('own');
+  const [scope, setScope] = useState<'own' | 'area'>(facilityId === null ? 'area' : 'own');
   const [period, setPeriod] = useState(periods[0].value);
   const [level, setLevel] = useState('');
   const [withinDays, setWithinDays] = useState(90);
   const [search, setSearch] = useState('');
 
   const area =
-    scope === 'area' && hasArea
+    (scope === 'area' && hasArea) || facilityId === null
       ? { area: user.node.level, id: user.node.level === 'national' ? undefined : (user.node.id ?? undefined) }
       : { area: 'facility', id: facilityId };
   const params = {
@@ -108,7 +109,7 @@ export default function Reports() {
                   <Chip key={r.value} label={r.label} selected={r.value === report} onPress={() => setReport(r.value)} />
                 ))}
               </ChipRow>
-              {hasArea && (
+              {hasArea && facilityId !== null && (
                 <Segmented
                   options={[
                     { value: 'own', label: user.store?.name ?? 'My store' },
