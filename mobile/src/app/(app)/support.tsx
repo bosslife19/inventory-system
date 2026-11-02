@@ -1,6 +1,6 @@
 import { CloudOff, LifeBuoy, SendHorizontal } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PageHeader } from '@/components/page-header';
@@ -56,7 +56,7 @@ export default function Support() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior="padding">
       <PageHeader back eyebrow="Help" title="Support" subtitle="Chat with the support team. We usually reply within a few hours." />
       <FlatList
         ref={list}
@@ -65,6 +65,7 @@ export default function Support() {
         style={{ flex: 1 }}
         contentContainerStyle={[styles.list, messages.length === 0 && { flexGrow: 1, justifyContent: 'center' }]}
         onContentSizeChange={() => list.current?.scrollToEnd({ animated: false })}
+        onLayout={() => list.current?.scrollToEnd({ animated: false })}
         keyboardShouldPersistTaps="handled"
         renderItem={({ item: m, index }) => {
           const mine = !m.from_support;
