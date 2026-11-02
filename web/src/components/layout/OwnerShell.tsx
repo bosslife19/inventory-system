@@ -1,20 +1,22 @@
-import { Building, CreditCard, LogOut, Menu, Palette } from 'lucide-react'
+import { Building, CreditCard, LifeBuoy, LogOut, Menu, Palette } from 'lucide-react'
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useLogout } from '../../lib/auth'
 import { ROLE_LABEL } from '../../lib/format'
+import { useSupportInboxUnread } from '../../lib/support'
 import type { User } from '../../lib/types'
 import { Brand } from './Brand'
 
 /**
  * The platform owner's console: the same shell as everyone else's, with
- * organizations, plan tiers and the platform's branding in place of the Stock Card
+ * organizations, support chats, plan tiers and the platform's branding in place of the Stock Card
  * screens — the owner sees no organization's data.
  */
 export function OwnerShell({ user }: { user: User }) {
   const logout = useLogout()
   const [navOpen, setNavOpen] = useState(false)
   const close = () => setNavOpen(false)
+  const unreadChats = useSupportInboxUnread().data ?? 0
 
   return (
     <div className={`shell${navOpen ? ' nav-open' : ''}`}>
@@ -27,6 +29,10 @@ export function OwnerShell({ user }: { user: User }) {
         <nav className="nav">
           <NavLink to="/owner" end onClick={close}>
             <Building size={18} /> <span className="nav-text">Organizations</span>
+          </NavLink>
+          <NavLink to="/owner/support" onClick={close}>
+            <LifeBuoy size={18} /> <span className="nav-text">Support</span>
+            {unreadChats > 0 && <span className="nav-count">{unreadChats > 99 ? '99+' : unreadChats}</span>}
           </NavLink>
           <NavLink to="/owner/plans" onClick={close}>
             <CreditCard size={18} /> <span className="nav-text">Plans & prices</span>

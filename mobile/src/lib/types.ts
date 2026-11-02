@@ -68,3 +68,4 @@ export type FacilityStatusCounts = LgaSummary['facility_status'];
 export type RollupSummary = Pick<LgaSummary, 'child_count' | 'facility_count' | 'facility_counts' | 'facility_status' | 'products'> & {
   children: FacilityStockSummary[] | AreaStockSummary[];
 };
+export type SupportMessage = Schemas['SupportMessageResource'];

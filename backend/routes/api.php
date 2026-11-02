@@ -12,10 +12,12 @@ use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\LgaController;
 use App\Http\Controllers\Api\V1\LgaStockSummaryController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\SupportController;
 use App\Http\Controllers\Api\V1\Owner\OrganizationAdminController;
 use App\Http\Controllers\Api\V1\Owner\OrganizationController;
 use App\Http\Controllers\Api\V1\Owner\PlanTierController;
 use App\Http\Controllers\Api\V1\Owner\PlatformController;
+use App\Http\Controllers\Api\V1\Owner\SupportController as OwnerSupportController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductLevelController;
 use App\Http\Controllers\Api\V1\ReorderRequestController;
@@ -73,6 +75,15 @@ Route::prefix('v1')->group(function () {
         Route::put('organizations/{organization}', [OrganizationController::class, 'update']);
         Route::post('organizations/{organization}/logo', [OrganizationController::class, 'uploadLogo']);
         Route::delete('organizations/{organization}/logo', [OrganizationController::class, 'deleteLogo']);
+
+        // Support chat: every organization's accounts, answered here.
+        Route::get('support/conversations', [OwnerSupportController::class, 'index']);
+        Route::get('support/unread', [OwnerSupportController::class, 'unread']);
+        Route::get('support/conversations/{conversation}', [OwnerSupportController::class, 'show']);
+        Route::put('support/conversations/{conversation}', [OwnerSupportController::class, 'update']);
+        Route::get('support/conversations/{conversation}/messages', [OwnerSupportController::class, 'messages']);
+        Route::post('support/conversations/{conversation}/messages', [OwnerSupportController::class, 'reply'])->middleware('throttle:60,1,support-reply');
+        Route::post('support/conversations/{conversation}/read', [OwnerSupportController::class, 'read']);
 
         Route::scopeBindings()->group(function () {
             Route::get('organizations/{organization}/admins', [OrganizationAdminController::class, 'index']);
@@ -162,5 +173,11 @@ Route::prefix('v1')->group(function () {
         Route::get('notifications', [NotificationController::class, 'index']);
         Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
         Route::post('notifications/{notification}/read', [NotificationController::class, 'read']);
+
+        // Support chat with the platform owner (any role, any plan).
+        Route::get('support/messages', [SupportController::class, 'messages']);
+        Route::post('support/messages', [SupportController::class, 'store'])->middleware('throttle:20,1,support-send');
+        Route::get('support/unread', [SupportController::class, 'unread']);
+        Route::post('support/read', [SupportController::class, 'read']);
     });
 });

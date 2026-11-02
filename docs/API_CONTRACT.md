@@ -509,6 +509,32 @@ push_notifications]** — on the free plan nothing is pushed; the in-app notific
 - `POST /notifications/{id}/read` → 200 `<Notification>`; keeps the first read time. Someone else's → 404.
 - `POST /notifications/read-all` → 204.
 
+## Support chat
+Every organization account (any role, any plan) has one running conversation with the platform owner, who
+answers from the owner console. No websockets (shared hosting): clients poll `GET …/messages?after=<last id>`
+every few seconds while the chat is open, and the unread endpoints about once a minute for badges.
+
+- `<SupportMessage>` = `{ id, from_support, sender_name, body, created_at }` — `from_support` true for the
+  owner's replies. Bodies are trimmed, 1–2000 characters (422 on `body` otherwise).
+- `GET /support/messages` (query: `after?` message id) — the caller's own conversation, oldest first: the latest
+  100, or only those newer than `after`. `{ data: [<SupportMessage>], meta: { status: open|closed|null,
+  unread_count } }` (`status` null before the first message; `unread_count` = replies not yet marked read).
+- `POST /support/messages` — body `{ body }` → 201 `<SupportMessage>`. Starts the conversation, or reopens a
+  closed one. Throttled to 20 a minute.
+- `GET /support/unread` → `{ data: { unread_count } }`.
+- `POST /support/read` → 204; every reply so far is read.
+- Owner only (403 for anyone else): `GET /owner/support/conversations` (query: `status?`, `q?` (name, email or
+  organization contains), `per_page?` ≤ 100, `page?`) — newest message first, paginated
+  `{ data: [<SupportConversation>], meta: { pagination } }`;
+  `<SupportConversation>` = `{ id, status, user: { id, name, email, role, place }, organization: { id, name, plan },
+  last_message_at, last_message_preview, last_message_from_support, unread_count, closed_at }` (`place` = the
+  account's node path; `unread_count` = the account's messages the owner hasn't read).
+  `GET /owner/support/conversations/{id}`; `GET /owner/support/conversations/{id}/messages` (query `after?`; latest
+  200); `POST /owner/support/conversations/{id}/messages` `{ body }` → 201 `<SupportMessage>`, pushed to the
+  account's phone (title `Support replied`, data `{ type: "support", url: "stockcard://support" }`, any plan);
+  `POST /owner/support/conversations/{id}/read` → 204; `PUT /owner/support/conversations/{id}` `{ status }` closes or
+  reopens it; `GET /owner/support/unread` → `{ data: { unread_conversations } }`.
+
 ## Standard response shape
 ```json
 { "data": ..., "meta": { "pagination": { ... } } }

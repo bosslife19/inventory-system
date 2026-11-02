@@ -21,6 +21,7 @@ import { OrganizationPage } from './routes/owner/OrganizationPage'
 import { OrganizationsPage } from './routes/owner/OrganizationsPage'
 import { PlansPage } from './routes/owner/PlansPage'
 import { PlatformPage } from './routes/owner/PlatformPage'
+import { SupportPage } from './routes/owner/SupportPage'
 import { ReportsPage } from './routes/reports/ReportsPage'
 import { FacilityPage } from './routes/sdp/FacilityPage'
 import { StatePage } from './routes/state/StatePage'
@@ -115,8 +116,8 @@ function Account() {
   return <AccountPage user={useUser()} />
 }
 
-/** The owner's console: organizations, plan tiers and the platform's branding, for the platform owner only. */
-function Owner({ page }: { page: 'organizations' | 'organization' | 'plans' | 'platform' }) {
+/** The owner's console: organizations, support chats, plan tiers and the platform's branding, for the platform owner only. */
+function Owner({ page }: { page: 'organizations' | 'organization' | 'plans' | 'platform' | 'support' }) {
   const user = useUser()
   const id = Number(useParams().id)
   if (user.role !== 'owner') return <Navigate to={homePath(user)} replace />
@@ -130,6 +131,8 @@ function Owner({ page }: { page: 'organizations' | 'organization' | 'plans' | 'p
       return <PlansPage />
     case 'platform':
       return <PlatformPage />
+    case 'support':
+      return <SupportPage />
   }
 }
 
@@ -176,6 +179,7 @@ export default function App() {
         <Route path="/owner/organizations/:id" element={<Owner page="organization" />} />
         <Route path="/owner/plans" element={<Owner page="plans" />} />
         <Route path="/owner/platform" element={<Owner page="platform" />} />
+        <Route path="/owner/support" element={<Owner page="support" />} />
         <Route path="*" element={<div className="page-state">Page not found.</div>} />
       </Route>
     </Routes>

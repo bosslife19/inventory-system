@@ -6,7 +6,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useAlerts } from '@/lib/queries';
+import { useAlerts, useSupportUnread } from '@/lib/queries';
 import { isAreaUser } from '@/lib/roles';
 import { useUser } from '@/lib/session';
 
@@ -50,6 +50,9 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = useTheme();
   const user = useUser();
   const open = useAlerts('open').data?.meta.pagination.total ?? 0;
+  const supportReplies = useSupportUnread().data ?? 0;
+  // Counts shown on a tab: open alerts, and unread support replies on Account / More.
+  const countFor = (name: string) => (name === 'alerts' ? open : name === 'account' ? supportReplies : 0);
   const TABS = !isAreaUser(user) ? FACILITY_TABS : user.store ? OFFICER_TABS : ADMIN_TABS;
   // The record button records where this user keeps a Stock Card.
   const canRecord = TABS !== ADMIN_TABS;
@@ -64,7 +67,7 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
         key={route.key}
         accessibilityRole="tab"
         accessibilityState={{ selected: focused }}
-        accessibilityLabel={route.name === 'alerts' && open ? `${label}, ${open} open` : label}
+        accessibilityLabel={countFor(route.name) ? `${label}, ${countFor(route.name)} ${route.name === 'alerts' ? 'open' : 'unread'}` : label}
         onPress={() => {
           tap();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -73,10 +76,10 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
         style={styles.item}>
         <View style={[styles.iconWrap, focused && { backgroundColor: c.primarySoft }]}>
           <Icon size={21} color={focused ? c.primary : c.muted} strokeWidth={focused ? 2.4 : 2} />
-          {route.name === 'alerts' && open > 0 && (
+          {countFor(route.name) > 0 && (
             <View style={[styles.badge, { backgroundColor: c.statusCritical, borderColor: c.surface }]}>
               <Text variant="caption" weight="bold" style={styles.badgeText}>
-                {open > 9 ? '9+' : open}
+                {countFor(route.name) > 9 ? '9+' : countFor(route.name)}
               </Text>
             </View>
           )}

@@ -6,6 +6,7 @@ import { useAlertCount, useDeliveryNoteCount, useReorderRequests } from '../../l
 import { AlertBadge } from '../alerts/AlertBadge'
 import { Brand, PartnerBadge } from './Brand'
 import { RenewalBanner } from './RenewalBanner'
+import { SupportWidget } from '../support/SupportWidget'
 import { ROLE_LABEL } from '../../lib/format'
 import type { User } from '../../lib/types'
 
@@ -198,6 +199,7 @@ export function AppShell({ user }: { user: User }) {
           {user.organization && <RenewalBanner organization={user.organization} />}
           <Outlet />
         </main>
+        <SupportWidget />
       </div>
     </div>
   )

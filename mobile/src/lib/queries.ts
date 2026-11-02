@@ -1,7 +1,17 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, getJson, unwrap } from './api';
-import type { AlertStatus, AuditCategory, DeliveryNoteStatus, NewUser, ReportResult, StockActivity, UpdateUser, UserRole } from './types';
+import type {
+  AlertStatus,
+  AuditCategory,
+  DeliveryNoteStatus,
+  NewUser,
+  ReportResult,
+  StockActivity,
+  SupportMessage,
+  UpdateUser,
+  UserRole,
+} from './types';
 
 // Server state only; cached to device storage (see _layout) so screens open
 // offline with the last data seen. Balances always come from the API
@@ -380,5 +390,65 @@ export function useLgaFacilities(lgaId: number | null) {
     queryKey: ['lga-facilities', lgaId],
     queryFn: async () => (await unwrap(api.GET('/lgas/{lga}/facilities', { params: { path: { lga: lgaId! } } }))).data,
     enabled: lgaId !== null,
+  });
+}
+
+// ---------------------------------------------------------------- support chat (needs a connection)
+
+/** How often the open chat checks for new messages (no websockets — docs/API_CONTRACT.md "Support chat"). */
+const CHAT_POLL_MS = 4000;
+const SUPPORT_THREAD = ['support', 'thread'];
+
+interface SupportThread {
+  messages: SupportMessage[];
+  status: 'open' | 'closed' | null;
+}
+
+/**
+ * The signed-in account's chat with support. The first fetch loads the latest
+ * messages; while `open`, later polls fetch only those after the last id held.
+ */
+export function useSupportThread(open: boolean) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: SUPPORT_THREAD,
+    queryFn: async (): Promise<SupportThread> => {
+      const held = queryClient.getQueryData<SupportThread>(SUPPORT_THREAD);
+      const after = held?.messages.at(-1)?.id;
+      const res = await unwrap(api.GET('/support/messages', { params: { query: { after } } }));
+      if (after === undefined || !held) return { messages: res.data, status: res.meta.status };
+      return { status: res.meta.status, messages: [...held.messages, ...res.data.filter((m) => m.id > after)] };
+    },
+    refetchInterval: open ? CHAT_POLL_MS : false,
+  });
+}
+
+export function useSupportUnread() {
+  return useQuery({
+    queryKey: ['support', 'unread'],
+    queryFn: async () => (await unwrap(api.GET('/support/unread'))).data.unread_count,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useSendSupportMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: string) => (await unwrap(api.POST('/support/messages', { body: { body } }))).data,
+    // Show it straight away rather than on the next poll.
+    onSuccess: (message) =>
+      queryClient.setQueryData<SupportThread>(SUPPORT_THREAD, (held) =>
+        held && !held.messages.some((m) => m.id === message.id) ? { status: 'open', messages: [...held.messages, message] } : held,
+      ),
+  });
+}
+
+export function useMarkSupportRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await api.POST('/support/read');
+    },
+    onSuccess: () => queryClient.setQueryData(['support', 'unread'], 0),
   });
 }

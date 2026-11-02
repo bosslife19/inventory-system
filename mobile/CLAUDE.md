@@ -47,6 +47,7 @@ src/
     (app)/reports.tsx          <- read-only reports (status, movement, reorder, expiry); own facility or officer's area
     (app)/notifications.tsx    <- officers' / admins' digests and store alerts (a digest push opens it)
     (app)/activity.tsx         <- audit log for the user's area (read-only, paged)
+    (app)/support.tsx          <- live chat with the platform owner (every role; polls every 4 s while open; online only)
     (app)/accounts/            <- index: accounts the user manages (reset password, deactivate / reactivate); new: add one (modal).
                                   Online only. Products, stock levels, imports, facilities and billing stay on the web.
   components/                 <- ui/ kit (Text, Card, Button, Badge, KpiTile, ...) + domain pieces
@@ -56,7 +57,7 @@ src/
     session.tsx                <- token in SecureStore; works offline with the last known user
     offlineQueue.ts            <- outbox: pending transactions, deliveries, reorder requests, starting AMCs, dispatches, fulfils (expo-sqlite kv-store)
     sync.ts                    <- flush outbox on enqueue / reconnect / foreground / every 30s
-    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>, digests -> /notifications
+    push.ts                    <- FCM token registration, notification tap -> /alerts?focus=<id>, digests -> /notifications, support replies -> /support
     roles.ts                   <- isAreaUser, manageableRoles, canRecordAt (UX only; mirrors HierarchyScope)
     *.web.ts                   <- web-preview fallbacks (localStorage, no push)
 ```

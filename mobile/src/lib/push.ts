@@ -18,7 +18,7 @@ import { api } from './api';
  * alert in the payload ({ alert_id }); a reorder request update opens the
  * requests screen ({ reorder_request_id }), or, for a new request to a
  * store ({ direction: "incoming" }), the store's incoming list. Officers' daily digests
- * ({ type: "digest" }) open their notifications list.
+ * ({ type: "digest" }) open their notifications list; a support reply ({ type: "support" }) the chat.
  */
 
 Notifications.setNotificationHandler({
@@ -60,6 +60,7 @@ function openFromNotification(response: Notifications.NotificationResponse | nul
     router.push({ pathname: data.direction === 'incoming' ? '/incoming' : '/requests', params: { focus: String(data.reorder_request_id) } });
   else if (data?.alert_id != null) router.push({ pathname: '/alerts', params: { focus: String(data.alert_id) } });
   else if (data?.type === 'digest') router.push('/notifications');
+  else if (data?.type === 'support') router.push('/support');
 }
 
 /** Mount once inside the signed-in app. `onOpen` replaces the default deep links. */

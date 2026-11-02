@@ -258,6 +258,38 @@ unique on `(facility_id, product_id)`
 > the last 24 hours). `pushed_at` is set when FCM accepted the push (null: no device
 > registered, or the token was dead). Not Laravel's database-notification table.
 
+## Support chat
+
+Each organization account has one conversation with the platform owner (who belongs to no
+organization and answers them all). Clients poll; nothing here is pushed through websockets.
+
+```
+support_conversations
+  id                         bigint PK
+  organization_id            FK -> organizations   -- the account's; tenant-filtered like other org rows
+  user_id                    FK -> users, unique   -- one conversation per account
+  status                     enum(open, closed)    -- the account writing again reopens it
+  last_message_at            timestamp, null
+  last_message_preview       varchar(200), null
+  last_message_from_support  bool
+  user_read_message_id       bigint default 0      -- last message the account has seen
+  support_read_message_id    bigint default 0      -- last message the owner has seen
+  closed_at                  timestamp, null
+  created_at, updated_at
+  index (status, last_message_at)
+
+support_messages
+  id                         bigint PK
+  support_conversation_id    FK -> support_conversations (cascade)
+  sender_id                  FK -> users, null on delete
+  from_support               bool                  -- true = the platform owner
+  body                       text                  -- 1–2000 characters
+  created_at, updated_at
+  index (support_conversation_id, id)
+```
+
+> Unread = messages from the other side with an id above that side's `*_read_message_id`.
+
 ## Audit log
 
 **audit_events** (append-only — who did what, where, when)

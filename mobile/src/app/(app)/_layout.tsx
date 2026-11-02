@@ -43,6 +43,7 @@ function SignedInApp() {
       <Stack.Screen name="activity" />
       <Stack.Screen name="accounts/index" />
       <Stack.Screen name="accounts/new" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="support" />
     </Stack>
   );
 }

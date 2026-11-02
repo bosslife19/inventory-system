@@ -7,6 +7,7 @@ import {
   CloudCheck,
   CloudOff,
   FileText,
+  LifeBuoy,
   ListChecks,
   LogOut,
   MapPinned,
@@ -33,7 +34,7 @@ import { API_URL } from '@/lib/config';
 import { confirm } from '@/lib/confirm';
 import { ROLE_LABEL, initials, timeAgo } from '@/lib/format';
 import { describe, removeItem, retryItem, useOutbox } from '@/lib/offlineQueue';
-import { useFacility, useNotifications } from '@/lib/queries';
+import { useFacility, useNotifications, useSupportUnread } from '@/lib/queries';
 import { isAreaUser, manageableRoles } from '@/lib/roles';
 import { useSession, useUser } from '@/lib/session';
 import { requestSync, useSyncState } from '@/lib/sync';
@@ -44,6 +45,7 @@ export default function Account() {
   const user = useUser();
   const area = isAreaUser(user);
   const ownFacilityId = user.facility_id ?? user.store?.id ?? null;
+  const supportUnread = useSupportUnread().data ?? 0;
   const { signOut } = useSession();
   const outbox = useOutbox();
   const { online, running, lastSyncedAt } = useSyncState();
@@ -95,6 +97,14 @@ export default function Account() {
             </View>
           </Card>
         )}
+
+        <ToolRow
+          icon={LifeBuoy}
+          title="Support chat"
+          hint={supportUnread > 0 ? `${supportUnread} new ${supportUnread === 1 ? 'reply' : 'replies'}` : 'Questions or problems? Chat with the support team'}
+          tone={supportUnread > 0 ? 'warning' : undefined}
+          onPress={() => router.push('/support')}
+        />
 
         {area && <Tools />}
 
