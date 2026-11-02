@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -173,6 +174,63 @@ class AuthController extends Controller
         AuditLog::record('user.email_verified', "{$account->name} confirmed their email ({$account->email})", $account, AuditLog::placeOfUser($account), actor: $account);
 
         return $to('verified');
+    }
+
+    /**
+     * "Forgot password": email a one-time link to the web app's reset page.
+     * Always the same answer, so it can't be used to find out who has an
+     * account. Deactivated accounts get nothing; a second request within a
+     * minute doesn't send another email.
+     *
+     * @unauthenticated
+     */
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:255']]);
+        $user = User::withoutGlobalScope(User::ORGANIZATION_SCOPE)->where('email', mb_strtolower(trim($data['email'])))->first();
+        $tokens = Password::broker()->getRepository();
+
+        if ($user && $user->is_active && ! $tokens->recentlyCreatedToken($user)) {
+            AccountMail::passwordResetLink($user, $tokens->create($user));
+            AuditLog::record('user.password_reset_requested', "{$user->name} asked for a password reset link", $user, AuditLog::placeOfUser($user), actor: $user);
+        }
+
+        return response()->json(['message' => 'If an account uses that email, we’ve sent it a link to choose a new password.']);
+    }
+
+    /**
+     * Choose a new password with the token from the reset email. Signs the
+     * account out everywhere; sign in again with the new password.
+     *
+     * @unauthenticated
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'token' => ['required', 'string'],
+            /** At least 8 characters. */
+            'password' => ['required', 'string', 'min:8', 'max:100', 'confirmed'],
+        ]);
+        $user = User::withoutGlobalScope(User::ORGANIZATION_SCOPE)->where('email', mb_strtolower(trim($data['email'])))->first();
+        $tokens = Password::broker()->getRepository();
+
+        if (! $user || ! $user->is_active || ! $tokens->exists($user, $data['token'])) {
+            throw ValidationException::withMessages(['token' => 'This reset link is invalid or has expired. Ask for a new one.']);
+        }
+
+        $user->update([
+            'password' => $data['password'],
+            'must_change_password' => false,
+            // The link reached their inbox: the address is theirs.
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ]);
+        $tokens->delete($user);
+        $user->tokens()->delete();
+        $user->forceFill(['fcm_token' => null])->save();
+        AuditLog::record('user.password_reset_by_email', "{$user->name} chose a new password from a reset email", $user, AuditLog::placeOfUser($user), actor: $user);
+
+        return response()->json(['message' => 'Your password has been changed. Sign in with your new password.']);
     }
 
     /** The current user, their role, and the hierarchy node they are anchored at. */

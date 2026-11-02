@@ -51,6 +51,9 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
+          <p className="small forgot-link">
+            <Link to="/forgot-password">Forgot your password?</Link>
+          </p>
 
           {error && (
             <p className="form-error" role="alert">

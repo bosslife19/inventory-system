@@ -16,6 +16,7 @@ import { FederalPage } from './routes/federal/FederalPage'
 import { LgaPage } from './routes/lga/LgaPage'
 import { LoginPage } from './routes/login/LoginPage'
 import { EmailVerifiedPage } from './routes/login/EmailVerifiedPage'
+import { ForgotPasswordPage, ResetPasswordPage } from './routes/login/PasswordResetPages'
 import { SignupPage } from './routes/login/SignupPage'
 import { OrganizationPage } from './routes/owner/OrganizationPage'
 import { OrganizationsPage } from './routes/owner/OrganizationsPage'
@@ -147,6 +148,8 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/email-verified" element={<EmailVerifiedPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         element={
           <RequireAuth>

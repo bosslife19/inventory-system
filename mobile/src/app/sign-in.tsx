@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { AuthError, AuthShell } from '@/components/auth-shell';
 import { Button } from '@/components/ui/button';
@@ -79,6 +80,14 @@ export default function SignIn() {
         returnKeyType="go"
         onSubmitEditing={submit}
       />
+
+      <View style={{ alignItems: 'flex-end', marginTop: -4 }}>
+        <Link href="/forgot-password">
+          <Text variant="caption" weight="semibold" tone="primary">
+            Forgot your password?
+          </Text>
+        </Link>
+      </View>
 
       {error && <AuthError message={error} />}
 

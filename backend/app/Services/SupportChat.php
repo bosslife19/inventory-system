@@ -3,9 +3,13 @@
 namespace App\Services;
 
 use App\Contracts\PushSender;
+use App\Enums\UserRole;
+use App\Mail\SupportMessageReceived;
+use App\Mail\SupportReplied;
 use App\Models\SupportConversation;
 use App\Models\SupportMessage;
 use App\Models\User;
+use App\Support\MailOut;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -13,6 +17,10 @@ use Illuminate\Support\Facades\DB;
  * Each account has one conversation; writing in a closed one reopens it.
  * An owner reply is pushed to the account's phone (best effort, any plan —
  * it's the platform answering, not a paid feature).
+ *
+ * Email: the owner is told when a conversation gets its first message they
+ * haven't read, and the account when it gets its first reply it hasn't read
+ * — one email per unread stretch, not one per message.
  */
 class SupportChat
 {
@@ -32,7 +40,11 @@ class SupportChat
                 ['user_id' => $user->id],
                 ['organization_id' => $user->organization_id, 'status' => SupportConversation::OPEN],
             );
+            $ownerHadUnread = $this->hasUnread($conversation, fromSupport: false, readUpTo: (int) $conversation->support_read_message_id);
             $message = $this->append($conversation, $user, false, $body);
+            if (! $ownerHadUnread) {
+                $this->emailOwners($conversation, $message);
+            }
             // Your own message is read by definition.
             $conversation->update(['status' => SupportConversation::OPEN, 'closed_at' => null, 'user_read_message_id' => $message->id]);
 
@@ -44,7 +56,12 @@ class SupportChat
     public function reply(SupportConversation $conversation, User $owner, string $body): SupportMessage
     {
         $message = DB::transaction(function () use ($conversation, $owner, $body) {
+            $userHadUnread = $this->hasUnread($conversation, fromSupport: true, readUpTo: (int) $conversation->user_read_message_id);
             $message = $this->append($conversation, $owner, true, $body);
+            $user = $conversation->user;
+            if (! $userHadUnread && $user?->is_active) {
+                MailOut::send($user->email, $user->name, fn (string $platform) => new SupportReplied($user, $message, $platform));
+            }
             $conversation->update(['support_read_message_id' => $message->id]);
 
             return $message;
@@ -60,6 +77,20 @@ class SupportChat
     {
         $latest = (int) $conversation->messages()->max('id');
         $conversation->update([$support ? 'support_read_message_id' : 'user_read_message_id' => $latest]);
+    }
+
+    private function hasUnread(SupportConversation $conversation, bool $fromSupport, int $readUpTo): bool
+    {
+        return $conversation->messages()->where('from_support', $fromSupport)->where('id', '>', $readUpTo)->exists();
+    }
+
+    /** Every active platform owner (they belong to no organization, so outside the tenant filter). */
+    private function emailOwners(SupportConversation $conversation, SupportMessage $message): void
+    {
+        $conversation->loadMissing(['user', 'organization']);
+        User::withoutGlobalScope(User::ORGANIZATION_SCOPE)
+            ->where('role', UserRole::Owner)->where('is_active', true)->get(['id', 'name', 'email'])
+            ->each(fn (User $owner) => MailOut::send($owner->email, $owner->name, fn (string $platform) => new SupportMessageReceived($conversation, $message, $platform)));
     }
 
     private function append(SupportConversation $conversation, User $sender, bool $fromSupport, string $body): SupportMessage

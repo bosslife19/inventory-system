@@ -28,6 +28,7 @@ src/
   app/
     _layout.tsx               <- fonts, persisted React Query cache, session, Stack.Protected
     sign-in.tsx, sign-up.tsx   <- signed-out screens (AuthShell); sign-up makes a free-plan organization with you as admin
+    forgot-password.tsx        <- emails a reset link; the new password is chosen on the web page it opens
     set-password.tsx           <- forced after signing in with a temporary password (new or reset account)
     verify-email.tsx           <- after signing up: confirm the emailed link before the app opens (resend / check again)
     (app)/_layout.tsx          <- signed-in stack for everyone but the owner; wires sync + push

@@ -2774,3 +2774,8 @@ a.cell-title:hover {
     display: inline-grid;
   }
 }
+
+.login-card .forgot-link {
+  margin: -0.4rem 0 0.9rem;
+  text-align: right;
+}

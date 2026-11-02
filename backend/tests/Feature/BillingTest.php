@@ -244,3 +244,19 @@ it('lets the owner set tiers and see each organization’s payments', function (
     $this->actingAs($owner)->getJson("/api/v1/owner/organizations/{$this->org->id}/payments")->assertOk()
         ->assertJsonPath('data.0.reference', $reference)->assertJsonPath('data.0.paid_by', $this->admin->name);
 });
+
+it('emails the admin who paid a receipt, once', function () {
+    Illuminate\Support\Facades\Mail::fake();
+    $reference = ($this->checkout)($this->standard, 3)->json('data.reference');
+
+    ($this->asAdmin)()->postJson("/api/v1/billing/payments/{$reference}/verify")->assertOk()->assertJsonPath('data.status', 'success');
+    ($this->asAdmin)()->postJson("/api/v1/billing/payments/{$reference}/verify")->assertOk(); // already settled
+
+    Illuminate\Support\Facades\Mail::assertSent(App\Mail\PaymentReceipt::class, 1);
+    Illuminate\Support\Facades\Mail::assertSent(App\Mail\PaymentReceipt::class, function (App\Mail\PaymentReceipt $mail) use ($reference) {
+        $html = $mail->render();
+
+        return $mail->hasTo($this->admin->email) && $mail->payment->reference === $reference
+            && str_contains($html, '₦225,000.00') && str_contains($html, 'Standard, 3 months');
+    });
+});

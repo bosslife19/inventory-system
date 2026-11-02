@@ -43,6 +43,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:3,10');
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,10,password-forgot');
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:10,10,password-reset');
     Route::get('auth/email/verify/{user}/{hash}', [AuthController::class, 'verifyEmail'])
         ->whereNumber('user')->middleware('throttle:12,1,email-verify')->name('verification.verify');
     Route::get('platform', [PlatformController::class, 'show']);

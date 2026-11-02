@@ -104,6 +104,7 @@ class UserAdminService
         $user->update(['password' => $password, 'must_change_password' => true]);
         $this->signOutEverywhere($user);
         AuditLog::record('user.password_reset', "Password of {$user->name} reset to a temporary one".self::at($user), $user, AuditLog::placeOfUser($user));
+        AccountMail::passwordReset($user, $password);
 
         return $password;
     }

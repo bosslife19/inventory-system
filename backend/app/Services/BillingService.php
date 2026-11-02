@@ -9,6 +9,8 @@ use App\Models\PlanTier;
 use App\Models\User;
 use App\Services\Paystack\PaystackClient;
 use App\Services\Paystack\PaystackException;
+use App\Mail\PaymentReceipt;
+use App\Support\MailOut;
 use App\Support\AuditLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -127,6 +129,11 @@ class BillingService
             $months = $payment->months === 1 ? '1 month' : "{$payment->months} months";
             AuditLog::record('organization.paid', "₦{$naira} paid for the {$payment->tier->name} plan, {$months}, to {$end->toDateString()} (ref {$payment->reference})",
                 $payment, actor: $payment->user);
+
+            // The receipt goes to the admin who paid, once this commits.
+            if ($payment->user) {
+                MailOut::send($payment->user->email, $payment->user->name, fn (string $platform) => new PaymentReceipt($payment->fresh(['organization', 'tier', 'user']), $platform));
+            }
 
             return $payment;
         });

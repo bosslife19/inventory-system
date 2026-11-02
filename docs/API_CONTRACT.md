@@ -61,6 +61,15 @@ human-readable contract and the rules behind it.
   - `GET /auth/email/verify/{user}/{hash}?expires=…&signature=…` (public; the emailed link, signed, valid
     `EMAIL_VERIFICATION_HOURS`, default 48) → redirects to `FRONTEND_URL/email-verified?status=verified|already|expired|invalid`.
   - Accounts that existed before this was added count as confirmed.
+- **Forgot password** (public).
+  - `POST /auth/forgot-password` — body `{ email }` → 200 `{ message }`, the same answer whether or not an account
+    uses it. An active account is emailed a one-time link to `FRONTEND_URL/reset-password?token=…&email=…`, valid
+    60 minutes; another request within a minute sends nothing. Throttled to 5 per 10 min.
+  - `POST /auth/reset-password` — body `email, token, password, password_confirmation` (≥ 8 characters) → 200
+    `{ message }`. Signs the account out everywhere (tokens and FCM token cleared), clears `must_change_password`
+    and confirms the email. A wrong, used or expired token → 422 on `token`. Throttled to 10 per 10 min.
+- **Password resets by someone else** (`POST /users/{id}/reset-password`, the owner console's admin reset) email the new
+  temporary password to the account, as well as returning it once.
 - **Deactivated accounts.** Their tokens are revoked; any request still made with one gets 401.
 - Sign-in is refused (422 on `email`) for members of a suspended organization.
 
@@ -534,6 +543,20 @@ every few seconds while the chat is open, and the unread endpoints about once a 
   account's phone (title `Support replied`, data `{ type: "support", url: "stockcard://support" }`, any plan);
   `POST /owner/support/conversations/{id}/read` → 204; `PUT /owner/support/conversations/{id}` `{ status }` closes or
   reopens it; `GET /owner/support/unread` → `{ data: { unread_conversations } }`.
+
+## Email
+Sent inline over SMTP (`MAIL_*` in `.env`; no queue), after the action commits; a failure is logged and never undoes
+the action. Links point at `FRONTEND_URL`, except the email-confirmation link, which is a signed API URL (`APP_URL`).
+
+| Email | To | When |
+|:--|:--|:--|
+| Your account | the new account | someone else creates it (Users, owner console, CSV import) |
+| Confirm your email | the new admin | self sign-up; again on `POST /auth/email/resend` |
+| Reset your password | the account | `POST /auth/forgot-password` |
+| Your password was reset | the account | an admin, officer or the owner resets it |
+| Support: new message | every active platform owner | the first message in a conversation the owner hasn't read |
+| Support replied | the account | the first owner reply the account hasn't read |
+| Receipt | the admin who paid | a Paystack payment succeeds |
 
 ## Standard response shape
 ```json
